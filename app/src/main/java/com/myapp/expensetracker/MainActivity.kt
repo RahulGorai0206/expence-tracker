@@ -2,7 +2,6 @@ package com.myapp.expensetracker
 
 import android.Manifest
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -38,6 +37,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.core.net.toUri
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
@@ -287,8 +287,7 @@ fun NavItem(selected: Boolean, icon: ImageVector, label: String, onClick: () -> 
 @Composable
 fun HomeScreen(onTransactionClick: (Transaction) -> Unit) {
     val context = LocalContext.current
-    val db = remember { AppDatabase.getDatabase(context) }
-    val transactions by db.transactionDao().getAllTransactions().collectAsState(initial = emptyList())
+    val transactions by AppDatabase.getDatabase(context).transactionDao().getAllTransactions().collectAsState(initial = emptyList())
     val totalBalance = transactions.sumOf { it.amount }
     
     val wholePart = totalBalance.toInt().toString()
@@ -314,7 +313,7 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit) {
                 color = Color(0xFF3C2A51)
             )
             Text(
-                text = if (decimalPart.isEmpty()) ".00" else decimalPart,
+                text = decimalPart.ifEmpty { ".00" },
                 style = MaterialTheme.typography.displayMedium.copy(
                     fontSize = 32.sp,
                     color = Color(0xFFCAB6FF)
@@ -374,10 +373,10 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit) {
 fun SettingsScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val db = remember { AppDatabase.getDatabase(context) }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
     if (showDeleteDialog) {
+        val db = AppDatabase.getDatabase(context)
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             title = { Text("Clear All Data") },
@@ -461,8 +460,7 @@ fun SettingsScreen() {
 @Composable
 fun TransactionScreen(onTransactionClick: (Transaction) -> Unit) {
     val context = LocalContext.current
-    val db = remember { AppDatabase.getDatabase(context) }
-    val transactions by db.transactionDao().getAllTransactions().collectAsState(initial = emptyList())
+    val transactions by AppDatabase.getDatabase(context).transactionDao().getAllTransactions().collectAsState(initial = emptyList())
 
     Column(modifier = Modifier.padding(16.dp)) {
         Text("Expanse Tracker", style = MaterialTheme.typography.headlineLarge, color = Color(0xFF3C2A51), fontWeight = FontWeight.Bold)
@@ -553,7 +551,6 @@ fun TransactionListItem(transaction: Transaction, onClick: () -> Unit) {
 fun TransactionDetailScreen(transaction: Transaction, onBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val db = remember { AppDatabase.getDatabase(context) }
     var showCategoryDialog by remember { mutableStateOf(false) }
 
     if (showCategoryDialog) {
@@ -562,7 +559,7 @@ fun TransactionDetailScreen(transaction: Transaction, onBack: () -> Unit) {
             onDismiss = { showCategoryDialog = false },
             onCategorySelected = { newCategory ->
                 scope.launch {
-                    db.transactionDao().insert(transaction.copy(category = newCategory))
+                    AppDatabase.getDatabase(context).transactionDao().insert(transaction.copy(category = newCategory))
                     onBack() // Go back to refresh or we'd need to observe the specific item
                 }
                 showCategoryDialog = false
@@ -653,7 +650,7 @@ fun TransactionDetailScreen(transaction: Transaction, onBack: () -> Unit) {
                 Button(
                     onClick = {
                         val uri = "geo:${transaction.latitude},${transaction.longitude}?q=${transaction.latitude},${transaction.longitude}(Transaction Location)"
-                        val mapIntent = Intent(Intent.ACTION_VIEW, Uri.parse(uri))
+                        val mapIntent = Intent(Intent.ACTION_VIEW, uri.toUri())
                         mapIntent.setPackage("com.google.android.apps.maps")
                         context.startActivity(mapIntent)
                     },
@@ -685,7 +682,7 @@ fun TransactionDetailScreen(transaction: Transaction, onBack: () -> Unit) {
             TextButton(
                 onClick = {
                     scope.launch {
-                        db.transactionDao().delete(transaction)
+                        AppDatabase.getDatabase(context).transactionDao().delete(transaction)
                         onBack()
                     }
                 },
