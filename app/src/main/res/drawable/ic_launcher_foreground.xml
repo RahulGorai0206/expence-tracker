@@ -1,0 +1,22 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- The "Kinetic Vault" - A fluid, living energy coin -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,26c-15.4,0 -28,12.6 -28,28c0,15.4 12.6,28 28,28c15.4,0 28,-12.6 28,-28C82,38.6 69.4,26 54,26zM54,76c-12.1,0 -22,-9.9 -22,-22c0,-12.1 9.9,-22 22,-22c12.1,0 22,9.9 22,22C76,66.1 66.1,76 54,76z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M48,46h12c2.2,0 4,1.8 4,4v0c0,2.2 -1.8,4 -4,4h-8c-2.2,0 -4,1.8 -4,4v0c0,2.2 1.8,4 4,4h12"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,42v4M54,62v4"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+</vector>
