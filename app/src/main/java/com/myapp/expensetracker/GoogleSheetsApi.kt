@@ -9,8 +9,9 @@ interface GoogleSheetsApi {
     @POST("exec") // This is the standard endpoint for Google Apps Script Web Apps
     suspend fun logTransaction(
         @Field("sender") sender: String,
-        @Field("amount") amount: Double,
+        @Field("amount") amount: String,
         @Field("date") date: String,
-        @Field("body") body: String
+        @Field("body") body: String,
+        @Field("type") type: String
     )
 }

@@ -31,11 +31,15 @@ object GoogleSheetsLogger {
     suspend fun log(transaction: Transaction) {
         try {
             val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+            val amountValue = if (transaction.amount < 0) -transaction.amount else transaction.amount
+            val type = if (transaction.amount < 0) "Expense" else "Income"
+            
             api.logTransaction(
                 sender = transaction.sender,
-                amount = transaction.amount,
+                amount = "%.2f".format(amountValue),
                 date = dateFormat.format(Date(transaction.date)),
-                body = transaction.body
+                body = transaction.body,
+                type = type
             )
         } catch (e: Exception) {
             e.printStackTrace()
