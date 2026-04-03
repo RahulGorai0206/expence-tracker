@@ -10,14 +10,19 @@ import android.content.Intent
 import android.os.Build
 import android.provider.Telephony
 import androidx.core.app.NotificationCompat
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import android.annotation.SuppressLint
 
 class SmsReceiver : BroadcastReceiver() {
     private val scope = CoroutineScope(Dispatchers.IO)
     private val extractor = TransactionExtractor()
 
+    @SuppressLint("MissingPermission")
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action == Telephony.Sms.Intents.SMS_RECEIVED_ACTION) {
             val messages = Telephony.Sms.Intents.getMessagesFromIntent(intent)
@@ -25,12 +30,22 @@ class SmsReceiver : BroadcastReceiver() {
             
             scope.launch {
                 try {
+                    val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+                    val location = try {
+                        fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).await()
+                    } catch (e: Exception) {
+                        null
+                    }
+
                     for (sms in messages) {
                         val body = sms.messageBody
                         val sender = sms.displayOriginatingAddress ?: "Unknown"
                         val timestamp = sms.timestampMillis
 
-                        val transaction = extractor.extractTransaction(body, sender, timestamp)
+                        val transaction = extractor.extractTransaction(body, sender, timestamp)?.copy(
+                            latitude = location?.latitude,
+                            longitude = location?.longitude
+                        )
                         if (transaction != null) {
                             showTransactionNotification(context, transaction)
                         }
@@ -61,6 +76,8 @@ class SmsReceiver : BroadcastReceiver() {
             putExtra("date", transaction.date)
             putExtra("body", transaction.body)
             putExtra("category", transaction.category)
+            putExtra("latitude", transaction.latitude ?: 0.0)
+            putExtra("longitude", transaction.longitude ?: 0.0)
         }
         val acceptPendingIntent = PendingIntent.getBroadcast(context, notificationId, acceptIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
 
@@ -92,6 +109,8 @@ class SmsReceiver : BroadcastReceiver() {
             putExtra("date", transaction.date)
             putExtra("body", transaction.body)
             putExtra("category", transaction.category)
+            putExtra("latitude", transaction.latitude ?: 0.0)
+            putExtra("longitude", transaction.longitude ?: 0.0)
         }
         val timeoutPendingIntent = PendingIntent.getBroadcast(context, notificationId + 2, timeoutIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         

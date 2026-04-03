@@ -3,8 +3,11 @@ package com.myapp.expensetracker
 import android.Manifest
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import android.content.Intent
+import android.net.Uri
 import androidx.activity.enableEdgeToEdge
 import androidx.core.view.WindowCompat
 import androidx.compose.foundation.background
@@ -15,6 +18,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
@@ -51,7 +56,9 @@ class MainActivity : ComponentActivity() {
         val permissions = mutableListOf(
             Manifest.permission.READ_SMS,
             Manifest.permission.RECEIVE_SMS,
-            Manifest.permission.POST_NOTIFICATIONS
+            Manifest.permission.POST_NOTIFICATIONS,
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION
         )
 
         requestPermissionLauncher.launch(permissions.toTypedArray())
@@ -68,6 +75,15 @@ class MainActivity : ComponentActivity() {
 fun MainScreen() {
     var selectedTab by remember { mutableIntStateOf(1) } // Default to Transactions as per screenshot
     var selectedTransaction by remember { mutableStateOf<Transaction?>(null) }
+
+    // Handle system back button
+    BackHandler(enabled = selectedTransaction != null || selectedTab != 0) {
+        if (selectedTransaction != null) {
+            selectedTransaction = null
+        } else {
+            selectedTab = 0
+        }
+    }
 
     if (selectedTransaction != null) {
         TransactionDetailScreen(
@@ -469,6 +485,7 @@ fun TransactionDetailScreen(transaction: Transaction, onBack: () -> Unit) {
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -518,6 +535,34 @@ fun TransactionDetailScreen(transaction: Transaction, onBack: () -> Unit) {
             Spacer(modifier = Modifier.height(32.dp))
             DetailCard("TRANSACTION DATE", SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault()).format(Date(transaction.date)), Icons.Default.CalendarMonth)
             DetailCard("MERCHANT", transaction.sender, null, "SMS Source: ${transaction.sender}")
+            
+            if (transaction.latitude != null && transaction.longitude != null) {
+                DetailCard(
+                    label = "LOCATION CAPTURED",
+                    value = "${"%.4f".format(transaction.latitude)}, ${"%.4f".format(transaction.longitude)}",
+                    icon = Icons.Default.LocationOn,
+                    subValue = "Precise coordinates at time of SMS"
+                )
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Button(
+                    onClick = {
+                        val uri = "geo:${transaction.latitude},${transaction.longitude}?q=${transaction.latitude},${transaction.longitude}(Transaction Location)"
+                        val mapIntent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(uri))
+                        mapIntent.setPackage("com.google.android.apps.maps")
+                        context.startActivity(mapIntent)
+                    },
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFCAB6FF), contentColor = Color(0xFF3C2A51)),
+                    shape = RoundedCornerShape(28.dp)
+                ) {
+                    Icon(Icons.Default.Map, null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("View on Google Maps")
+                }
+            }
+
             DetailCard("CATEGORY", transaction.category, null, null, true)
             DetailCard("MEMO", "\"${transaction.body}\"")
             

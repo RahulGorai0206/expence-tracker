@@ -64,6 +64,7 @@ dependencies {
     ksp(libs.room.compiler)
 
     implementation(libs.mlkit.entity.extraction)
+    implementation("com.google.android.gms:play-services-location:21.3.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
     implementation(libs.retrofit)
     implementation(libs.retrofit.gson)

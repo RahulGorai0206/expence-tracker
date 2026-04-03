@@ -43,6 +43,8 @@ class NotificationReceiver : BroadcastReceiver() {
             val date = intent.getLongExtra("date", 0L)
             val body = intent.getStringExtra("body") ?: ""
             val category = intent.getStringExtra("category") ?: "Other"
+            val latitude = intent.getDoubleExtra("latitude", 0.0).takeIf { it != 0.0 }
+            val longitude = intent.getDoubleExtra("longitude", 0.0).takeIf { it != 0.0 }
 
             val transaction = Transaction(
                 sender = sender,
@@ -50,7 +52,9 @@ class NotificationReceiver : BroadcastReceiver() {
                 date = date,
                 body = body,
                 category = category,
-                status = "Cleared"
+                status = "Cleared",
+                latitude = latitude,
+                longitude = longitude
             )
 
             scope.launch {
