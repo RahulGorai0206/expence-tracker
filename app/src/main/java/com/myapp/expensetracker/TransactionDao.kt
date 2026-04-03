@@ -16,4 +16,7 @@ interface TransactionDao {
 
     @androidx.room.Delete
     suspend fun delete(transaction: Transaction)
+
+    @Query("DELETE FROM transactions")
+    suspend fun deleteAllTransactions()
 }

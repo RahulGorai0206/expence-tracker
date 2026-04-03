@@ -33,22 +33,35 @@ class TransactionExtractor {
                 if (extractedAmount != null) break
             }
 
-            val keywords = listOf("debited", "spent", "paid", "credited", "transaction", "transferred", "payment", "received", "sent")
-            val isTransaction = keywords.any { body.contains(it, ignoreCase = true) }
+            val spendKeywords = listOf("debited", "spent", "paid", "transferred", "payment", "sent", "withdrawal", "purchased")
+            val receiveKeywords = listOf("credited", "received", "deposited", "added")
+            
+            val isSpend = spendKeywords.any { body.contains(it, ignoreCase = true) }
+            val isReceive = receiveKeywords.any { body.contains(it, ignoreCase = true) }
+            val isTransaction = isSpend || isReceive
 
-            val category = when {
-                body.contains("Starbucks", true) || body.contains("Coffee", true) || body.contains("Restaurant", true) -> "Dining"
-                body.contains("Uber", true) || body.contains("Taxi", true) || body.contains("Fuel", true) -> "Transport"
-                body.contains("Market", true) || body.contains("Grocery", true) || body.contains("Foods", true) -> "Groceries"
-                body.contains("Shopping", true) || body.contains("Mall", true) || body.contains("Store", true) -> "Shopping"
-                body.contains("Bill", true) || body.contains("Utility", true) || body.contains("Electricity", true) -> "Bills"
-                else -> "Other"
+            // Regex fallback for "Rs. 45 sent" style messages if ML Kit misses it
+            if (extractedAmount == null) {
+                val rsRegex = """(?:Rs\.?|INR)\s*(\d+(?:\.\d{1,2})?)""".toRegex(RegexOption.IGNORE_CASE)
+                val match = rsRegex.find(body)
+                extractedAmount = match?.groupValues?.get(1)?.toDoubleOrNull()
             }
 
             if (extractedAmount != null && isTransaction) {
+                val finalAmount = if (isSpend) -extractedAmount else extractedAmount
+                
+                val category = when {
+                    body.contains("Starbucks", true) || body.contains("Coffee", true) || body.contains("Restaurant", true) -> "Dining"
+                    body.contains("Uber", true) || body.contains("Taxi", true) || body.contains("Fuel", true) -> "Transport"
+                    body.contains("Market", true) || body.contains("Grocery", true) || body.contains("Foods", true) -> "Groceries"
+                    body.contains("Shopping", true) || body.contains("Mall", true) || body.contains("Store", true) -> "Shopping"
+                    body.contains("Bill", true) || body.contains("Utility", true) || body.contains("Electricity", true) -> "Bills"
+                    else -> "Other"
+                }
+
                 Transaction(
                     sender = sender,
-                    amount = extractedAmount,
+                    amount = finalAmount,
                     date = timestamp,
                     body = body,
                     category = category,

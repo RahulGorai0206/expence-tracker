@@ -5,6 +5,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.enableEdgeToEdge
+import androidx.core.view.WindowCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -43,6 +45,7 @@ class MainActivity : ComponentActivity() {
     ) { _ -> }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         
         val permissions = mutableListOf(
@@ -249,13 +252,46 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit) {
 
 @Composable
 fun SettingsScreen() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val db = remember { AppDatabase.getDatabase(context) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Clear All Data") },
+            text = { Text("Are you sure you want to delete all transactions? This action cannot be undone.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        scope.launch {
+                            db.transactionDao().deleteAllTransactions()
+                            showDeleteDialog = false
+                        }
+                    }
+                ) {
+                    Text("Clear All", color = Color.Red)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            },
+            shape = RoundedCornerShape(28.dp),
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        )
+    }
+
     Column(modifier = Modifier.padding(16.dp)) {
         Text("Settings", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(20.dp))
         
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+            shape = RoundedCornerShape(24.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -274,6 +310,28 @@ fun SettingsScreen() {
                         Text("Track transactions automatically", style = MaterialTheme.typography.bodySmall)
                     }
                     Switch(checked = true, onCheckedChange = {})
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { showDeleteDialog = true },
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)),
+            shape = RoundedCornerShape(24.dp)
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.DeleteForever, "Clear Data", tint = Color.Red)
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text("Clear All Data", fontWeight = FontWeight.Bold, color = Color.Red)
+                    Text("Delete all transaction history", style = MaterialTheme.typography.bodySmall, color = Color.Red.copy(alpha = 0.7f))
                 }
             }
         }
