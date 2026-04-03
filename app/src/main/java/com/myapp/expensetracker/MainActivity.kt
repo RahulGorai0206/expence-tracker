@@ -3,6 +3,13 @@ package com.myapp.expensetracker
 import android.Manifest
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.compose.animation.*
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.*
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -85,65 +92,92 @@ fun MainScreen() {
         }
     }
 
-    if (selectedTransaction != null) {
-        TransactionDetailScreen(
-            transaction = selectedTransaction!!,
-            onBack = { selectedTransaction = null }
-        )
-    } else {
-        Scaffold(
-            bottomBar = {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 24.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = Color.White,
-                        tonalElevation = 4.dp,
-                        shadowElevation = 12.dp,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
+    Box(modifier = Modifier.fillMaxSize()) {
+        AnimatedContent(
+            targetState = selectedTransaction,
+            transitionSpec = {
+                if (targetState != null) {
+                    slideInVertically { height -> height } + fadeIn() togetherWith
+                            fadeOut(animationSpec = tween(300))
+                } else {
+                    fadeIn(animationSpec = tween(300)) togetherWith
+                            slideOutVertically { height -> height } + fadeOut()
+                }
+            },
+            label = "TransactionDetailTransition"
+        ) { transaction ->
+            if (transaction != null) {
+                TransactionDetailScreen(
+                    transaction = transaction,
+                    onBack = { selectedTransaction = null }
+                )
+            } else {
+                Scaffold(
+                    bottomBar = {
+                        Box(
                             modifier = Modifier
-                                .padding(vertical = 8.dp, horizontal = 8.dp)
-                                .fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceAround,
-                            verticalAlignment = Alignment.CenterVertically
+                                .fillMaxWidth()
+                                .padding(horizontal = 24.dp, vertical = 24.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            NavItem(
-                                selected = selectedTab == 0,
-                                icon = if (selectedTab == 0) Icons.Filled.Home else Icons.Default.Home,
-                                label = "Home",
-                                onClick = { selectedTab = 0 }
-                            )
-                            NavItem(
-                                selected = selectedTab == 1,
-                                icon = if (selectedTab == 1) Icons.Filled.ReceiptLong else Icons.AutoMirrored.Filled.ReceiptLong,
-                                label = "Transactions",
-                                onClick = { selectedTab = 1 }
-                            )
-                            NavItem(
-                                selected = selectedTab == 2,
-                                icon = if (selectedTab == 2) Icons.Filled.Settings else Icons.Default.Settings,
-                                label = "Settings",
-                                onClick = { selectedTab = 2 }
-                            )
+                            Surface(
+                                shape = CircleShape,
+                                color = Color.White,
+                                tonalElevation = 4.dp,
+                                shadowElevation = 12.dp,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .padding(vertical = 8.dp, horizontal = 8.dp)
+                                        .fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceAround,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    NavItem(
+                                        selected = selectedTab == 0,
+                                        icon = if (selectedTab == 0) Icons.Filled.Home else Icons.Default.Home,
+                                        label = "Home",
+                                        onClick = { selectedTab = 0 }
+                                    )
+                                    NavItem(
+                                        selected = selectedTab == 1,
+                                        icon = if (selectedTab == 1) Icons.Filled.ReceiptLong else Icons.AutoMirrored.Filled.ReceiptLong,
+                                        label = "Transactions",
+                                        onClick = { selectedTab = 1 }
+                                    )
+                                    NavItem(
+                                        selected = selectedTab == 2,
+                                        icon = if (selectedTab == 2) Icons.Filled.Settings else Icons.Default.Settings,
+                                        label = "Settings",
+                                        onClick = { selectedTab = 2 }
+                                    )
+                                }
+                            }
                         }
                     }
-                }
-            }
-        ) { padding ->
-            Box(modifier = Modifier
-                .padding(padding)
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)) {
-                when (selectedTab) {
-                    0 -> HomeScreen(onTransactionClick = { selectedTransaction = it })
-                    1 -> TransactionScreen(onTransactionClick = { selectedTransaction = it })
-                    2 -> SettingsScreen()
+                ) { padding ->
+                    Box(
+                        modifier = Modifier
+                            .padding(padding)
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.background)
+                    ) {
+                        AnimatedContent(
+                            targetState = selectedTab,
+                            transitionSpec = {
+                                fadeIn(animationSpec = tween(300)) togetherWith
+                                        fadeOut(animationSpec = tween(300))
+                            },
+                            label = "TabTransition"
+                        ) { targetTab ->
+                            when (targetTab) {
+                                0 -> HomeScreen(onTransactionClick = { selectedTransaction = it })
+                                1 -> TransactionScreen(onTransactionClick = { selectedTransaction = it })
+                                2 -> SettingsScreen()
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -152,8 +186,21 @@ fun MainScreen() {
 
 @Composable
 fun NavItem(selected: Boolean, icon: ImageVector, label: String, onClick: () -> Unit) {
-    val backgroundColor = if (selected) Color(0xFFF3E8FF) else Color.Transparent
-    val contentColor = if (selected) Color(0xFF6750A4) else Color(0xFFCAB6FF)
+    val backgroundColor by animateColorAsState(
+        targetValue = if (selected) Color(0xFFF3E8FF) else Color.Transparent,
+        animationSpec = tween(300),
+        label = "NavBackground"
+    )
+    val contentColor by animateColorAsState(
+        targetValue = if (selected) Color(0xFF6750A4) else Color(0xFFCAB6FF),
+        animationSpec = tween(300),
+        label = "NavContent"
+    )
+    val scale by animateFloatAsState(
+        targetValue = if (selected) 1.1f else 1f,
+        animationSpec = tween(300),
+        label = "NavScale"
+    )
 
     Box(
         modifier = Modifier
@@ -163,7 +210,10 @@ fun NavItem(selected: Boolean, icon: ImageVector, label: String, onClick: () -> 
             .padding(horizontal = 24.dp, vertical = 12.dp),
         contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.graphicsLayer(scaleX = scale, scaleY = scale)
+        ) {
             Icon(
                 imageVector = icon,
                 contentDescription = label,
