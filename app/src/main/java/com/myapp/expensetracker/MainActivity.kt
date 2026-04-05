@@ -316,10 +316,10 @@ fun NavItem(selected: Boolean, icon: ImageVector, label: String, onClick: () -> 
 fun HomeScreen(onTransactionClick: (Transaction) -> Unit) {
     val context = LocalContext.current
     val transactions by AppDatabase.getDatabase(context).transactionDao().getAllTransactions().collectAsState(initial = emptyList())
-    val totalBalance = transactions.sumOf { it.amount }
+    val totalBalance = remember(transactions) { transactions.sumOf { it.amount } }
     
-    val wholePart = totalBalance.toInt().toString()
-    val decimalPart = "%.2f".format(totalBalance % 1).removePrefix("0").removePrefix("-0")
+    val wholePart = remember(totalBalance) { totalBalance.toInt().toString() }
+    val decimalPart = remember(totalBalance) { "%.2f".format(totalBalance % 1).removePrefix("0").removePrefix("-0") }
 
     Column(modifier = Modifier.padding(16.dp)) {
         Box(
@@ -461,7 +461,7 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit) {
             verticalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier.fillMaxSize()
         ) {
-            items(transactions.take(10)) { transaction ->
+            items(transactions.take(10), key = { it.id }) { transaction ->
                 TransactionListItem(transaction, onClick = { onTransactionClick(transaction) })
             }
             item { Spacer(modifier = Modifier.height(80.dp)) }
@@ -613,11 +613,8 @@ fun TransactionScreen(onTransactionClick: (Transaction) -> Unit) {
         
         Spacer(modifier = Modifier.height(24.dp))
 
-        LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.fillMaxSize()
-        ) {
-            val grouped = transactions.groupBy { 
+        val grouped = remember(transactions) {
+            transactions.groupBy { 
                 val date = Date(it.date)
                 val now = Calendar.getInstance()
                 val target = Calendar.getInstance().apply { time = date }
@@ -632,7 +629,12 @@ fun TransactionScreen(onTransactionClick: (Transaction) -> Unit) {
                     SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault()).format(date).uppercase()
                 }
             }
-            
+        }
+
+        LazyColumn(
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxSize()
+        ) {
             grouped.forEach { (date, items) ->
                 item {
                     Spacer(modifier = Modifier.height(16.dp))
@@ -652,7 +654,7 @@ fun TransactionScreen(onTransactionClick: (Transaction) -> Unit) {
                         )
                     }
                 }
-                items(items) { transaction ->
+                items(items, key = { it.id }) { transaction ->
                     TransactionListItem(transaction, onClick = { onTransactionClick(transaction) })
                 }
             }
@@ -980,6 +982,19 @@ fun CategorySelectionDialog(
     )
 }
 
+private val AppTypography = Typography(
+    displayLarge = TextStyle(fontWeight = FontWeight.Black, fontSize = 57.sp, lineHeight = 64.sp, letterSpacing = (-0.25).sp),
+    displayMedium = TextStyle(fontWeight = FontWeight.Bold, fontSize = 45.sp, lineHeight = 52.sp, letterSpacing = 0.sp),
+    displaySmall = TextStyle(fontWeight = FontWeight.Bold, fontSize = 36.sp, lineHeight = 44.sp, letterSpacing = 0.sp),
+    headlineLarge = TextStyle(fontWeight = FontWeight.ExtraBold, fontSize = 32.sp, lineHeight = 40.sp, letterSpacing = 0.sp),
+    headlineMedium = TextStyle(fontWeight = FontWeight.Bold, fontSize = 28.sp, lineHeight = 36.sp, letterSpacing = 0.sp),
+    titleLarge = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 22.sp, lineHeight = 28.sp, letterSpacing = 0.sp),
+    titleMedium = TextStyle(fontWeight = FontWeight.Bold, fontSize = 16.sp, lineHeight = 24.sp, letterSpacing = 0.15.sp),
+    bodyLarge = TextStyle(fontWeight = FontWeight.Normal, fontSize = 16.sp, lineHeight = 24.sp, letterSpacing = 0.5.sp),
+    labelLarge = TextStyle(fontWeight = FontWeight.Bold, fontSize = 14.sp, lineHeight = 20.sp, letterSpacing = 0.1.sp),
+    labelMedium = TextStyle(fontWeight = FontWeight.Medium, fontSize = 12.sp, lineHeight = 16.sp, letterSpacing = 0.5.sp)
+)
+
 @Composable
 fun LedgerTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
     val colorScheme = if (darkTheme) {
@@ -1032,18 +1047,6 @@ fun LedgerTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable
         )
     }
 
-    val AppTypography = Typography(
-        displayLarge = TextStyle(fontWeight = FontWeight.Black, fontSize = 57.sp, lineHeight = 64.sp, letterSpacing = (-0.25).sp),
-        displayMedium = TextStyle(fontWeight = FontWeight.Bold, fontSize = 45.sp, lineHeight = 52.sp, letterSpacing = 0.sp),
-        displaySmall = TextStyle(fontWeight = FontWeight.Bold, fontSize = 36.sp, lineHeight = 44.sp, letterSpacing = 0.sp),
-        headlineLarge = TextStyle(fontWeight = FontWeight.ExtraBold, fontSize = 32.sp, lineHeight = 40.sp, letterSpacing = 0.sp),
-        headlineMedium = TextStyle(fontWeight = FontWeight.Bold, fontSize = 28.sp, lineHeight = 36.sp, letterSpacing = 0.sp),
-        titleLarge = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 22.sp, lineHeight = 28.sp, letterSpacing = 0.sp),
-        titleMedium = TextStyle(fontWeight = FontWeight.Bold, fontSize = 16.sp, lineHeight = 24.sp, letterSpacing = 0.15.sp),
-        bodyLarge = TextStyle(fontWeight = FontWeight.Normal, fontSize = 16.sp, lineHeight = 24.sp, letterSpacing = 0.5.sp),
-        labelLarge = TextStyle(fontWeight = FontWeight.Bold, fontSize = 14.sp, lineHeight = 20.sp, letterSpacing = 0.1.sp),
-        labelMedium = TextStyle(fontWeight = FontWeight.Medium, fontSize = 12.sp, lineHeight = 16.sp, letterSpacing = 0.5.sp)
-    )
 
     MaterialTheme(
         colorScheme = colorScheme,

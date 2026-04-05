@@ -5,11 +5,17 @@ import com.google.mlkit.nl.languageid.LanguageIdentification
 import kotlinx.coroutines.tasks.await
 
 class TransactionExtractor {
-    private val languageIdentifier = LanguageIdentification.getClient()
-    private val entityExtractor = EntityExtraction.getClient(
-        EntityExtractorOptions.Builder(EntityExtractorOptions.ENGLISH)
-            .build()
-    )
+    companion object {
+        private val languageIdentifier by lazy { LanguageIdentification.getClient() }
+        private val entityExtractor by lazy {
+            EntityExtraction.getClient(
+                EntityExtractorOptions.Builder(EntityExtractorOptions.ENGLISH)
+                    .build()
+            )
+        }
+        @Volatile
+        private var modelDownloaded = false
+    }
 
     private val categoriesMap = mapOf(
         "Dining" to listOf("Starbucks", "Coffee", "Restaurant", "Zomato", "Swiggy", "McDonalds", "KFC", "Burger", "Pizza", "Cafe", "Bake"),
@@ -43,7 +49,10 @@ class TransactionExtractor {
                 // For now, let's just proceed as many banking SMS are English-heavy anyway
             }
 
-            entityExtractor.downloadModelIfNeeded().await()
+            if (!modelDownloaded) {
+                entityExtractor.downloadModelIfNeeded().await()
+                modelDownloaded = true
+            }
 
             val params = EntityExtractionParams.Builder(body)
                 .setEntityTypesFilter(setOf(

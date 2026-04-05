@@ -30,24 +30,34 @@ class SmsReceiver : BroadcastReceiver() {
             
             scope.launch {
                 try {
-                    val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
-                    val location = try {
-                        fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).await()
-                    } catch (e: Exception) {
-                        null
-                    }
-
+                    // Extract transactions first without GPS
+                    val pendingTransactions = mutableListOf<Transaction>()
                     for (sms in messages) {
                         val body = sms.messageBody
                         val sender = sms.displayOriginatingAddress ?: "Unknown"
                         val timestamp = sms.timestampMillis
 
-                        val transaction = extractor.extractTransaction(body, sender, timestamp)?.copy(
-                            latitude = location?.latitude,
-                            longitude = location?.longitude
-                        )
+                        val transaction = extractor.extractTransaction(body, sender, timestamp)
                         if (transaction != null) {
-                            showTransactionNotification(context, transaction)
+                            pendingTransactions.add(transaction)
+                        }
+                    }
+
+                    // Only activate GPS if we actually detected a transaction
+                    if (pendingTransactions.isNotEmpty()) {
+                        val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+                        val location = try {
+                            fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).await()
+                        } catch (e: Exception) {
+                            null
+                        }
+
+                        for (transaction in pendingTransactions) {
+                            val withLocation = transaction.copy(
+                                latitude = location?.latitude,
+                                longitude = location?.longitude
+                            )
+                            showTransactionNotification(context, withLocation)
                         }
                     }
                 } finally {
