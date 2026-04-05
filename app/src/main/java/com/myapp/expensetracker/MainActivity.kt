@@ -239,10 +239,14 @@ fun MainScreen(isDarkTheme: Boolean, onDarkThemeChange: (Boolean) -> Unit) {
                             targetState = selectedTab,
                             transitionSpec = {
                                 val direction = if (targetState > initialState) 1 else -1
-                                (slideInHorizontally(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) { width -> direction * width / 3 } + 
-                                 fadeIn(animationSpec = tween(300)))
-                                    .togetherWith(slideOutHorizontally(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) { width -> -direction * width / 3 } + 
-                                                 fadeOut(animationSpec = tween(300)))
+                                val spec = spring<IntOffset>(
+                                    dampingRatio = Spring.DampingRatioLowBouncy,
+                                    stiffness = Spring.StiffnessMediumLow
+                                )
+                                (slideInHorizontally(animationSpec = spec) { width -> direction * width / 2 } + 
+                                 fadeIn(animationSpec = tween(400)))
+                                    .togetherWith(slideOutHorizontally(animationSpec = spec) { width -> -direction * width / 2 } + 
+                                                 fadeOut(animationSpec = tween(400)))
                             },
                             label = "TabTransition"
                         ) { targetTab ->
@@ -263,17 +267,17 @@ fun MainScreen(isDarkTheme: Boolean, onDarkThemeChange: (Boolean) -> Unit) {
 fun NavItem(selected: Boolean, icon: ImageVector, label: String, onClick: () -> Unit) {
     val backgroundColor by animateColorAsState(
         targetValue = if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-        animationSpec = tween(300),
+        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium),
         label = "NavBackground"
     )
     val contentColor by animateColorAsState(
         targetValue = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-        animationSpec = tween(300),
+        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium),
         label = "NavContent"
     )
     val scale by animateFloatAsState(
-        targetValue = if (selected) 1.1f else 1f,
-        animationSpec = tween(300),
+        targetValue = if (selected) 1.15f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
         label = "NavScale"
     )
 
@@ -287,7 +291,10 @@ fun NavItem(selected: Boolean, icon: ImageVector, label: String, onClick: () -> 
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.graphicsLayer(scaleX = scale, scaleY = scale)
+            modifier = Modifier.graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
         ) {
             Icon(
                 imageVector = icon,
@@ -318,52 +325,85 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(220.dp)
+                .height(240.dp)
                 .clip(RoundedCornerShape(32.dp))
                 .background(
                     Brush.linearGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.primary,
-                            MaterialTheme.colorScheme.primaryContainer,
-                            MaterialTheme.colorScheme.secondary
-                        )
+                        0.0f to MaterialTheme.colorScheme.primary,
+                        0.6f to MaterialTheme.colorScheme.secondary,
+                        1.0f to MaterialTheme.colorScheme.tertiary,
+                        start = androidx.compose.ui.geometry.Offset(0f, 0f),
+                        end = androidx.compose.ui.geometry.Offset(1000f, 1000f)
                     )
                 )
-                .padding(24.dp)
         ) {
-            Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
-                Column {
-                    Text(
-                        "CURRENT BALANCE",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
-                        letterSpacing = 1.5.sp,
-                        fontWeight = FontWeight.Bold
+            // Decorative Glow
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.radialGradient(
+                            listOf(Color.White.copy(alpha = 0.15f), Color.Transparent),
+                            center = androidx.compose.ui.geometry.Offset(100f, 100f),
+                            radius = 400f
+                        )
                     )
+            )
+            
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(28.dp),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            "TOTAL BALANCE",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f),
+                            letterSpacing = 2.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                        Icon(
+                            Icons.Default.Wallet,
+                            null,
+                            tint = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                     
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
                     
                     Row(verticalAlignment = Alignment.Bottom) {
                         Text(
                             text = if (totalBalance >= 0) "₹ " else "-₹ ",
-                            style = MaterialTheme.typography.headlineLarge,
+                            style = MaterialTheme.typography.displaySmall,
                             color = MaterialTheme.colorScheme.onPrimary,
-                            fontWeight = FontWeight.Light
+                            fontWeight = FontWeight.Light,
+                            modifier = Modifier.padding(bottom = 8.dp)
                         )
                         Text(
                             text = wholePart.replace("-", ""),
-                            style = MaterialTheme.typography.displayLarge.copy(fontSize = 42.sp),
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            fontWeight = FontWeight.Black
+                            style = MaterialTheme.typography.displayLarge.copy(
+                                fontSize = 48.sp,
+                                fontWeight = FontWeight.Black,
+                                letterSpacing = (-1).sp
+                            ),
+                            color = MaterialTheme.colorScheme.onPrimary
                         )
                         Text(
                             text = decimalPart.ifEmpty { ".00" },
                             style = MaterialTheme.typography.displaySmall.copy(
-                                fontSize = 24.sp,
-                                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f),
+                                fontSize = 28.sp,
+                                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
                                 fontWeight = FontWeight.Bold
                             ),
-                            modifier = Modifier.padding(bottom = 6.dp)
+                            modifier = Modifier.padding(bottom = 8.dp, start = 2.dp)
                         )
                     }
                 }
@@ -371,28 +411,27 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.Bottom
                 ) {
-                    Surface(
-                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.15f),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                    Column {
+                        Text(
+                            "ACCOUNT",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f),
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Surface(
+                            color = Color.White.copy(alpha = 0.2f),
+                            shape = RoundedCornerShape(12.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
                         ) {
-                            Icon(
-                                Icons.Default.AccountBalanceWallet,
-                                null,
-                                modifier = Modifier.size(16.dp),
-                                tint = MaterialTheme.colorScheme.onPrimary
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                "Savings Account",
+                                "Primary Account",
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                                 style = MaterialTheme.typography.labelLarge,
                                 color = MaterialTheme.colorScheme.onPrimary,
-                                fontWeight = FontWeight.Medium
+                                fontWeight = FontWeight.Bold
                             )
                         }
                     }
@@ -400,8 +439,8 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit) {
                     Icon(
                         Icons.AutoMirrored.Filled.TrendingUp,
                         null,
-                        modifier = Modifier.size(32.dp),
-                        tint = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.5f)
+                        modifier = Modifier.size(40.dp).graphicsLayer { alpha = 0.6f },
+                        tint = MaterialTheme.colorScheme.onPrimary
                     )
                 }
             }
@@ -567,7 +606,7 @@ fun TransactionScreen(onTransactionClick: (Transaction) -> Unit) {
             fontWeight = FontWeight.Black
         )
         Text(
-            "Every transaction is a step towards your goal.", 
+            "Tracking your financial journey.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
