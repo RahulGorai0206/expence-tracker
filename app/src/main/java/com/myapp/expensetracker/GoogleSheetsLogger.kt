@@ -1,5 +1,6 @@
 package com.myapp.expensetracker
 
+import android.content.Context
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -8,8 +9,8 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 object GoogleSheetsLogger {
-    // URL updated with your deployment ID
-    private const val BASE_URL = "https://script.google.com/macros/s/AKfycbxyiomOjiR4YwFhlVKv_HRv5FekZjPdQ58QN-NEgWRtvOhUmKdU8m9rFHULj4qThDx60A/"
+    private var api: GoogleSheetsApi? = null
+    private var currentUrl: String? = null
 
     private val logging = HttpLoggingInterceptor().apply {
         level = HttpLoggingInterceptor.Level.BODY
@@ -21,25 +22,42 @@ object GoogleSheetsLogger {
         .followSslRedirects(true)
         .build()
 
-    private val api = Retrofit.Builder()
-        .baseUrl(BASE_URL)
-        .addConverterFactory(GsonConverterFactory.create())
-        .client(client)
-        .build()
-        .create(GoogleSheetsApi::class.java)
+    private const val DUMMY_BASE_URL = "https://script.google.com/"
+
+    fun init(context: Context) {
+        val sharedPrefs = context.getSharedPreferences("prefs", Context.MODE_PRIVATE)
+        val url = sharedPrefs.getString("script_url", "") ?: ""
+        updateUrl(url)
+    }
+
+    fun updateUrl(url: String) {
+        currentUrl = url
+        if (api == null) {
+            api = Retrofit.Builder()
+                .baseUrl(DUMMY_BASE_URL)
+                .addConverterFactory(GsonConverterFactory.create())
+                .client(client)
+                .build()
+                .create(GoogleSheetsApi::class.java)
+        }
+    }
 
     suspend fun log(transaction: Transaction) {
+        val loggerApi = api ?: return
+        val url = currentUrl ?: return
+        if (url.isBlank()) return
+        
         try {
-            val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+            // Ensure we use the absolute value as requested by the user's script logic
             val amountValue = if (transaction.amount < 0) -transaction.amount else transaction.amount
-            val type = if (transaction.amount < 0) "Expense" else "Income"
             
-            api.logTransaction(
-                sender = transaction.sender,
+            loggerApi.logTransaction(
+                url = url,
+                sender = "", // Not used in user's new script
                 amount = "%.2f".format(amountValue),
-                date = dateFormat.format(Date(transaction.date)),
-                body = transaction.body,
-                type = type
+                date = "", // Not used in user's new script
+                body = "", // Not used in user's new script
+                type = ""  // Not used in user's new script
             )
         } catch (e: Exception) {
             e.printStackTrace()

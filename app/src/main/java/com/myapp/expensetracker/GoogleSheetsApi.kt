@@ -3,11 +3,13 @@ package com.myapp.expensetracker
 import retrofit2.http.Field
 import retrofit2.http.FormUrlEncoded
 import retrofit2.http.POST
+import retrofit2.http.Url
 
 interface GoogleSheetsApi {
     @FormUrlEncoded
-    @POST("exec") // This is the standard endpoint for Google Apps Script Web Apps
+    @POST
     suspend fun logTransaction(
+        @Url url: String,
         @Field("sender") sender: String,
         @Field("amount") amount: String,
         @Field("date") date: String,

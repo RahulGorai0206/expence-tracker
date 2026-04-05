@@ -1,8 +1,12 @@
 package com.myapp.expensetracker
 
 import android.Manifest
-import android.content.Intent
 import android.app.Activity
+import android.content.Context
+import android.content.Intent
+import android.content.ClipboardManager
+import android.content.ClipData
+import android.widget.Toast
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -38,6 +42,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.core.net.toUri
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
@@ -71,6 +77,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
@@ -103,6 +110,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import kotlin.math.abs
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandIn
@@ -128,6 +136,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        GoogleSheetsLogger.init(this)
         
         val permissions = mutableListOf(
             Manifest.permission.READ_SMS,
@@ -320,8 +329,14 @@ fun NavItem(selected: Boolean, icon: ImageVector, label: String, onClick: () -> 
 fun HomeScreen(onTransactionClick: (Transaction) -> Unit) {
     val context = LocalContext.current
     val transactions by AppDatabase.getDatabase(context).transactionDao().getAllTransactions().collectAsState(initial = emptyList())
-    val totalBalance = remember(transactions) { transactions.sumOf { it.amount } }
+    val totalSpent = remember(transactions) { transactions.filter { it.amount < 0 }.sumOf { abs(it.amount) } }
     
+    val sharedPrefs = remember { context.getSharedPreferences("prefs", Context.MODE_PRIVATE) }
+    val budget = remember { mutableStateOf(sharedPrefs.getFloat("budget", 0f)) }
+    
+    val remainingBudget = budget.value - totalSpent
+    
+    val totalBalance = remember(transactions) { transactions.sumOf { it.amount } }
     val wholePart = remember(totalBalance) { totalBalance.toInt().toString() }
     val decimalPart = remember(totalBalance) { "%.2f".format(totalBalance % 1).removePrefix("0").removePrefix("-0") }
 
@@ -419,7 +434,7 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit) {
                 ) {
                     Column {
                         Text(
-                            "ACCOUNT",
+                            "REMAINING BUDGET",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f),
                             fontWeight = FontWeight.Bold
@@ -431,7 +446,7 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit) {
                             border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
                         ) {
                             Text(
-                                "Primary Account",
+                                "₹ ${"%,.0f".format(remainingBudget)} / ₹ ${"%,.0f".format(budget.value)}",
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                                 style = MaterialTheme.typography.labelLarge,
                                 color = MaterialTheme.colorScheme.onPrimary,
@@ -478,6 +493,50 @@ fun SettingsScreen(isDarkTheme: Boolean, onDarkThemeChange: (Boolean) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var showDeleteDialog by remember { mutableStateOf(false) }
+    
+    val sharedPrefs = remember { context.getSharedPreferences("prefs", Context.MODE_PRIVATE) }
+    
+    var budgetText by remember { mutableStateOf(sharedPrefs.getFloat("budget", 0f).let { if (it == 0f) "" else it.toString() }) }
+    var isBudgetSaved by remember { mutableStateOf(sharedPrefs.contains("budget")) }
+    
+    var sheetUrl by remember { mutableStateOf(sharedPrefs.getString("sheet_url", "") ?: "") }
+    var scriptUrl by remember { mutableStateOf(sharedPrefs.getString("script_url", "") ?: "") }
+    var isCloudSaved by remember { mutableStateOf(sharedPrefs.contains("script_url")) }
+
+    val extractedSheetId = remember(sheetUrl) {
+        val pattern = "/spreadsheets/d/([a-zA-Z0-9-_]+)".toRegex()
+        pattern.find(sheetUrl)?.groupValues?.get(1) ?: "YOUR_SHEET_ID_HERE"
+    }
+
+    val scriptCode = """
+function doPost(e) {
+  // Your Spreadsheet ID
+  var ss = SpreadsheetApp.openById("$extractedSheetId");
+  var sheet = ss.getSheets()[0];
+  var amount = e.parameter.amount;
+
+  // 1. Find the first empty cell in Column C
+  var columnCVals = sheet.getRange("C:C").getValues();
+  var targetRow = 1;
+  
+  for (var i = 0; i < columnCVals.length; i++) {
+    // Check if the cell in Column C is empty
+    if (columnCVals[i][0] === "" || columnCVals[i][0] === null) {
+      targetRow = i + 1;
+      break;
+    }
+    // If we reach the end of existing data, set target to next new row
+    if (i === columnCVals.length - 1) {
+      targetRow = columnCVals.length + 1;
+    }
+  }
+
+  // 2. Insert data into that specific row
+  sheet.getRange(targetRow, 3).setValue(amount);
+  
+  return ContentService.createTextOutput("Success").setMimeType(ContentService.MimeType.TEXT);
+}
+    """.trimIndent()
 
     if (showDeleteDialog) {
         val db = AppDatabase.getDatabase(context)
@@ -508,7 +567,7 @@ fun SettingsScreen(isDarkTheme: Boolean, onDarkThemeChange: (Boolean) -> Unit) {
         )
     }
 
-    Column(modifier = Modifier.padding(20.dp)) {
+    Column(modifier = Modifier.padding(20.dp).verticalScroll(rememberScrollState())) {
         Text(
             "Preferences", 
             style = MaterialTheme.typography.headlineLarge, 
@@ -521,6 +580,166 @@ fun SettingsScreen(isDarkTheme: Boolean, onDarkThemeChange: (Boolean) -> Unit) {
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         
+        Spacer(modifier = Modifier.height(32.dp))
+        
+        Text("BUDGET PLANNING", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.5.sp)
+        Spacer(modifier = Modifier.height(12.dp))
+        
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+            shape = RoundedCornerShape(24.dp)
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text("Monthly Target Budget", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = budgetText,
+                    onValueChange = { budgetText = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Budget Amount (₹)") },
+                    enabled = !isBudgetSaved,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    shape = RoundedCornerShape(16.dp)
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    if (isBudgetSaved) {
+                        TextButton(
+                            onClick = { 
+                                isBudgetSaved = false 
+                                sharedPrefs.edit().remove("budget").apply()
+                            }
+                        ) {
+                            Text("Reset", color = MaterialTheme.colorScheme.error)
+                        }
+                    } else {
+                        Button(
+                            onClick = {
+                                val budget = budgetText.toFloatOrNull() ?: 0f
+                                sharedPrefs.edit().putFloat("budget", budget).apply()
+                                isBudgetSaved = true
+                                Toast.makeText(context, "Budget saved", Toast.LENGTH_SHORT).show()
+                            },
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Save")
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Text("CLOUD SYNC (GOOGLE SHEETS)", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.5.sp)
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+            shape = RoundedCornerShape(24.dp)
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text("1. Google Sheet URL", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                OutlinedTextField(
+                    value = sheetUrl,
+                    onValueChange = { sheetUrl = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isCloudSaved,
+                    placeholder = { Text("https://docs.google.com/spreadsheets/d/...") },
+                    shape = RoundedCornerShape(16.dp)
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("2. Apps Script Code", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                Spacer(modifier = Modifier.height(8.dp))
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            scriptCode,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = {
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                val clip = ClipData.newPlainText("Apps Script Code", scriptCode)
+                                clipboard.setPrimaryClip(clip)
+                                Toast.makeText(context, "Code copied!", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.align(Alignment.End),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text("Copy Code")
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("3. Instructions", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                Text(
+                    "• Go to Extensions > Apps Script in your sheet.\n" +
+                    "• Paste the code above and Save.\n" +
+                    "• Click 'Deploy' > 'New Deployment'.\n" +
+                    "• Select 'Web App'. Set 'Who has access' to 'Anyone'.\n" +
+                    "• Copy the 'Web App URL' and paste below.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("4. Apps Script Web App URL", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                OutlinedTextField(
+                    value = scriptUrl,
+                    onValueChange = { scriptUrl = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isCloudSaved,
+                    placeholder = { Text("https://script.google.com/macros/s/...") },
+                    shape = RoundedCornerShape(16.dp)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    if (isCloudSaved) {
+                        TextButton(
+                            onClick = { 
+                                isCloudSaved = false 
+                                sharedPrefs.edit().remove("sheet_url").remove("script_url").apply()
+                                GoogleSheetsLogger.updateUrl("")
+                            }
+                        ) {
+                            Text("Reset", color = MaterialTheme.colorScheme.error)
+                        }
+                    } else {
+                        Button(
+                            onClick = {
+                                if (scriptUrl.isNotBlank()) {
+                                    sharedPrefs.edit()
+                                        .putString("sheet_url", sheetUrl)
+                                        .putString("script_url", scriptUrl)
+                                        .apply()
+                                    GoogleSheetsLogger.updateUrl(scriptUrl)
+                                    isCloudSaved = true
+                                    Toast.makeText(context, "Cloud sync saved", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, "Please enter Web App URL", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Save")
+                        }
+                    }
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(32.dp))
         
         Text("APPEARANCE", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.5.sp)
