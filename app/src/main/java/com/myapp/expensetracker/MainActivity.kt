@@ -2,6 +2,7 @@ package com.myapp.expensetracker
 
 import android.Manifest
 import android.content.Intent
+import android.app.Activity
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -71,6 +72,7 @@ import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -92,6 +94,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -113,6 +116,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.material.icons.filled.NightsStay
 import androidx.compose.material.icons.filled.Wallet
 import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.core.view.WindowCompat
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -997,6 +1001,14 @@ private val AppTypography = Typography(
 
 @Composable
 fun LedgerTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as Activity).window
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+        }
+    }
+
     val colorScheme = if (darkTheme) {
         darkColorScheme(
             primary = Color(0xFFC4D7FF),
