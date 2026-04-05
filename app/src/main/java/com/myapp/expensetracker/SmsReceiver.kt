@@ -66,7 +66,7 @@ class SmsReceiver : BroadcastReceiver() {
             notificationManager.createNotificationChannel(channel)
         }
 
-        val notificationId = transaction.date.toInt()
+        val notificationId = (transaction.date % Int.MAX_VALUE).toInt()
 
         val acceptIntent = Intent(context, NotificationReceiver::class.java).apply {
             action = "ACCEPT_TRANSACTION"
@@ -87,19 +87,23 @@ class SmsReceiver : BroadcastReceiver() {
         }
         val denyPendingIntent = PendingIntent.getBroadcast(context, notificationId + 1, denyIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
 
+        val triggerAt = System.currentTimeMillis() + 30000
+
         val notification = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle("New Transaction: ₹${transaction.amount}")
             .setContentText("From ${transaction.sender}")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
+            .setUsesChronometer(true)
+            .setChronometerCountDown(true)
+            .setWhen(triggerAt)
             .addAction(android.R.drawable.ic_input_add, "Accept", acceptPendingIntent)
             .addAction(android.R.drawable.ic_delete, "Deny", denyPendingIntent)
             .build()
 
         notificationManager.notify(notificationId, notification)
 
-        // Set timeout to auto-accept after 30 seconds
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val timeoutIntent = Intent(context, NotificationReceiver::class.java).apply {
             action = "TIMEOUT_TRANSACTION"
@@ -114,7 +118,14 @@ class SmsReceiver : BroadcastReceiver() {
         }
         val timeoutPendingIntent = PendingIntent.getBroadcast(context, notificationId + 2, timeoutIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         
-        val triggerAt = System.currentTimeMillis() + 30000
-        alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, timeoutPendingIntent)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (alarmManager.canScheduleExactAlarms()) {
+                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, timeoutPendingIntent)
+            } else {
+                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, timeoutPendingIntent)
+            }
+        } else {
+            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, timeoutPendingIntent)
+        }
     }
 }

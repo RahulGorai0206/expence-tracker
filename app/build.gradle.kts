@@ -64,6 +64,7 @@ dependencies {
     ksp(libs.room.compiler)
 
     implementation(libs.mlkit.entity.extraction)
+    implementation(libs.mlkit.language.id)
     implementation(libs.play.services.location)
     implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.retrofit)
