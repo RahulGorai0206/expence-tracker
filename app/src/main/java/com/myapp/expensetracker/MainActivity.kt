@@ -2,6 +2,7 @@ package com.myapp.expensetracker
 
 import android.Manifest
 import android.content.Context
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -39,6 +40,20 @@ import com.myapp.expensetracker.ui.theme.LedgerTheme
 class MainActivity : ComponentActivity() {
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
+    ) { results ->
+        val fineLocationGranted = results[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
+        val coarseLocationGranted = results[Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
+        
+        if (fineLocationGranted || coarseLocationGranted) {
+            // Foreground location granted, request background location separately for Android 11+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                backgroundPermissionLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+            }
+        }
+    }
+
+    private val backgroundPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
     ) { _ -> }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -128,7 +143,10 @@ fun MainScreen(isDarkTheme: Boolean, onDarkThemeChange: (Boolean) -> Unit) {
                 label = "ScreenTransition"
             ) { targetTab ->
                 when (targetTab) {
-                    0 -> HomeScreen(onTransactionClick = { selectedTransaction = it })
+                    0 -> HomeScreen(
+                        onTransactionClick = { selectedTransaction = it },
+                        onSeeAllClick = { selectedTab = 1 }
+                    )
                     1 -> TransactionScreen(onTransactionClick = { selectedTransaction = it })
                     2 -> SettingsScreen(isDarkTheme, onDarkThemeChange)
                 }
@@ -141,7 +159,7 @@ fun MainScreen(isDarkTheme: Boolean, onDarkThemeChange: (Boolean) -> Unit) {
             ) {
                 selectedTransaction?.let { transaction ->
                     TransactionDetailScreen(
-                        transaction = transaction,
+                        initialTransaction = transaction,
                         onBack = { selectedTransaction = null }
                     )
                 }

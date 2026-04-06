@@ -12,6 +12,7 @@ data class Transaction(
     val body: String,
     val category: String = "Other",
     val status: String = "Cleared",
+    val type: String = "automated",
     val latitude: Double? = null,
     val longitude: Double? = null
 )

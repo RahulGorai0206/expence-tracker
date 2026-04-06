@@ -19,7 +19,12 @@ class NotificationReceiver : BroadcastReceiver() {
         val action = intent.action
         val notificationId = intent.getIntExtra("notificationId", 0)
         
-        Log.d("NotificationReceiver", "Action: $action, ID: $notificationId")
+        val body = intent.getStringExtra("body") ?: ""
+        val category = intent.getStringExtra("category") ?: "Other"
+        val latitude = intent.getDoubleExtra("latitude", 0.0).takeIf { it != 0.0 }
+        val longitude = intent.getDoubleExtra("longitude", 0.0).takeIf { it != 0.0 }
+        
+        Log.d("NotificationReceiver", "Action: $action, ID: $notificationId, Body: $body")
 
         // Dismiss notification immediately
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -46,21 +51,22 @@ class NotificationReceiver : BroadcastReceiver() {
                     val sender = intent.getStringExtra("sender") ?: "Unknown"
                     val amount = intent.getDoubleExtra("amount", 0.0)
                     val date = intent.getLongExtra("date", System.currentTimeMillis())
-                    val body = intent.getStringExtra("body") ?: ""
-                    val category = intent.getStringExtra("category") ?: "Other"
-                    val latitude = intent.getDoubleExtra("latitude", 0.0).takeIf { it != 0.0 }
-                    val longitude = intent.getDoubleExtra("longitude", 0.0).takeIf { it != 0.0 }
+                    val bodyFromIntent = intent.getStringExtra("body") ?: ""
+                    val categoryFromIntent = intent.getStringExtra("category") ?: "Other"
+                    val latitudeFromIntent = intent.getDoubleExtra("latitude", 0.0).takeIf { it != 0.0 }
+                    val longitudeFromIntent = intent.getDoubleExtra("longitude", 0.0).takeIf { it != 0.0 }
 
                     if (amount != 0.0) {
                         val transaction = Transaction(
                             sender = sender,
                             amount = amount,
                             date = date,
-                            body = body,
-                            category = category,
+                            body = bodyFromIntent,
+                            category = categoryFromIntent,
                             status = if (action == "TIMEOUT_TRANSACTION") "Auto-Cleared" else "Cleared",
-                            latitude = latitude,
-                            longitude = longitude
+                            type = "automated",
+                            latitude = latitudeFromIntent,
+                            longitude = longitudeFromIntent
                         )
 
                         val db = AppDatabase.getDatabase(context)

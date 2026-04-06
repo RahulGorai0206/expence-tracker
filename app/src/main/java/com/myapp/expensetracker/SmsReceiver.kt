@@ -1,5 +1,6 @@
 package com.myapp.expensetracker
 
+import android.annotation.SuppressLint
 import android.app.AlarmManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -9,14 +10,16 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.provider.Telephony
+import android.util.Log
 import androidx.core.app.NotificationCompat
+import com.myapp.expensetracker.R
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import android.annotation.SuppressLint
+import kotlinx.coroutines.withTimeoutOrNull
 
 class SmsReceiver : BroadcastReceiver() {
     private val scope = CoroutineScope(Dispatchers.IO)
@@ -26,40 +29,52 @@ class SmsReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action == Telephony.Sms.Intents.SMS_RECEIVED_ACTION) {
             val messages = Telephony.Sms.Intents.getMessagesFromIntent(intent)
+            if (messages.isNullOrEmpty()) return
+            
             val pendingResult = goAsync()
             
             scope.launch {
                 try {
-                    // Extract transactions first without GPS
-                    val pendingTransactions = mutableListOf<Transaction>()
-                    for (sms in messages) {
-                        val body = sms.messageBody
-                        val sender = sms.displayOriginatingAddress ?: "Unknown"
-                        val timestamp = sms.timestampMillis
+                    // 1. Combine multi-part SMS messages to ensure full body is captured
+                    val fullBody = messages.joinToString("") { it.displayMessageBody ?: it.messageBody ?: "" }
+                    val firstSms = messages[0]
+                    val sender = firstSms.displayOriginatingAddress ?: "Unknown"
+                    val timestamp = firstSms.timestampMillis
 
-                        val transaction = extractor.extractTransaction(body, sender, timestamp)
-                        if (transaction != null) {
-                            pendingTransactions.add(transaction)
-                        }
-                    }
+                    Log.d("SmsReceiver", "Processing SMS from $sender: $fullBody")
 
-                    // Only activate GPS if we actually detected a transaction
-                    if (pendingTransactions.isNotEmpty()) {
+                    val transaction = extractor.extractTransaction(fullBody, sender, timestamp)
+                    
+                    if (transaction != null) {
+                        // 2. Enhanced Location Fetching with Timeout
                         val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
                         val location = try {
-                            fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).await()
+                            withTimeoutOrNull(5000) { // 5 second max wait
+                                val lastLoc = fusedLocationClient.lastLocation.await()
+                                // If last location is old (5 mins) or null, get fresh balanced location
+                                if (lastLoc == null || (System.currentTimeMillis() - lastLoc.time) > 5 * 60 * 1000) {
+                                    fusedLocationClient.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, null).await()
+                                } else {
+                                    lastLoc
+                                }
+                            }
                         } catch (e: Exception) {
+                            Log.e("SmsReceiver", "Location capture failed: ${e.message}")
                             null
                         }
 
-                        for (transaction in pendingTransactions) {
-                            val withLocation = transaction.copy(
-                                latitude = location?.latitude,
-                                longitude = location?.longitude
-                            )
-                            showTransactionNotification(context, withLocation)
+                        if (location == null) {
+                            Log.w("SmsReceiver", "Could not retrieve location for transaction")
                         }
+
+                        val withLocation = transaction.copy(
+                            latitude = location?.latitude,
+                            longitude = location?.longitude
+                        )
+                        showTransactionNotification(context, withLocation)
                     }
+                } catch (e: Exception) {
+                    Log.e("SmsReceiver", "Critical error in SMS processing", e)
                 } finally {
                     pendingResult.finish()
                 }
@@ -78,29 +93,31 @@ class SmsReceiver : BroadcastReceiver() {
 
         val notificationId = (transaction.date % Int.MAX_VALUE).toInt()
 
-        val acceptIntent = Intent(context, NotificationReceiver::class.java).apply {
-            action = "ACCEPT_TRANSACTION"
-            putExtra("notificationId", notificationId)
-            putExtra("sender", transaction.sender)
-            putExtra("amount", transaction.amount)
-            putExtra("date", transaction.date)
-            putExtra("body", transaction.body)
-            putExtra("category", transaction.category)
-            putExtra("latitude", transaction.latitude ?: 0.0)
-            putExtra("longitude", transaction.longitude ?: 0.0)
+        fun createTransactionIntent(action: String): Intent {
+            return Intent(context, NotificationReceiver::class.java).apply {
+                this.action = action
+                putExtra("notificationId", notificationId)
+                putExtra("sender", transaction.sender)
+                putExtra("amount", transaction.amount)
+                putExtra("date", transaction.date)
+                putExtra("body", transaction.body)
+                putExtra("category", transaction.category)
+                putExtra("latitude", transaction.latitude ?: 0.0)
+                putExtra("longitude", transaction.longitude ?: 0.0)
+            }
         }
-        val acceptPendingIntent = PendingIntent.getBroadcast(context, notificationId, acceptIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
 
-        val denyIntent = Intent(context, NotificationReceiver::class.java).apply {
+        val acceptPendingIntent = PendingIntent.getBroadcast(context, notificationId, createTransactionIntent("ACCEPT_TRANSACTION"), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val denyPendingIntent = PendingIntent.getBroadcast(context, notificationId + 1, Intent(context, NotificationReceiver::class.java).apply { 
             action = "DENY_TRANSACTION"
             putExtra("notificationId", notificationId)
-        }
-        val denyPendingIntent = PendingIntent.getBroadcast(context, notificationId + 1, denyIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        }, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
 
         val triggerAt = System.currentTimeMillis() + 30000
+        val timeoutPendingIntent = PendingIntent.getBroadcast(context, notificationId + 2, createTransactionIntent("TIMEOUT_TRANSACTION"), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
 
         val notification = NotificationCompat.Builder(context, channelId)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle("New Transaction: ₹${transaction.amount}")
             .setContentText("From ${transaction.sender}")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -115,19 +132,6 @@ class SmsReceiver : BroadcastReceiver() {
         notificationManager.notify(notificationId, notification)
 
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val timeoutIntent = Intent(context, NotificationReceiver::class.java).apply {
-            action = "TIMEOUT_TRANSACTION"
-            putExtra("notificationId", notificationId)
-            putExtra("sender", transaction.sender)
-            putExtra("amount", transaction.amount)
-            putExtra("date", transaction.date)
-            putExtra("body", transaction.body)
-            putExtra("category", transaction.category)
-            putExtra("latitude", transaction.latitude ?: 0.0)
-            putExtra("longitude", transaction.longitude ?: 0.0)
-        }
-        val timeoutPendingIntent = PendingIntent.getBroadcast(context, notificationId + 2, timeoutIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (alarmManager.canScheduleExactAlarms()) {
                 alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, timeoutPendingIntent)

@@ -1,5 +1,6 @@
 package com.myapp.expensetracker.ui.screens
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -19,6 +20,7 @@ import com.myapp.expensetracker.ui.components.TransactionListItem
 import java.text.SimpleDateFormat
 import java.util.*
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TransactionScreen(onTransactionClick: (Transaction) -> Unit) {
     val context = LocalContext.current
@@ -81,7 +83,9 @@ fun TransactionScreen(onTransactionClick: (Transaction) -> Unit) {
                     }
                 }
                 items(items, key = { it.id }) { transaction ->
-                    TransactionListItem(transaction, onClick = { onTransactionClick(transaction) })
+                    Box(modifier = Modifier.animateItemPlacement()) {
+                        TransactionListItem(transaction, onClick = { onTransactionClick(transaction) })
+                    }
                 }
             }
             item { Spacer(modifier = Modifier.height(100.dp)) }

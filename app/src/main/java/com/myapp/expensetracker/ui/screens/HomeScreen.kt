@@ -1,6 +1,7 @@
 package com.myapp.expensetracker.ui.screens
 
 import android.content.Context
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -9,6 +10,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Wallet
+import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,13 +26,24 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.myapp.expensetracker.AppDatabase
 import com.myapp.expensetracker.Transaction
+import com.myapp.expensetracker.ui.components.ManualTransactionBottomSheet
 import com.myapp.expensetracker.ui.components.TransactionListItem
 import kotlin.math.abs
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun HomeScreen(onTransactionClick: (Transaction) -> Unit) {
+fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> Unit) {
     val context = LocalContext.current
     val transactions by AppDatabase.getDatabase(context).transactionDao().getAllTransactions().collectAsState(initial = emptyList())
+    var showManualLog by remember { mutableStateOf(false) }
+
+    if (showManualLog) {
+        ManualTransactionBottomSheet(
+            onDismiss = { showManualLog = false },
+            onTransactionSaved = { showManualLog = false }
+        )
+    }
+
     val totalSpent = remember(transactions) { transactions.filter { it.amount < 0 }.sumOf { abs(it.amount) } }
     
     val sharedPrefs = remember { context.getSharedPreferences("prefs", Context.MODE_PRIVATE) }
@@ -205,7 +219,7 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit) {
                     color = MaterialTheme.colorScheme.onBackground,
                     fontWeight = FontWeight.Black
                 )
-                TextButton(onClick = { /* Navigate to History */ }) {
+                TextButton(onClick = onSeeAllClick) {
                     Text("See All", fontWeight = FontWeight.Bold)
                 }
             }
@@ -218,9 +232,24 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit) {
                 contentPadding = PaddingValues(bottom = 100.dp)
             ) {
                 items(transactions.take(10), key = { it.id }) { transaction ->
-                    TransactionListItem(transaction, onClick = { onTransactionClick(transaction) })
+                    Box(modifier = Modifier.animateItemPlacement()) {
+                        TransactionListItem(transaction, onClick = { onTransactionClick(transaction) })
+                    }
                 }
             }
+        }
+
+        // Floating Action Button for Manual Log
+        LargeFloatingActionButton(
+            onClick = { showManualLog = true },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(bottom = 40.dp, end = 24.dp),
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            shape = RoundedCornerShape(24.dp)
+        ) {
+            Icon(Icons.Default.Add, contentDescription = "Add Transaction", modifier = Modifier.size(32.dp))
         }
     }
 }

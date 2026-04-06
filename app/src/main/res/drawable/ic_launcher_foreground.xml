@@ -3,20 +3,40 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- The "Kinetic Vault" - A fluid, living energy coin -->
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M54,26c-15.4,0 -28,12.6 -28,28c0,15.4 12.6,28 28,28c15.4,0 28,-12.6 28,-28C82,38.6 69.4,26 54,26zM54,76c-12.1,0 -22,-9.9 -22,-22c0,-12.1 9.9,-22 22,-22c12.1,0 22,9.9 22,22C76,66.1 66.1,76 54,76z" />
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M48,46h12c2.2,0 4,1.8 4,4v0c0,2.2 -1.8,4 -4,4h-8c-2.2,0 -4,1.8 -4,4v0c0,2.2 1.8,4 4,4h12"
-        android:strokeColor="#FFFFFF"
-        android:strokeWidth="1.5"
-        android:strokeLineCap="round" />
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M54,42v4M54,62v4"
-        android:strokeColor="#FFFFFF"
-        android:strokeWidth="2"
-        android:strokeLineCap="round" />
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="0.75"
+        android:scaleY="0.75">
+        <!-- baseline -->
+        <path
+            android:strokeColor="#35245C"
+            android:strokeWidth="5.5"
+            android:strokeLineCap="round"
+            android:pathData="M24,76 L84,76" />
+        <!-- bar 1 (short) -->
+        <path
+            android:strokeColor="#35245C"
+            android:strokeWidth="5.5"
+            android:strokeLineCap="round"
+            android:pathData="M36,76 L36,62" />
+        <!-- bar 2 (medium) -->
+        <path
+            android:strokeColor="#35245C"
+            android:strokeWidth="5.5"
+            android:strokeLineCap="round"
+            android:pathData="M54,76 L54,52" />
+        <!-- bar 3 (tall) -->
+        <path
+            android:strokeColor="#35245C"
+            android:strokeWidth="5.5"
+            android:strokeLineCap="round"
+            android:pathData="M72,76 L72,36" />
+        <!-- circle on tallest bar -->
+        <path
+            android:strokeColor="#35245C"
+            android:strokeWidth="5.5"
+            android:strokeLineCap="round"
+            android:pathData="M72,30 m-6,0 a6,6 0,1 1,12 0 a6,6 0,1 1,-12 0" />
+    </group>
 </vector>

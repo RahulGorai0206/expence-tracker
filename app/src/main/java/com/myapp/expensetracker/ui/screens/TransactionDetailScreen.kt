@@ -24,24 +24,38 @@ import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import com.myapp.expensetracker.AppDatabase
 import com.myapp.expensetracker.Transaction
+import com.myapp.expensetracker.ui.components.getCategoryInfo
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TransactionDetailScreen(transaction: Transaction, onBack: () -> Unit) {
+fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    
+    // Observe the database for the specific transaction to ensure UI updates instantly
+    val transaction by AppDatabase.getDatabase(context).transactionDao()
+        .getTransactionById(initialTransaction.id)
+        .collectAsState(initial = initialTransaction)
+
+    // Handle case where transaction is null (e.g., just deleted)
+    if (transaction == null) {
+        LaunchedEffect(Unit) { onBack() }
+        return
+    }
+
+    val currentTransaction = transaction!!
     var showCategoryDialog by remember { mutableStateOf(false) }
 
     if (showCategoryDialog) {
         CategorySelectionDialog(
-            currentCategory = transaction.category,
+            currentCategory = currentTransaction.category,
             onDismiss = { showCategoryDialog = false },
             onCategorySelected = { newCategory ->
                 scope.launch {
-                    AppDatabase.getDatabase(context).transactionDao().insert(transaction.copy(category = newCategory))
+                    AppDatabase.getDatabase(context).transactionDao().insert(currentTransaction.copy(category = newCategory))
                 }
                 showCategoryDialog = false
             }
@@ -61,20 +75,20 @@ fun TransactionDetailScreen(transaction: Transaction, onBack: () -> Unit) {
                     IconButton(
                         modifier = Modifier.clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)),
                         onClick = {
-                        val locationInfo = if (transaction.latitude != null && transaction.longitude != null) {
-                            "\nLocation: https://www.google.com/maps/search/?api=1&query=${transaction.latitude},${transaction.longitude}"
+                        val locationInfo = if (currentTransaction.latitude != null && currentTransaction.longitude != null) {
+                            "\nLocation: https://www.google.com/maps/search/?api=1&query=${currentTransaction.latitude},${currentTransaction.longitude}"
                         } else ""
 
                         val shareText = """
                             Expense Tracker Transaction
                             --------------------------
-                            Merchant: ${transaction.sender}
-                            Amount: ₹${"%,.2f".format(transaction.amount)}
-                            Date: ${SimpleDateFormat("MMMM dd, yyyy HH:mm", Locale.getDefault()).format(Date(transaction.date))}
-                            Category: ${transaction.category}
-                            Status: ${transaction.status}$locationInfo
+                            Merchant: ${currentTransaction.sender}
+                            Amount: ₹${"%,.2f".format(currentTransaction.amount)}
+                            Date: ${SimpleDateFormat("MMMM dd, yyyy HH:mm", Locale.getDefault()).format(Date(currentTransaction.date))}
+                            Category: ${currentTransaction.category}
+                            Status: ${currentTransaction.status}$locationInfo
                             
-                            Message: ${transaction.body}
+                            Message: ${currentTransaction.body}
                         """.trimIndent()
                         
                         val sendIntent = Intent().apply {
@@ -98,32 +112,29 @@ fun TransactionDetailScreen(transaction: Transaction, onBack: () -> Unit) {
                 .padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            val (icon, color) = when(transaction.category) {
-                "Groceries" -> Icons.Default.ShoppingBag to MaterialTheme.colorScheme.secondaryContainer
-                "Transport" -> Icons.Default.DirectionsCar to MaterialTheme.colorScheme.tertiaryContainer
-                "Dining" -> Icons.Default.Restaurant to MaterialTheme.colorScheme.primaryContainer
-                else -> Icons.Default.Payments to MaterialTheme.colorScheme.surfaceVariant
-            }
+            val categoryInfo = getCategoryInfo(currentTransaction.category)
+            val icon = categoryInfo.icon
+            val color = categoryInfo.color
 
             Box(
                 modifier = Modifier
                     .size(96.dp)
                     .clip(RoundedCornerShape(28.dp))
-                    .background(color),
+                    .background(color.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(icon, null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                Icon(icon, null, modifier = Modifier.size(48.dp), tint = color)
             }
             
             Spacer(modifier = Modifier.height(24.dp))
             Text(
-                transaction.sender.uppercase(), 
+                currentTransaction.sender.uppercase(), 
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
                 letterSpacing = 2.sp
             )
             Text(
-                "₹${"%,.2f".format(transaction.amount)}",
+                "₹${"%,.2f".format(currentTransaction.amount)}",
                 style = MaterialTheme.typography.displayLarge.copy(fontSize = 52.sp),
                 color = MaterialTheme.colorScheme.onBackground
             )
@@ -134,7 +145,7 @@ fun TransactionDetailScreen(transaction: Transaction, onBack: () -> Unit) {
                     Row(modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(icon, null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(transaction.category, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                        Text(currentTransaction.category, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onPrimaryContainer)
                     }
                 }
                 Spacer(modifier = Modifier.width(12.dp))
@@ -142,31 +153,48 @@ fun TransactionDetailScreen(transaction: Transaction, onBack: () -> Unit) {
                     Row(modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.CheckCircle, null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(transaction.status, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                        Text(currentTransaction.status, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSecondaryContainer)
                     }
                 }
             }
             
             Spacer(modifier = Modifier.height(40.dp))
-            DetailCard("TRANSACTION DATE", SimpleDateFormat("MMMM dd, yyyy • hh:mm a", Locale.getDefault()).format(Date(transaction.date)), Icons.Default.CalendarMonth)
-            DetailCard("MERCHANT SOURCE", transaction.sender, null, "Identified from incoming SMS")
+            DetailCard("TRANSACTION DATE", SimpleDateFormat("MMMM dd, yyyy • hh:mm a", Locale.getDefault()).format(Date(currentTransaction.date)), Icons.Default.CalendarMonth)
             
-            if (transaction.latitude != null && transaction.longitude != null) {
+            val sourceLabel = if (currentTransaction.type == "manual") "LOGGED BY USER" else "MERCHANT SOURCE"
+            val sourceValue = currentTransaction.sender
+            val sourceSub = if (currentTransaction.type == "manual") "Manual entry via Dashboard" else "Identified from incoming SMS"
+            
+            DetailCard(sourceLabel, sourceValue, null, sourceSub)
+            
+            if (currentTransaction.type == "manual") {
+                DetailCard("NOTES / BODY", currentTransaction.body, Icons.Default.Description)
+            } else {
+                DetailCard("ORIGINAL MESSAGE", "\"${currentTransaction.body}\"", null, null, false)
+            }
+            
+            if (currentTransaction.latitude != null && currentTransaction.longitude != null) {
                 DetailCard(
-                    label = "LOCATION CAPTURED",
-                    value = "${"%.4f".format(transaction.latitude)}, ${"%.4f".format(transaction.longitude)}",
+                    label = if (currentTransaction.type == "manual") "LOCATION LOGGED" else "LOCATION CAPTURED",
+                    value = "${"%.4f".format(currentTransaction.latitude)}, ${"%.4f".format(currentTransaction.longitude)}",
                     icon = Icons.Default.LocationOn,
-                    subValue = "Precise coordinates at time of SMS"
+                    subValue = if (currentTransaction.type == "manual") "User location at time of logging" else "Precise coordinates at time of SMS"
                 )
                 
                 Spacer(modifier = Modifier.height(12.dp))
                 
                 Button(
                     onClick = {
-                        val uri = "geo:${transaction.latitude},${transaction.longitude}?q=${transaction.latitude},${transaction.longitude}(Transaction Location)"
-                        val mapIntent = Intent(Intent.ACTION_VIEW, uri.toUri())
-                        mapIntent.setPackage("com.google.android.apps.maps")
-                        context.startActivity(mapIntent)
+                        try {
+                            val uri = "geo:${currentTransaction.latitude},${currentTransaction.longitude}?q=${currentTransaction.latitude},${currentTransaction.longitude}(Transaction Location)"
+                            val mapIntent = Intent(Intent.ACTION_VIEW, uri.toUri())
+                            context.startActivity(mapIntent)
+                        } catch (e: Exception) {
+                            // Fallback to browser if no map app
+                            val webUri = "https://www.google.com/maps/search/?api=1&query=${currentTransaction.latitude},${currentTransaction.longitude}"
+                            val browserIntent = Intent(Intent.ACTION_VIEW, webUri.toUri())
+                            context.startActivity(browserIntent)
+                        }
                     },
                     modifier = Modifier.fillMaxWidth().height(60.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer),
@@ -176,9 +204,14 @@ fun TransactionDetailScreen(transaction: Transaction, onBack: () -> Unit) {
                     Spacer(modifier = Modifier.width(12.dp))
                     Text("View on Google Maps", fontWeight = FontWeight.Bold)
                 }
+            } else if (currentTransaction.type == "automated") {
+                DetailCard(
+                    label = "LOCATION",
+                    value = "Not captured",
+                    icon = Icons.Default.LocationOff,
+                    subValue = "Enable 'Allow all the time' location permission in Settings."
+                )
             }
-
-            DetailCard("ORIGINAL MESSAGE", "\"${transaction.body}\"", null, null, false)
             
             Spacer(modifier = Modifier.height(32.dp))
             
@@ -197,7 +230,7 @@ fun TransactionDetailScreen(transaction: Transaction, onBack: () -> Unit) {
                 IconButton(
                     onClick = {
                         scope.launch {
-                            AppDatabase.getDatabase(context).transactionDao().delete(transaction)
+                            AppDatabase.getDatabase(context).transactionDao().delete(currentTransaction)
                             onBack()
                         }
                     },

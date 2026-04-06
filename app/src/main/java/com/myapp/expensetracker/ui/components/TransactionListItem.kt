@@ -41,12 +41,9 @@ fun TransactionListItem(transaction: Transaction, onClick: () -> Unit) {
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            val (icon, color) = when(transaction.category) {
-                "Groceries" -> Icons.Default.ShoppingBag to Color(0xFF81C784)
-                "Transport" -> Icons.Default.DirectionsCar to Color(0xFF64B5F6)
-                "Dining" -> Icons.Default.Restaurant to Color(0xFFFF8A65)
-                else -> Icons.Default.Payments to Color(0xFFBA68C8)
-            }
+            val categoryInfo = getCategoryInfo(transaction.category)
+            val icon = categoryInfo.icon
+            val color = categoryInfo.color
             
             Box(
                 modifier = Modifier
@@ -79,6 +76,21 @@ fun TransactionListItem(transaction: Transaction, onClick: () -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                     letterSpacing = 1.sp
                 )
+                
+                Spacer(modifier = Modifier.height(4.dp))
+                
+                Surface(
+                    color = (if (transaction.type == "manual") MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.secondaryContainer).copy(alpha = 0.2f),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text(
+                        transaction.type.uppercase(),
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp),
+                        color = if (transaction.type == "manual") MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
             
             Column(horizontalAlignment = Alignment.End) {
