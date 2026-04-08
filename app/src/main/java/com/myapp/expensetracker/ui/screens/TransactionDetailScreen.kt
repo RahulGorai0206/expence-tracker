@@ -1,6 +1,9 @@
 package com.myapp.expensetracker.ui.screens
 
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.view.View
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -18,14 +21,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
 import androidx.core.net.toUri
 import com.myapp.expensetracker.AppDatabase
 import com.myapp.expensetracker.Transaction
 import com.myapp.expensetracker.ui.components.getCategoryInfo
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -34,6 +43,7 @@ import java.util.*
 fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val view = LocalView.current
     
     // Observe the database for the specific transaction to ensure UI updates instantly
     val transaction by AppDatabase.getDatabase(context).transactionDao()
@@ -62,6 +72,51 @@ fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit)
         )
     }
 
+    fun captureAndShare() {
+        scope.launch {
+            val bitmap = withContext(Dispatchers.Main) {
+                val b = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
+                val canvas = Canvas(b)
+                view.draw(canvas)
+                b
+            }
+
+            val uri = withContext(Dispatchers.IO) {
+                val imagesDir = File(context.cacheDir, "shared_images")
+                if (!imagesDir.exists()) imagesDir.mkdirs()
+                val file = File(imagesDir, "transaction_${currentTransaction.id}.png")
+                FileOutputStream(file).use { 
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) 
+                }
+                FileProvider.getUriForFile(context, "com.myapp.expensetracker.fileprovider", file)
+            }
+
+            val locationInfo = if (currentTransaction.latitude != null && currentTransaction.longitude != null) {
+                "\nLocation: https://www.google.com/maps/search/?api=1&query=${currentTransaction.latitude},${currentTransaction.longitude}"
+            } else ""
+
+            val shareText = """
+                Expense Tracker Transaction
+                --------------------------
+                Merchant: ${currentTransaction.sender}
+                Amount: ₹${"%,.2f".format(currentTransaction.amount)}
+                Date: ${SimpleDateFormat("MMMM dd, yyyy HH:mm", Locale.getDefault()).format(Date(currentTransaction.date))}
+                Category: ${currentTransaction.category}
+                Status: ${currentTransaction.status}$locationInfo
+                
+                Message: ${currentTransaction.body}
+            """.trimIndent()
+
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "image/png"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(Intent.EXTRA_TEXT, shareText)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            context.startActivity(Intent.createChooser(intent, "Share Transaction"))
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -74,30 +129,8 @@ fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit)
                 actions = {
                     IconButton(
                         modifier = Modifier.clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)),
-                        onClick = {
-                        val locationInfo = if (currentTransaction.latitude != null && currentTransaction.longitude != null) {
-                            "\nLocation: https://www.google.com/maps/search/?api=1&query=${currentTransaction.latitude},${currentTransaction.longitude}"
-                        } else ""
-
-                        val shareText = """
-                            Expense Tracker Transaction
-                            --------------------------
-                            Merchant: ${currentTransaction.sender}
-                            Amount: ₹${"%,.2f".format(currentTransaction.amount)}
-                            Date: ${SimpleDateFormat("MMMM dd, yyyy HH:mm", Locale.getDefault()).format(Date(currentTransaction.date))}
-                            Category: ${currentTransaction.category}
-                            Status: ${currentTransaction.status}$locationInfo
-                            
-                            Message: ${currentTransaction.body}
-                        """.trimIndent()
-                        
-                        val sendIntent = Intent().apply {
-                            action = Intent.ACTION_SEND
-                            putExtra(Intent.EXTRA_TEXT, shareText)
-                            type = "text/plain"
-                        }
-                        context.startActivity(Intent.createChooser(sendIntent, "Share Transaction"))
-                    }) { Icon(Icons.Default.Share, null, tint = MaterialTheme.colorScheme.primary) }
+                        onClick = { captureAndShare() }
+                    ) { Icon(Icons.Default.Share, null, tint = MaterialTheme.colorScheme.primary) }
                     Spacer(modifier = Modifier.width(8.dp))
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)

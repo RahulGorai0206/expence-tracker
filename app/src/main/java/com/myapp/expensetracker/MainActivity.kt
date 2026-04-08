@@ -137,7 +137,7 @@ fun MainScreen(isDarkTheme: Boolean, onDarkThemeChange: (Boolean) -> Unit) {
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
                         .padding(horizontal = 24.dp, vertical = 20.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.95f),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
                     shape = RoundedCornerShape(100.dp),
                     tonalElevation = 8.dp,
                     shadowElevation = 12.dp
