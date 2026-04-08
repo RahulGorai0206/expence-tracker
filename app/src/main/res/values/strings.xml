@@ -1,3 +1,21 @@
 <resources>
     <string name="app_name">Expense Tracker</string>
+    <string name="setup_get_started">Get Started</string>
+    <string name="setup_continue">Continue</string>
+    <string name="setup_finish">Finish Setup</string>
+    <string name="setup_welcome_title">Welcome to Ledger</string>
+    <string name="setup_welcome_description">Your personal financial companion. Track expenses, manage budgets, and stay on top of your money.</string>
+    <string name="setup_budget_title">Set Your Budget</string>
+    <string name="setup_budget_description">How much do you plan to spend this month?</string>
+    <string name="setup_budget_label">Monthly Budget</string>
+    <string name="setup_budget_placeholder">e.g. 50000</string>
+    <string name="setup_currency_prefix">₹ </string>
+    <string name="setup_budget_error">Please enter a budget amount</string>
+    <string name="setup_features_title">Powerful Features</string>
+    <string name="setup_feature_sms_title">Automatic SMS Tracking</string>
+    <string name="setup_feature_sms_desc">Ledger automatically detects transaction SMS to log your expenses.</string>
+    <string name="setup_feature_insights_title">Visual Insights</string>
+    <string name="setup_feature_insights_desc">Get detailed breakdowns of your spending habits with intuitive charts.</string>
+    <string name="setup_feature_cloud_title">Cloud Sync</string>
+    <string name="setup_feature_cloud_desc">Securely backup and sync your data with Google Sheets (Setup in Settings).</string>
 </resources>

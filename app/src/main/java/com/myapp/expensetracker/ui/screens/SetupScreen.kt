@@ -20,7 +20,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import com.myapp.expensetracker.R
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -125,9 +127,9 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
             ) {
                 Text(
                     text = when (currentStep) {
-                        0 -> "Get Started"
-                        1 -> "Continue"
-                        else -> "Finish Setup"
+                        0 -> stringResource(R.string.setup_get_started)
+                        1 -> stringResource(R.string.setup_continue)
+                        else -> stringResource(R.string.setup_finish)
                     },
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp
@@ -161,7 +163,7 @@ fun WelcomeStep() {
         }
         Spacer(modifier = Modifier.height(32.dp))
         Text(
-            text = "Welcome to Ledger",
+            text = stringResource(R.string.setup_welcome_title),
             style = MaterialTheme.typography.displaySmall,
             fontWeight = FontWeight.Black,
             color = MaterialTheme.colorScheme.primary,
@@ -169,7 +171,7 @@ fun WelcomeStep() {
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "Your personal financial companion. Track expenses, manage budgets, and stay on top of your money.",
+            text = stringResource(R.string.setup_welcome_description),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -185,14 +187,14 @@ fun BudgetStep(value: String, isError: Boolean, onValueChange: (String) -> Unit)
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            "Set Your Budget",
+            stringResource(R.string.setup_budget_title),
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            "How much do you plan to spend this month?",
+            stringResource(R.string.setup_budget_description),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -200,13 +202,13 @@ fun BudgetStep(value: String, isError: Boolean, onValueChange: (String) -> Unit)
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
-            label = { Text("Monthly Budget") },
-            placeholder = { Text("e.g. 50000") },
-            prefix = { Text("₹ ", fontWeight = FontWeight.Bold) },
+            label = { Text(stringResource(R.string.setup_budget_label)) },
+            placeholder = { Text(stringResource(R.string.setup_budget_placeholder)) },
+            prefix = { Text(stringResource(R.string.setup_currency_prefix), fontWeight = FontWeight.Bold) },
             isError = isError,
             supportingText = {
                 if (isError) {
-                    Text("Please enter a budget amount", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.setup_budget_error), color = MaterialTheme.colorScheme.error)
                 }
             },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -224,7 +226,7 @@ fun FeaturesStep() {
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            "Powerful Features",
+            stringResource(R.string.setup_features_title),
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground
@@ -233,20 +235,20 @@ fun FeaturesStep() {
         
         FeatureItem(
             icon = Icons.Default.Sms,
-            title = "Automatic SMS Tracking",
-            description = "Ledger automatically detects transaction SMS to log your expenses."
+            title = stringResource(R.string.setup_feature_sms_title),
+            description = stringResource(R.string.setup_feature_sms_desc)
         )
         Spacer(modifier = Modifier.height(24.dp))
         FeatureItem(
             icon = Icons.AutoMirrored.Filled.TrendingUp,
-            title = "Visual Insights",
-            description = "Get detailed breakdowns of your spending habits with intuitive charts."
+            title = stringResource(R.string.setup_feature_insights_title),
+            description = stringResource(R.string.setup_feature_insights_desc)
         )
         Spacer(modifier = Modifier.height(24.dp))
         FeatureItem(
             icon = Icons.Default.CloudSync,
-            title = "Cloud Sync",
-            description = "Securely backup and sync your data with Google Sheets (Setup in Settings)."
+            title = stringResource(R.string.setup_feature_cloud_title),
+            description = stringResource(R.string.setup_feature_cloud_desc)
         )
     }
 }
