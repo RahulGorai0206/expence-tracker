@@ -244,7 +244,7 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
             onClick = { showManualLog = true },
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(bottom = 40.dp, end = 24.dp),
+                .padding(bottom = 140.dp, end = 24.dp),
             containerColor = MaterialTheme.colorScheme.primaryContainer,
             contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
             shape = RoundedCornerShape(24.dp)

@@ -102,33 +102,12 @@ fun MainScreen(isDarkTheme: Boolean, onDarkThemeChange: (Boolean) -> Unit) {
     }
 
     Scaffold(
-        bottomBar = {
-            if (selectedTransaction == null) {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 20.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.95f),
-                    shape = RoundedCornerShape(100.dp),
-                    tonalElevation = 8.dp,
-                    shadowElevation = 12.dp
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .padding(vertical = 8.dp, horizontal = 12.dp)
-                            .fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceAround,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        NavItem(selectedTab == 0, Icons.Default.Home, "Home") { selectedTab = 0 }
-                        NavItem(selectedTab == 1, Icons.AutoMirrored.Filled.ReceiptLong, "History") { selectedTab = 1 }
-                        NavItem(selectedTab == 2, Icons.Default.Settings, "Settings") { selectedTab = 2 }
-                    }
-                }
-            }
-        }
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
-        Box(modifier = Modifier.padding(paddingValues)) {
+        Box(modifier = Modifier
+            .fillMaxSize()
+            .padding(top = paddingValues.calculateTopPadding())
+        ) {
             AnimatedContent(
                 targetState = selectedTab,
                 transitionSpec = {
@@ -149,6 +128,31 @@ fun MainScreen(isDarkTheme: Boolean, onDarkThemeChange: (Boolean) -> Unit) {
                     )
                     1 -> TransactionScreen(onTransactionClick = { selectedTransaction = it })
                     2 -> SettingsScreen(isDarkTheme, onDarkThemeChange)
+                }
+            }
+
+            if (selectedTransaction == null) {
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 20.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.95f),
+                    shape = RoundedCornerShape(100.dp),
+                    tonalElevation = 8.dp,
+                    shadowElevation = 12.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .padding(vertical = 8.dp, horizontal = 12.dp)
+                            .fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceAround,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        NavItem(selectedTab == 0, Icons.Default.Home, "Home") { selectedTab = 0 }
+                        NavItem(selectedTab == 1, Icons.AutoMirrored.Filled.ReceiptLong, "History") { selectedTab = 1 }
+                        NavItem(selectedTab == 2, Icons.Default.Settings, "Settings") { selectedTab = 2 }
+                    }
                 }
             }
 
@@ -181,7 +185,7 @@ fun NavItem(selected: Boolean, icon: ImageVector, label: String, onClick: () -> 
 
     val contentColor by animateColorAsState(
         if (selected) {
-            if (isSystemInDarkTheme()) Color.White else Color(0xFF003366)
+            MaterialTheme.colorScheme.primary
         } else {
             MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
         },
@@ -191,7 +195,7 @@ fun NavItem(selected: Boolean, icon: ImageVector, label: String, onClick: () -> 
 
     val containerColor by animateColorAsState(
         if (selected) {
-            if (isSystemInDarkTheme()) Color(0xFF005AC1) else Color(0xFFD9E2FF)
+            MaterialTheme.colorScheme.primaryContainer
         } else {
             Color.Transparent
         },
