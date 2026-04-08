@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Restaurant
@@ -100,11 +102,38 @@ fun TransactionListItem(transaction: Transaction, onClick: () -> Unit) {
                     color = if (transaction.amount > 0) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.titleLarge.copy(fontSize = 18.sp)
                 )
-                Text(
-                    SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(transaction.date)),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (transaction.syncStatus == "pending") {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(10.dp),
+                            strokeWidth = 1.dp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                    } else if (transaction.syncStatus == "synced") {
+                        Icon(
+                            androidx.compose.material.icons.Icons.Default.CloudDone,
+                            null,
+                            modifier = Modifier.size(12.dp),
+                            tint = Color(0xFF4CAF50).copy(alpha = 0.6f)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                    } else if (transaction.syncStatus == "failed") {
+                        Icon(
+                            androidx.compose.material.icons.Icons.Default.CloudOff,
+                            null,
+                            modifier = Modifier.size(12.dp),
+                            tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                    }
+                    
+                    Text(
+                        SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(transaction.date)),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                    )
+                }
             }
         }
     }

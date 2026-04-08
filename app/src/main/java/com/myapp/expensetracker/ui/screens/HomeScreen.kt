@@ -1,8 +1,11 @@
 package com.myapp.expensetracker.ui.screens
 
 import android.content.Context
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -12,7 +15,6 @@ import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Wallet
 import androidx.compose.material3.*
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,14 +27,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.myapp.expensetracker.AppDatabase
+import com.myapp.expensetracker.GoogleSheetsLogger
 import com.myapp.expensetracker.Transaction
 import com.myapp.expensetracker.ui.components.ManualTransactionBottomSheet
 import com.myapp.expensetracker.ui.components.TransactionListItem
+import kotlinx.coroutines.launch
 import kotlin.math.abs
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> Unit) {
+fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> Unit, onSettingsClick: () -> Unit) {
     val context = LocalContext.current
     val transactions by AppDatabase.getDatabase(context).transactionDao().getAllTransactions().collectAsState(initial = emptyList())
     var showManualLog by remember { mutableStateOf(false) }
@@ -79,13 +83,61 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
                         color = MaterialTheme.colorScheme.onBackground
                     )
                 }
+                
+                val sharedPrefs = remember { context.getSharedPreferences("prefs", Context.MODE_PRIVATE) }
+                val sheetUrl = sharedPrefs.getString("sheet_url", "") ?: ""
+                val scriptUrl = sharedPrefs.getString("script_url", "") ?: ""
+                val isSyncEnabled = sheetUrl.isNotBlank() && scriptUrl.isNotBlank()
+                
+                val pendingCount = transactions.count { it.syncStatus == "pending" }
+                val failedCount = transactions.count { it.syncStatus == "failed" }
+
+                val scope = rememberCoroutineScope()
+                val failedWithLocation = transactions.any { it.syncStatus == "failed" && it.latitude != null && it.longitude != null }
+
                 Surface(
+                    onClick = {
+                        if (failedCount > 0 || pendingCount > 0) {
+                            // Resync failed/pending
+                            scope.launch {
+                                transactions.filter { it.syncStatus == "failed" || it.syncStatus == "pending" }.forEach { 
+                                    GoogleSheetsLogger.logAsync(context, it, it.id.toLong())
+                                }
+                            }
+                        } else {
+                            onSettingsClick()
+                        }
+                    },
                     shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    color = when {
+                        !isSyncEnabled -> MaterialTheme.colorScheme.surfaceContainerHigh
+                        failedWithLocation -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f)
+                        pendingCount > 0 -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
+                        else -> Color(0xFF4CAF50).copy(alpha = 0.1f)
+                    },
                     modifier = Modifier.size(48.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Wallet, null, tint = MaterialTheme.colorScheme.primary)
+                        if (!isSyncEnabled) {
+                            Icon(Icons.Default.CloudOff, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f), modifier = Modifier.size(22.dp))
+                        } else if (pendingCount > 0) {
+                            val infiniteTransition = rememberInfiniteTransition(label = "sync")
+                            val rotation by infiniteTransition.animateFloat(
+                                initialValue = 0f, targetValue = 360f,
+                                animationSpec = infiniteRepeatable(animation = tween(2000, easing = LinearEasing), repeatMode = RepeatMode.Restart),
+                                label = "rotation"
+                            )
+                            Icon(Icons.Default.Sync, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp).graphicsLayer { rotationZ = rotation })
+                        } else if (failedCount > 0) {
+                            Icon(
+                                if (failedWithLocation) Icons.Default.CloudOff else Icons.Default.CloudDone,
+                                null,
+                                tint = if (failedWithLocation) MaterialTheme.colorScheme.error else Color(0xFF4CAF50),
+                                modifier = Modifier.size(22.dp)
+                            )
+                        } else {
+                            Icon(Icons.Default.CloudDone, null, tint = Color(0xFF4CAF50), modifier = Modifier.size(22.dp))
+                        }
                     }
                 }
             }

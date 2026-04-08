@@ -6,6 +6,8 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "transactions")
 data class Transaction(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val remoteId: String? = null,
+    val syncStatus: String = "synced", // "pending", "synced", "failed"
     val sender: String,
     val amount: Double,
     val date: Long,

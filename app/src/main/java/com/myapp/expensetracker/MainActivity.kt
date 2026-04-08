@@ -166,7 +166,8 @@ fun MainScreen(
                         when (targetTab) {
                             0 -> HomeScreen(
                                 onTransactionClick = { selectedTransaction = it },
-                                onSeeAllClick = { selectedTab = 1 }
+                                onSeeAllClick = { selectedTab = 1 },
+                                onSettingsClick = { selectedTab = 2 }
                             )
                             1 -> TransactionScreen(onTransactionClick = { selectedTransaction = it })
                             2 -> SettingsScreen(

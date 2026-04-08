@@ -149,22 +149,21 @@ fun ManualTransactionBottomSheet(
                                 category = category,
                                 type = "manual",
                                 latitude = location?.latitude,
-                                longitude = location?.longitude
+                                longitude = location?.longitude,
+                                syncStatus = "pending"
                             )
-                            AppDatabase.getDatabase(context).transactionDao().insert(transaction)
-                            Toast.makeText(context, "Transaction saved successfully", Toast.LENGTH_SHORT).show()
                             
-                            // Log to sheets in background without blocking the UI dismiss
-                            scope.launch {
-                                try {
-                                    com.myapp.expensetracker.GoogleSheetsLogger.log(transaction)
-                                } catch (e: Exception) {
-                                    e.printStackTrace()
-                                }
-                            }
-
+                            // 1. Save locally IMMEDIATELY
+                            val db = AppDatabase.getDatabase(context)
+                            val localId = db.transactionDao().insertAndReturnId(transaction)
+                            
+                            // 2. Hide sheet IMMEDIATELY
                             sheetState.hide()
                             onTransactionSaved()
+                            Toast.makeText(context, "Transaction saved locally", Toast.LENGTH_SHORT).show()
+
+                            // 3. Sync to sheets in background via robust scope
+                            com.myapp.expensetracker.GoogleSheetsLogger.logAsync(context, transaction, localId)
                         }
                     }
                 },

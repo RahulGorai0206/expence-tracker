@@ -66,13 +66,27 @@ class NotificationReceiver : BroadcastReceiver() {
                             status = if (action == "TIMEOUT_TRANSACTION") "Auto-Cleared" else "Cleared",
                             type = "automated",
                             latitude = latitudeFromIntent,
-                            longitude = longitudeFromIntent
+                            longitude = longitudeFromIntent,
+                            syncStatus = "pending"
                         )
 
                         val db = AppDatabase.getDatabase(context)
-                        db.transactionDao().insert(transaction)
-                        Log.d("NotificationReceiver", "Saved transaction: $amount from $sender")
-                        GoogleSheetsLogger.log(transaction)
+                        val localId = db.transactionDao().insertAndReturnId(transaction)
+                        Log.d("NotificationReceiver", "Saved transaction locally: $amount from $sender")
+                        
+                        scope.launch(Dispatchers.IO) {
+                            try {
+                                val remoteId = GoogleSheetsLogger.log(transaction)
+                                if (remoteId != null) {
+                                    db.transactionDao().updateSyncStatus(localId.toInt(), remoteId, "synced")
+                                } else {
+                                    db.transactionDao().updateSyncStatus(localId.toInt(), null, "failed")
+                                }
+                            } catch (e: Exception) {
+                                db.transactionDao().updateSyncStatus(localId.toInt(), null, "failed")
+                                e.printStackTrace()
+                            }
+                        }
                     }
                 }
             } catch (e: Exception) {

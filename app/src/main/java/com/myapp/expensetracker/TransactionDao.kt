@@ -17,6 +17,12 @@ interface TransactionDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(transaction: Transaction)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAndReturnId(transaction: Transaction): Long
+
+    @Query("UPDATE transactions SET remoteId = :remoteId, syncStatus = :status WHERE id = :id")
+    suspend fun updateSyncStatus(id: Int, remoteId: String?, status: String)
+
     @androidx.room.Delete
     suspend fun delete(transaction: Transaction)
 

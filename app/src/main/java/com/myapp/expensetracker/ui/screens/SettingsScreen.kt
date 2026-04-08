@@ -63,33 +63,267 @@ fun SettingsScreen(
     }
 
     val scriptCode = """
-function doPost(e) {
-  // Your Spreadsheet ID
-  var ss = SpreadsheetApp.openById("$extractedSheetId");
-  var sheet = ss.getSheets()[0];
-  var amount = e.parameter.amount;
+// ============================================================
+//  CONFIGURATION
+// ============================================================
+var SPREADSHEET_ID = "$extractedSheetId";
+var DB_SHEET_NAME  = "database";
+var LOG_SHEET_NAME = "logs";
+var LEGACY_SHEET_INDEX = 0; 
 
-  // 1. Find the first empty cell in Column C
-  var columnCVals = sheet.getRange("C:C").getValues();
-  var targetRow = 1;
+var COL = {
+  ID: 1, DATE: 2, AMOUNT: 3, SENDER: 4, CATEGORY: 5, STATUS: 6,
+  TYPE: 7, BODY: 8, LATITUDE: 9, LONGITUDE: 10, CREATED_AT: 11, UPDATED_AT: 12
+};
+
+var HEADERS = ["id","date","amount","sender","category","status","type","body","latitude","longitude","created_at","updated_at"];
+
+// --- ENHANCED LOGGING ENGINE ---
+function logInfo(tag, msg) { writeLog("INFO", tag, msg); }
+function logError(tag, err) { writeLog("ERROR", tag, err.toString()); }
+
+function writeLog(lvl, tag, msg) {
+  try {
+    // 1. Log to Apps Script Execution Console (Internal)
+    console.log("[" + lvl + "] " + tag + ": " + msg);
+    
+    // 2. Log to Spreadsheet Tab (External/User-facing)
+    var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    var s = ss.getSheetByName(LOG_SHEET_NAME) || ss.insertSheet(LOG_SHEET_NAME);
+    
+    // Keep only last 1000 logs to prevent bloat
+    if (s.getLastRow() > 1000) { s.deleteRows(2, 500); }
+    
+    s.appendRow([new Date(), lvl, tag, msg]);
+  } catch(e) { 
+    console.error("Logging failed: " + e.toString()); 
+  }
+}
+
+function doGet(e) {
+  try {
+    var action = (e.parameter.action || "read").toLowerCase();
+    logInfo("doGet", "Action: " + action);
+    if (action === "read") return respond(handleRead(e.parameter));
+    return respondError("doGet only supports action=read");
+  } catch (err) {
+    logError("doGet", err);
+    return respondError(err.message);
+  }
+}
+
+function doPost(e) {
+  try {
+    var action = (e.parameter.action || "legacy").toLowerCase();
+    logInfo("doPost_Entry", "Action: " + action + " | Params: " + JSON.stringify(e.parameter));
+
+    var result;
+    switch (action) {
+      case "create" : result = handleCreate(e.parameter); break;
+      case "read"   : result = handleRead(e.parameter); break;
+      case "update" : result = handleUpdate(e.parameter); break;
+      case "delete" : result = handleDelete(e.parameter); break;
+      case "legacy" : return handleLegacy(e.parameter); // legacy returns text
+      default       : return respondError("Unknown action: " + action);
+    }
+    logInfo("doPost_Success", action + " completed successfully");
+    return respond(result);
+  } catch (err) {
+    logError("doPost_Error", err);
+    return respondError(err.message);
+  }
+}
+
+function handleCreate(params) {
+  requireParams(params, ["amount"]);
+  var sheet = getDbSheet();
+  var id    = generateId();
+  var now   = new Date().toISOString();
+
+  var row = buildEmptyRow();
+  row[COL.ID - 1] = id;
+  row[COL.DATE - 1] = params.date ? Number(params.date) : new Date().getTime();
+  row[COL.AMOUNT - 1] = Number(params.amount);
+  row[COL.SENDER - 1] = params.sender || "";
+  row[COL.CATEGORY - 1] = params.category || "Other";
+  row[COL.STATUS - 1] = params.status || "active";
+  row[COL.TYPE - 1] = params.type || "manual";
+  row[COL.BODY - 1] = params.body || "";
+  row[COL.LATITUDE - 1] = (params.latitude && params.latitude !== "null") ? Number(params.latitude) : "";
+  row[COL.LONGITUDE - 1] = (params.longitude && params.longitude !== "null") ? Number(params.longitude) : "";
+  row[COL.CREATED_AT - 1] = now;
+  row[COL.UPDATED_AT - 1] = now;
+
+  sheet.appendRow(row);
+  logInfo("Create", "New record ID: " + id);
+
+  try { 
+    handleLegacy(params); 
+  } catch(e) { 
+    logError("Legacy_Auto_Fail", e); 
+  }
   
-  for (var i = 0; i < columnCVals.length; i++) {
-    // Check if the cell in Column C is empty
-    if (columnCVals[i][0] === "" || columnCVals[i][0] === null) {
+  return { success: true, action: "create", id: id, records: [rowToObject(row)] };
+}
+
+function handleRead(params) {
+  var sheet   = getDbSheet();
+  var records = getAllRecords(sheet);
+  if (params.id) {
+    var found = records.find(function(r) { return r.id == params.id; });
+    if (!found) throw new Error("Record not found: id=" + params.id);
+    return { success: true, action: "read", record: found };
+  }
+  return { success: true, action: "read", count: records.length, records: records };
+}
+
+function handleUpdate(params) {
+  requireParams(params, ["id"]);
+  var sheet = getDbSheet();
+  var data  = sheet.getDataRange().getValues();
+  var rowIndex = findRowById(data, params.id);
+  if (rowIndex === -1) throw new Error("Record not found: id=" + params.id);
+
+  var row = data[rowIndex];
+  if (params.amount !== undefined) row[COL.AMOUNT - 1] = Number(params.amount);
+  if (params.category !== undefined) row[COL.CATEGORY - 1] = params.category;
+  if (params.status !== undefined) row[COL.STATUS - 1] = params.status;
+  row[COL.UPDATED_AT - 1] = new Date().toISOString();
+
+  sheet.getRange(rowIndex + 1, 1, 1, row.length).setValues([row]);
+  logInfo("Update", "Updated record ID: " + params.id);
+  return { success: true, action: "update", id: params.id, record: rowToObject(row) };
+}
+
+function handleDelete(params) {
+  requireParams(params, ["id"]);
+  var sheet = getDbSheet();
+  var data = sheet.getDataRange().getValues();
+  var rowIndex = findRowById(data, params.id);
+  if (rowIndex === -1) throw new Error("Record not found: id=" + params.id);
+
+  if (params.hard === "true") {
+    sheet.deleteRow(rowIndex + 1);
+    logInfo("Delete", "Hard deleted ID: " + params.id);
+    return { success: true, action: "delete", id: params.id, type: "hard" };
+  }
+
+  var row = data[rowIndex];
+  row[COL.STATUS - 1] = "deleted";
+  row[COL.UPDATED_AT - 1] = new Date().toISOString();
+  sheet.getRange(rowIndex + 1, 1, 1, row.length).setValues([row]);
+  logInfo("Delete", "Soft deleted ID: " + params.id);
+  return { success: true, action: "delete", id: params.id, type: "soft", record: rowToObject(row) };
+}
+
+function handleLegacy(params) {
+  var amount = parseFloat(params.amount);
+  if (isNaN(amount) || amount >= 0) {
+    logInfo("Legacy_Skip", "Amount " + amount + " ignored (positive or invalid)");
+    return respondLegacy("Ignored");
+  }
+
+  amount = Math.abs(amount);
+  var ss    = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var sheet = ss.getSheets()[LEGACY_SHEET_INDEX];
+  
+  var vals = sheet.getRange("C1:C" + (sheet.getLastRow() + 1)).getValues();
+  var targetRow = 1;
+  for (var i = 0; i < vals.length; i++) {
+    if (vals[i][0] === "" || vals[i][0] === null) {
       targetRow = i + 1;
       break;
     }
-    // If we reach the end of existing data, set target to next new row
-    if (i === columnCVals.length - 1) {
-      targetRow = columnCVals.length + 1;
+  }
+
+  sheet.getRange(targetRow, 3).setValue(amount);
+  logInfo("Legacy_Success", "Logged " + amount + " to row " + targetRow + " in sheet index " + LEGACY_SHEET_INDEX);
+  return respondLegacy("Success");
+}
+
+function getDbSheet() {
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var sheet = ss.getSheetByName(DB_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(DB_SHEET_NAME);
+    sheet.appendRow(HEADERS);
+    sheet.setFrozenRows(1);
+    logInfo("Setup", "Created database sheet");
+  } else {
+    var firstCell = sheet.getRange(1, 1).getValue();
+    if (firstCell !== "id") {
+      sheet.insertRowBefore(1);
+      sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
+      sheet.setFrozenRows(1);
+      logInfo("Setup", "Inserted missing headers");
+    } else {
+      // Ensure all headers are present in case columns were added
+      var currentHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+      if (currentHeaders.length < HEADERS.length) {
+         sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
+         logInfo("Setup", "Repaired partial headers");
+      }
+    }
+  }
+  return sheet;
+}
+
+function getAllRecords(sheet) {
+  var data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return [];
+  
+  // Stricter header check to avoid returning the header row as data
+  var startIndex = 1;
+  if (data[0][0] !== "id") {
+    logError("Sync", "Header 'id' not found in first row. Unexpected sheet format.");
+    // Try to find where the header is, or just skip if it's total garbage
+    for (var i = 0; i < data.length; i++) {
+      if (data[i][0] === "id") {
+        startIndex = i + 1;
+        break;
+      }
     }
   }
 
-  // 2. Insert data into that specific row
-  sheet.getRange(targetRow, 3).setValue(amount);
-  
-  return ContentService.createTextOutput("Success").setMimeType(ContentService.MimeType.TEXT);
+  return data.slice(startIndex).filter(function(row) {
+    return row[COL.ID - 1] && String(row[COL.ID - 1]).indexOf("REC-") === 0;
+  }).map(function(row) {
+    return rowToObject(row);
+  });
 }
+
+function findRowById(data, id) {
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][COL.ID - 1]) === String(id)) return i;
+  }
+  return -1;
+}
+
+function rowToObject(row) {
+  var obj = {};
+  Object.keys(COL).forEach(function(key) {
+    var val = row[COL[key] - 1];
+    // Convert empty strings or undefined to null for numeric/date fields
+    if ((val === "" || val === undefined || val === null) && 
+        (key === "AMOUNT" || key === "LATITUDE" || key === "LONGITUDE" || key === "DATE")) {
+      val = null;
+    }
+    obj[key.toLowerCase()] = val;
+  });
+  return obj;
+}
+
+function buildEmptyRow() {
+  var max = 0;
+  for (var k in COL) { if (COL[k] > max) max = COL[k]; }
+  return new Array(max).fill("");
+}
+
+function generateId() { return "REC-" + new Date().getTime() + "-" + Math.floor(Math.random() * 1000); }
+function requireParams(p, f) { f.forEach(function(x) { if (!p[x]) throw new Error("Missing: " + x); }); }
+function respond(p) { return ContentService.createTextOutput(JSON.stringify(p)).setMimeType(ContentService.MimeType.JSON); }
+function respondError(m) { return respond({ success: false, error: m }); }
+function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeType(ContentService.MimeType.TEXT); }
     """.trimIndent()
 
     if (showDeleteDialog) {
@@ -122,17 +356,46 @@ function doPost(e) {
     }
 
     Column(modifier = Modifier.padding(20.dp).verticalScroll(rememberScrollState())) {
-        Text(
-            "Preferences", 
-            style = MaterialTheme.typography.headlineLarge, 
-            fontWeight = FontWeight.Black, 
-            color = MaterialTheme.colorScheme.onBackground
-        )
-        Text(
-            "Customize your financial workspace.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "Preferences", 
+                    style = MaterialTheme.typography.headlineLarge, 
+                    fontWeight = FontWeight.Black, 
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Text(
+                    "Customize your financial workspace.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            
+            IconButton(
+                onClick = {
+                    scope.launch {
+                        Toast.makeText(context, "Syncing with cloud...", Toast.LENGTH_SHORT).show()
+                        GoogleSheetsLogger.syncFromCloud(context)
+                        Toast.makeText(context, "Sync complete", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))
+            ) {
+                Icon(
+                    Icons.Default.Sync,
+                    contentDescription = "Sync Now",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
         
         Spacer(modifier = Modifier.height(32.dp))
         
@@ -261,7 +524,9 @@ function doPost(e) {
                                 Text(
                                     scriptCode,
                                     style = MaterialTheme.typography.bodySmall,
-                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                    maxLines = 4,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Button(
@@ -302,7 +567,37 @@ function doPost(e) {
                             shape = RoundedCornerShape(16.dp)
                         )
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        if (isCloudSaved) {
+                            var isSyncing by remember { mutableStateOf(false) }
+                            Button(
+                                onClick = {
+                                    scope.launch {
+                                        isSyncing = true
+                                        GoogleSheetsLogger.syncFromCloud(context)
+                                        isSyncing = false
+                                        Toast.makeText(context, "Cloud data restored!", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = !isSyncing,
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                            ) {
+                                if (isSyncing) {
+                                    CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onSecondary, strokeWidth = 2.dp)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Restoring...")
+                                } else {
+                                    Icon(Icons.Default.CloudDownload, contentDescription = null, modifier = Modifier.size(20.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Restore from Cloud")
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
+
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                             if (isCloudSaved) {
                                 TextButton(

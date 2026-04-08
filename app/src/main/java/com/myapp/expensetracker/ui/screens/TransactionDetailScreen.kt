@@ -65,7 +65,9 @@ fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit)
             onDismiss = { showCategoryDialog = false },
             onCategorySelected = { newCategory ->
                 scope.launch {
-                    AppDatabase.getDatabase(context).transactionDao().insert(currentTransaction.copy(category = newCategory))
+                    val updated = currentTransaction.copy(category = newCategory)
+                    AppDatabase.getDatabase(context).transactionDao().insert(updated)
+                    com.myapp.expensetracker.GoogleSheetsLogger.update(updated)
                 }
                 showCategoryDialog = false
             }
@@ -263,7 +265,9 @@ fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit)
                 IconButton(
                     onClick = {
                         scope.launch {
-                            AppDatabase.getDatabase(context).transactionDao().delete(currentTransaction)
+                            val toDelete = currentTransaction
+                            AppDatabase.getDatabase(context).transactionDao().delete(toDelete)
+                            com.myapp.expensetracker.GoogleSheetsLogger.delete(toDelete)
                             onBack()
                         }
                     },
