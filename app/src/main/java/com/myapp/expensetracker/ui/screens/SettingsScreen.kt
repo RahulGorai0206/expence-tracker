@@ -37,7 +37,12 @@ import com.myapp.expensetracker.GoogleSheetsLogger
 import kotlinx.coroutines.launch
 
 @Composable
-fun SettingsScreen(isDarkTheme: Boolean, onDarkThemeChange: (Boolean) -> Unit) {
+fun SettingsScreen(
+    isDarkTheme: Boolean, 
+    onDarkThemeChange: (Boolean) -> Unit,
+    followSystemTheme: Boolean,
+    onFollowSystemThemeChange: (Boolean) -> Unit
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -356,6 +361,34 @@ function doPost(e) {
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
+                            modifier = Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.secondaryContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.SettingsSuggest, "System", tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(20.dp))
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            Text("Follow System", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                            Text("Match device theme settings", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    Switch(checked = followSystemTheme, onCheckedChange = onFollowSystemThemeChange)
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        modifier = Modifier.graphicsLayer(alpha = if (followSystemTheme) 0.5f else 1.0f),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
                             modifier = Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
                             contentAlignment = Alignment.Center
                         ) {
@@ -367,7 +400,11 @@ function doPost(e) {
                             Text("Deep blacks and soft accents", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
-                    Switch(checked = isDarkTheme, onCheckedChange = onDarkThemeChange)
+                    Switch(
+                        checked = isDarkTheme, 
+                        onCheckedChange = onDarkThemeChange,
+                        enabled = !followSystemTheme
+                    )
                 }
             }
         }

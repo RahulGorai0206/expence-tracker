@@ -73,16 +73,44 @@ class MainActivity : ComponentActivity() {
         GoogleSheetsLogger.init(this)
 
         setContent {
-            var darkTheme by remember { mutableStateOf(true) }
-            LedgerTheme(darkTheme = darkTheme) {
-                MainScreen(darkTheme, onDarkThemeChange = { darkTheme = it })
+            val context = LocalContext.current
+            val sharedPrefs = remember { context.getSharedPreferences("prefs", Context.MODE_PRIVATE) }
+            val systemInDarkTheme = isSystemInDarkTheme()
+            
+            var followSystemTheme by remember { 
+                mutableStateOf(sharedPrefs.getBoolean("follow_system_theme", true)) 
+            }
+            var darkTheme by remember { 
+                mutableStateOf(sharedPrefs.getBoolean("dark_theme", true)) 
+            }
+            
+            val currentTheme = if (followSystemTheme) systemInDarkTheme else darkTheme
+            
+            LedgerTheme(darkTheme = currentTheme) {
+                MainScreen(
+                    isDarkTheme = darkTheme, 
+                    onDarkThemeChange = { 
+                        darkTheme = it
+                        sharedPrefs.edit().putBoolean("dark_theme", it).apply()
+                    },
+                    followSystemTheme = followSystemTheme,
+                    onFollowSystemThemeChange = {
+                        followSystemTheme = it
+                        sharedPrefs.edit().putBoolean("follow_system_theme", it).apply()
+                    }
+                )
             }
         }
     }
 }
 
 @Composable
-fun MainScreen(isDarkTheme: Boolean, onDarkThemeChange: (Boolean) -> Unit) {
+fun MainScreen(
+    isDarkTheme: Boolean, 
+    onDarkThemeChange: (Boolean) -> Unit,
+    followSystemTheme: Boolean,
+    onFollowSystemThemeChange: (Boolean) -> Unit
+) {
     val context = LocalContext.current
     val sharedPrefs = remember { context.getSharedPreferences("prefs", Context.MODE_PRIVATE) }
     var isSetupComplete by remember { mutableStateOf(sharedPrefs.getBoolean("is_setup_complete", false)) }
@@ -141,7 +169,12 @@ fun MainScreen(isDarkTheme: Boolean, onDarkThemeChange: (Boolean) -> Unit) {
                                 onSeeAllClick = { selectedTab = 1 }
                             )
                             1 -> TransactionScreen(onTransactionClick = { selectedTransaction = it })
-                            2 -> SettingsScreen(isDarkTheme, onDarkThemeChange)
+                            2 -> SettingsScreen(
+                        isDarkTheme = isDarkTheme, 
+                        onDarkThemeChange = onDarkThemeChange,
+                        followSystemTheme = followSystemTheme,
+                        onFollowSystemThemeChange = onFollowSystemThemeChange
+                    )
                         }
                     }
 
