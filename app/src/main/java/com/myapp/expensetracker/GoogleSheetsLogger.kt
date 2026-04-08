@@ -15,6 +15,7 @@ import java.util.*
 object GoogleSheetsLogger {
     private var api: GoogleSheetsApi? = null
     private var currentUrl: String? = null
+    private var apiKey: String? = null
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     private val logging = HttpLoggingInterceptor().apply {
@@ -32,6 +33,7 @@ object GoogleSheetsLogger {
     fun init(context: Context) {
         val sharedPrefs = context.getSharedPreferences("prefs", Context.MODE_PRIVATE)
         val url = sharedPrefs.getString("script_url", "") ?: ""
+        apiKey = sharedPrefs.getString("api_key", "") ?: ""
         updateUrl(url)
     }
 
@@ -47,11 +49,21 @@ object GoogleSheetsLogger {
         }
     }
 
+    fun updateApiKey(key: String) {
+        apiKey = key
+    }
+
     suspend fun log(transaction: Transaction): String? {
         val loggerApi = api ?: return null
         val url = currentUrl ?: return null
-        if (url.isBlank()) return null
+        val key = apiKey
+        if (url.isBlank() || key.isNullOrBlank()) return null
         
+        // Check if transaction already has a remoteId to prevent duplicates
+        if (!transaction.remoteId.isNullOrBlank()) {
+            return transaction.remoteId
+        }
+
         return try {
             val response = loggerApi.postAction(
                 url = url,
@@ -64,7 +76,8 @@ object GoogleSheetsLogger {
                 status = transaction.status,
                 type = transaction.type,
                 latitude = transaction.latitude,
-                longitude = transaction.longitude
+                longitude = transaction.longitude,
+                apiKey = apiKey
             )
             if (response.success) response.records?.firstOrNull()?.id else null
         } catch (e: Exception) {
@@ -77,7 +90,8 @@ object GoogleSheetsLogger {
         val loggerApi = api ?: return
         val url = currentUrl ?: return
         val remoteId = transaction.remoteId ?: return
-        if (url.isBlank()) return
+        val key = apiKey
+        if (url.isBlank() || key.isNullOrBlank()) return
 
         try {
             loggerApi.postAction(
@@ -92,7 +106,8 @@ object GoogleSheetsLogger {
                 status = transaction.status,
                 type = transaction.type,
                 latitude = transaction.latitude,
-                longitude = transaction.longitude
+                longitude = transaction.longitude,
+                apiKey = apiKey
             )
         } catch (e: Exception) {
             e.printStackTrace()
@@ -103,14 +118,16 @@ object GoogleSheetsLogger {
         val loggerApi = api ?: return
         val url = currentUrl ?: return
         val remoteId = transaction.remoteId ?: return
-        if (url.isBlank()) return
+        val key = apiKey
+        if (url.isBlank() || key.isNullOrBlank()) return
 
         try {
             loggerApi.postAction(
                 url = url,
                 action = "delete",
                 id = remoteId,
-                status = "deleted" // Soft delete by default in script
+                status = "deleted", // Soft delete by default in script
+                apiKey = apiKey
             )
         } catch (e: Exception) {
             e.printStackTrace()
@@ -120,10 +137,11 @@ object GoogleSheetsLogger {
     suspend fun syncFromCloud(context: Context) {
         val loggerApi = api ?: return
         val url = currentUrl ?: return
-        if (url.isBlank()) return
+        val key = apiKey
+        if (url.isBlank() || key.isNullOrBlank()) return
 
         try {
-            val response = loggerApi.getRecords(url)
+            val response = loggerApi.getRecords(url, apiKey = key)
             if (response.success && response.records != null) {
                 val db = AppDatabase.getDatabase(context)
                 val dao = db.transactionDao()
@@ -161,7 +179,20 @@ object GoogleSheetsLogger {
         scope.launch {
             val db = AppDatabase.getDatabase(context)
             val dao = db.transactionDao()
+            
+            // Mark as pending immediately to show loading UI
+            dao.updateSyncStatus(localId.toInt(), transaction.remoteId, "pending")
+
             try {
+                // Fetch the latest transaction from DB to get the most current remoteId
+                val currentTransaction = dao.getTransactionSync(localId.toInt())
+                
+                // Check if already synced or has remoteId
+                if (currentTransaction != null && !currentTransaction.remoteId.isNullOrBlank()) {
+                    dao.updateSyncStatus(localId.toInt(), currentTransaction.remoteId, "synced")
+                    return@launch
+                }
+
                 val remoteId = log(transaction)
                 if (remoteId != null) {
                     dao.updateSyncStatus(localId.toInt(), remoteId, "synced")

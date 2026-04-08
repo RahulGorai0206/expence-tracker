@@ -22,13 +22,16 @@ interface GoogleSheetsApi {
         @Field("status") status: String? = null,
         @Field("type") type: String? = null,
         @Field("latitude") latitude: Double? = null,
-        @Field("longitude") longitude: Double? = null
+        @Field("longitude") longitude: Double? = null,
+        @Field("api_key") apiKey: String? = null
     ): GoogleSheetResponse
 
-    @GET
+    @FormUrlEncoded
+    @POST
     suspend fun getRecords(
         @Url url: String,
-        @Query("action") action: String = "read"
+        @Field("action") action: String = "read",
+        @Field("api_key") apiKey: String? = null
     ): GoogleSheetResponse
 }
 

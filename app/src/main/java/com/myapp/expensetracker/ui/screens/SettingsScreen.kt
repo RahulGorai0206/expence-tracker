@@ -54,6 +54,7 @@ fun SettingsScreen(
     
     var sheetUrl by remember { mutableStateOf(sharedPrefs.getString("sheet_url", "") ?: "") }
     var scriptUrl by remember { mutableStateOf(sharedPrefs.getString("script_url", "") ?: "") }
+    var apiKey by remember { mutableStateOf(sharedPrefs.getString("api_key", "") ?: "") }
     var isCloudSaved by remember { mutableStateOf(sharedPrefs.contains("script_url")) }
     var isCloudExpanded by remember { mutableStateOf(false) }
 
@@ -67,6 +68,7 @@ fun SettingsScreen(
 //  CONFIGURATION
 // ============================================================
 var SPREADSHEET_ID = "$extractedSheetId";
+var API_KEY = PropertiesService.getScriptProperties().getProperty('API_KEY');
 var DB_SHEET_NAME  = "database";
 var LOG_SHEET_NAME = "logs";
 var LEGACY_SHEET_INDEX = 0; 
@@ -77,6 +79,21 @@ var COL = {
 };
 
 var HEADERS = ["id","date","amount","sender","category","status","type","body","latitude","longitude","created_at","updated_at"];
+
+// ============================================================
+//  AUTH HELPER
+// ============================================================
+function isAuthorized(params) {
+  if (!API_KEY) {
+    logError("Auth", "CRITICAL: API_KEY Script Property is not set. All requests blocked.");
+    return false;
+  }
+  if (!params.api_key || params.api_key !== API_KEY) {
+    logInfo("Auth_FAIL", "Unauthorized attempt. Key prefix: " + String(params.api_key || "none").slice(0, 4) + "...");
+    return false;
+  }
+  return true;
+}
 
 // --- ENHANCED LOGGING ENGINE ---
 function logInfo(tag, msg) { writeLog("INFO", tag, msg); }
@@ -101,21 +118,17 @@ function writeLog(lvl, tag, msg) {
 }
 
 function doGet(e) {
-  try {
-    var action = (e.parameter.action || "read").toLowerCase();
-    logInfo("doGet", "Action: " + action);
-    if (action === "read") return respond(handleRead(e.parameter));
-    return respondError("doGet only supports action=read");
-  } catch (err) {
-    logError("doGet", err);
-    return respondError(err.message);
-  }
+  logInfo("doGet", "GET request rejected. Use POST with action=read instead.");
+  return respondError("GET not supported. Send all requests via POST.");
 }
 
 function doPost(e) {
+  if (!isAuthorized(e.parameter)) return respondError("Unauthorized");
   try {
     var action = (e.parameter.action || "legacy").toLowerCase();
-    logInfo("doPost_Entry", "Action: " + action + " | Params: " + JSON.stringify(e.parameter));
+    var safeParams = Object.assign({}, e.parameter);
+    delete safeParams.api_key;
+    logInfo("doPost_Entry", "Action: " + action + " | Params: " + JSON.stringify(safeParams));
 
     var result;
     switch (action) {
@@ -135,35 +148,58 @@ function doPost(e) {
 }
 
 function handleCreate(params) {
-  requireParams(params, ["amount"]);
-  var sheet = getDbSheet();
-  var id    = generateId();
-  var now   = new Date().toISOString();
+  var lock = LockService.getScriptLock();
+  try { lock.waitLock(20000); } catch(e) { throw new Error("Server busy, try again."); }
 
-  var row = buildEmptyRow();
-  row[COL.ID - 1] = id;
-  row[COL.DATE - 1] = params.date ? Number(params.date) : new Date().getTime();
-  row[COL.AMOUNT - 1] = Number(params.amount);
-  row[COL.SENDER - 1] = params.sender || "";
-  row[COL.CATEGORY - 1] = params.category || "Other";
-  row[COL.STATUS - 1] = params.status || "active";
-  row[COL.TYPE - 1] = params.type || "manual";
-  row[COL.BODY - 1] = params.body || "";
-  row[COL.LATITUDE - 1] = (params.latitude && params.latitude !== "null") ? Number(params.latitude) : "";
-  row[COL.LONGITUDE - 1] = (params.longitude && params.longitude !== "null") ? Number(params.longitude) : "";
-  row[COL.CREATED_AT - 1] = now;
-  row[COL.UPDATED_AT - 1] = now;
+  try {
+    requireParams(params, ["amount"]);
+    var sheet = getDbSheet();
+    
+    // DUPLICATE PREVENTION: Primary check using Timestamp and Amount
+    var data = sheet.getDataRange().getValues();
+    var pAmount = parseFloat(params.amount);
+    var pDate = parseFloat(params.date || 0);
+    var pSender = String(params.sender || "").trim().toLowerCase();
 
-  sheet.appendRow(row);
-  logInfo("Create", "New record ID: " + id);
+    for (var i = 1; i < data.length; i++) {
+      var dAmount = parseFloat(data[i][COL.AMOUNT-1]);
+      var dDate = parseFloat(data[i][COL.DATE-1]);
+      var dSender = String(data[i][COL.SENDER-1] || "").trim().toLowerCase();
 
-  try { 
-    handleLegacy(params); 
-  } catch(e) { 
-    logError("Legacy_Auto_Fail", e); 
+      // STRICT DUPLICATE CHECK: Date and Amount must be identical (Millisecond Precision)
+      // Date is the millisecond timestamp from the device
+      if (dAmount === pAmount && dDate === pDate) {
+        logInfo("Create_Skip", "Exact MS Duplicate found. Returning ID: " + data[i][COL.ID-1]);
+        return { success: true, action: "create", id: data[i][COL.ID-1], records: [rowToObject(data[i])] };
+      }
+    }
+
+    var id    = generateId();
+    var now   = new Date().toISOString();
+
+    var row = buildEmptyRow();
+    row[COL.ID - 1] = id;
+    row[COL.DATE - 1] = pDate || new Date().getTime();
+    row[COL.AMOUNT - 1] = pAmount;
+    row[COL.SENDER - 1] = params.sender || "";
+    row[COL.CATEGORY - 1] = params.category || "Other";
+    row[COL.STATUS - 1] = params.status || "active";
+    row[COL.TYPE - 1] = params.type || "manual";
+    row[COL.BODY - 1] = params.body || "";
+    row[COL.LATITUDE - 1] = (params.latitude && params.latitude !== "null") ? Number(params.latitude) : "";
+    row[COL.LONGITUDE - 1] = (params.longitude && params.longitude !== "null") ? Number(params.longitude) : "";
+    row[COL.CREATED_AT - 1] = now;
+    row[COL.UPDATED_AT - 1] = now;
+
+    sheet.appendRow(row);
+    logInfo("Create", "New record ID: " + id);
+
+    try { handleLegacy(params); } catch(e) { logError("Legacy_Auto_Fail", e); }
+    
+    return { success: true, action: "create", id: id, records: [rowToObject(row)] };
+  } finally {
+    lock.releaseLock();
   }
-  
-  return { success: true, action: "create", id: id, records: [rowToObject(row)] };
 }
 
 function handleRead(params) {
@@ -549,6 +585,9 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
                         Text(
                             "• Go to Extensions > Apps Script in your sheet.\n" +
                             "• Paste the code above and Save.\n" +
+                            "• Go to Project Settings (gear icon) in Apps Script.\n" +
+                            "• Scroll down to 'Script Properties' and click 'Edit script properties'.\n" +
+                            "• Add a new property: Property='API_KEY', Value='(your-secret-key)'.\n" +
                             "• Click 'Deploy' > 'New Deployment'.\n" +
                             "• Select 'Web App'. Set 'Who has access' to 'Anyone'.\n" +
                             "• Copy the 'Web App URL' and paste below.",
@@ -557,7 +596,18 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
                         )
 
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text("4. Apps Script Web App URL", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                        Text("4. API Security Key (Required)", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                        OutlinedTextField(
+                            value = apiKey,
+                            onValueChange = { apiKey = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !isCloudSaved,
+                            placeholder = { Text("your-secret-key") },
+                            shape = RoundedCornerShape(16.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("5. Apps Script Web App URL", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                         OutlinedTextField(
                             value = scriptUrl,
                             onValueChange = { scriptUrl = it },
@@ -605,8 +655,10 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
                                         isCloudSaved = false 
                                         sheetUrl = ""
                                         scriptUrl = ""
-                                        sharedPrefs.edit().remove("sheet_url").remove("script_url").apply()
+                                        apiKey = ""
+                                        sharedPrefs.edit().remove("sheet_url").remove("script_url").remove("api_key").apply()
                                         GoogleSheetsLogger.updateUrl("")
+                                        GoogleSheetsLogger.updateApiKey("")
                                     }
                                 ) {
                                     Text("Reset", color = MaterialTheme.colorScheme.error)
@@ -614,17 +666,20 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
                             } else {
                                 Button(
                                     onClick = {
-                                        if (scriptUrl.isNotBlank()) {
+                                        if (scriptUrl.isNotBlank() && apiKey.isNotBlank()) {
                                             sharedPrefs.edit()
                                                 .putString("sheet_url", sheetUrl)
                                                 .putString("script_url", scriptUrl)
+                                                .putString("api_key", apiKey)
                                                 .apply()
                                             GoogleSheetsLogger.updateUrl(scriptUrl)
+                                            GoogleSheetsLogger.updateApiKey(apiKey)
                                             isCloudSaved = true
                                             isCloudExpanded = false // Auto-collapse on save
                                             Toast.makeText(context, "Cloud sync saved", Toast.LENGTH_SHORT).show()
                                         } else {
-                                            Toast.makeText(context, "Please enter Web App URL", Toast.LENGTH_SHORT).show()
+                                            val msg = if (scriptUrl.isBlank()) "Please enter Web App URL" else "Please enter API Security Key"
+                                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                                         }
                                     },
                                     shape = RoundedCornerShape(12.dp)

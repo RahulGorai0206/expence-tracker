@@ -1,6 +1,7 @@
 package com.myapp.expensetracker.ui.screens
 
 import android.content.Context
+import android.widget.Toast
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.animation.core.*
@@ -100,6 +101,7 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
                         if (failedCount > 0 || pendingCount > 0) {
                             // Resync failed/pending
                             scope.launch {
+                                Toast.makeText(context, "Resyncing ${failedCount + pendingCount} transactions...", Toast.LENGTH_SHORT).show()
                                 transactions.filter { it.syncStatus == "failed" || it.syncStatus == "pending" }.forEach { 
                                     GoogleSheetsLogger.logAsync(context, it, it.id.toLong())
                                 }

@@ -14,6 +14,9 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE id = :id")
     fun getTransactionById(id: Int): Flow<Transaction?>
 
+    @Query("SELECT * FROM transactions WHERE id = :id")
+    suspend fun getTransactionSync(id: Int): Transaction?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(transaction: Transaction)
 
@@ -28,4 +31,7 @@ interface TransactionDao {
 
     @Query("DELETE FROM transactions")
     suspend fun deleteAllTransactions()
+
+    @Query("UPDATE transactions SET syncStatus = 'failed' WHERE syncStatus = 'pending'")
+    suspend fun resetPendingStatus()
 }
