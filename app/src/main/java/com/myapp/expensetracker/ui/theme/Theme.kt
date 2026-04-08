@@ -19,6 +19,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 
+/**
+ * Dark color scheme for the application.
+ */
 private val DarkColorScheme = darkColorScheme(
     primary = Color(0xFFC4D7FF),
     onPrimary = Color(0xFF002F68),
@@ -43,6 +46,9 @@ private val DarkColorScheme = darkColorScheme(
     errorContainer = Color(0xFF93000A)
 )
 
+/**
+ * Light color scheme for the application.
+ */
 private val LightColorScheme = lightColorScheme(
     primary = Color(0xFF005AC1),
     onPrimary = Color.White,
@@ -67,6 +73,9 @@ private val LightColorScheme = lightColorScheme(
     errorContainer = Color(0xFFFFDAD6)
 )
 
+/**
+ * Typography configuration for the application.
+ */
 private val AppTypography = Typography(
     displayLarge = TextStyle(fontWeight = FontWeight.Black, fontSize = 57.sp, lineHeight = 64.sp, letterSpacing = (-0.25).sp),
     displayMedium = TextStyle(fontWeight = FontWeight.Bold, fontSize = 45.sp, lineHeight = 52.sp, letterSpacing = 0.sp),
@@ -80,6 +89,13 @@ private val AppTypography = Typography(
     labelMedium = TextStyle(fontWeight = FontWeight.Medium, fontSize = 12.sp, lineHeight = 16.sp, letterSpacing = 0.5.sp)
 )
 
+/**
+ * The main theme composable for the application.
+ *
+ * @param darkTheme Whether the theme should be in dark mode. Defaults to the system setting.
+ * @param dynamicColor Whether to use dynamic color (Material You) on supported devices (Android 12+).
+ * @param content The composable content to be displayed within this theme.
+ */
 @Composable
 fun LedgerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
