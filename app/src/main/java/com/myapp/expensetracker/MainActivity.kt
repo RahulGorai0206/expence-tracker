@@ -104,69 +104,75 @@ fun MainScreen(isDarkTheme: Boolean, onDarkThemeChange: (Boolean) -> Unit) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
-        Box(modifier = Modifier
-            .fillMaxSize()
-            .padding(top = paddingValues.calculateTopPadding())
-        ) {
-            AnimatedContent(
-                targetState = selectedTab,
-                transitionSpec = {
-                    if (targetState > initialState) {
-                        (slideInHorizontally(animationSpec = tween(400)) { it } + fadeIn(animationSpec = tween(400)))
-                            .togetherWith(slideOutHorizontally(animationSpec = tween(400)) { -it } + fadeOut(animationSpec = tween(400)))
-                    } else {
-                        (slideInHorizontally(animationSpec = tween(400)) { -it } + fadeIn(animationSpec = tween(400)))
-                            .togetherWith(slideOutHorizontally(animationSpec = tween(400)) { it } + fadeOut(animationSpec = tween(400)))
-                    }
-                },
-                label = "ScreenTransition"
-            ) { targetTab ->
-                when (targetTab) {
-                    0 -> HomeScreen(
-                        onTransactionClick = { selectedTransaction = it },
-                        onSeeAllClick = { selectedTab = 1 }
-                    )
-                    1 -> TransactionScreen(onTransactionClick = { selectedTransaction = it })
-                    2 -> SettingsScreen(isDarkTheme, onDarkThemeChange)
+        AnimatedContent(
+            targetState = selectedTransaction,
+            transitionSpec = {
+                if (targetState != null) {
+                    (slideInHorizontally(animationSpec = tween(500)) { it } + fadeIn(animationSpec = tween(500)))
+                        .togetherWith(slideOutHorizontally(animationSpec = tween(500)) { -it / 3 } + fadeOut(animationSpec = tween(500)))
+                } else {
+                    (slideInHorizontally(animationSpec = tween(500)) { -it / 3 } + fadeIn(animationSpec = tween(500)))
+                        .togetherWith(slideOutHorizontally(animationSpec = tween(500)) { it } + fadeOut(animationSpec = tween(500)))
                 }
-            }
-
-            if (selectedTransaction == null) {
-                Surface(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 20.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    shape = RoundedCornerShape(100.dp),
-                    tonalElevation = 8.dp,
-                    shadowElevation = 12.dp
+            },
+            label = "MasterTransition"
+        ) { transaction ->
+            if (transaction == null) {
+                Box(modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = paddingValues.calculateTopPadding())
                 ) {
-                    Row(
+                    AnimatedContent(
+                        targetState = selectedTab,
+                        transitionSpec = {
+                            if (targetState > initialState) {
+                                (slideInHorizontally(animationSpec = tween(400)) { it } + fadeIn(animationSpec = tween(400)))
+                                    .togetherWith(slideOutHorizontally(animationSpec = tween(400)) { -it } + fadeOut(animationSpec = tween(400)))
+                            } else {
+                                (slideInHorizontally(animationSpec = tween(400)) { -it } + fadeIn(animationSpec = tween(400)))
+                                    .togetherWith(slideOutHorizontally(animationSpec = tween(400)) { it } + fadeOut(animationSpec = tween(400)))
+                            }
+                        },
+                        label = "ScreenTransition"
+                    ) { targetTab ->
+                        when (targetTab) {
+                            0 -> HomeScreen(
+                                onTransactionClick = { selectedTransaction = it },
+                                onSeeAllClick = { selectedTab = 1 }
+                            )
+                            1 -> TransactionScreen(onTransactionClick = { selectedTransaction = it })
+                            2 -> SettingsScreen(isDarkTheme, onDarkThemeChange)
+                        }
+                    }
+
+                    Surface(
                         modifier = Modifier
-                            .padding(vertical = 8.dp, horizontal = 12.dp)
-                            .fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceAround,
-                        verticalAlignment = Alignment.CenterVertically
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 20.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        shape = RoundedCornerShape(100.dp),
+                        tonalElevation = 8.dp,
+                        shadowElevation = 12.dp
                     ) {
-                        NavItem(selectedTab == 0, Icons.Default.Home, "Home") { selectedTab = 0 }
-                        NavItem(selectedTab == 1, Icons.AutoMirrored.Filled.ReceiptLong, "History") { selectedTab = 1 }
-                        NavItem(selectedTab == 2, Icons.Default.Settings, "Settings") { selectedTab = 2 }
+                        Row(
+                            modifier = Modifier
+                                .padding(vertical = 8.dp, horizontal = 12.dp)
+                                .fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceAround,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            NavItem(selectedTab == 0, Icons.Default.Home, "Home") { selectedTab = 0 }
+                            NavItem(selectedTab == 1, Icons.AutoMirrored.Filled.ReceiptLong, "History") { selectedTab = 1 }
+                            NavItem(selectedTab == 2, Icons.Default.Settings, "Settings") { selectedTab = 2 }
+                        }
                     }
                 }
-            }
-
-            AnimatedVisibility(
-                visible = selectedTransaction != null,
-                enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-                exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
-            ) {
-                selectedTransaction?.let { transaction ->
-                    TransactionDetailScreen(
-                        initialTransaction = transaction,
-                        onBack = { selectedTransaction = null }
-                    )
-                }
+            } else {
+                TransactionDetailScreen(
+                    initialTransaction = transaction,
+                    onBack = { selectedTransaction = null }
+                )
             }
         }
     }
