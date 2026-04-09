@@ -1,8 +1,6 @@
 package com.myapp.expensetracker
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
 import org.junit.Test
 
 class TransactionFilterTest {
@@ -10,19 +8,16 @@ class TransactionFilterTest {
     @Test
     fun testDebitDetection() {
         // Logic: Amounts < 0 are debits (spends)
-        val debitAmount = -100.0
-        val creditAmount = 100.0
-        
-        val trackOnlyDebits = true
-        
-        // Simulating SmsReceiver logic:
-        // if (trackOnlyDebits && transaction.amount >= 0) return (ignore)
-        
-        val shouldIgnoreCredit = trackOnlyDebits && creditAmount >= 0
-        val shouldIgnoreDebit = trackOnlyDebits && debitAmount >= 0
-        
-        assertEquals("Credit should be ignored", true, shouldIgnoreCredit)
-        assertEquals("Debit should NOT be ignored", false, shouldIgnoreDebit)
+        assertEquals("Credit should be ignored", true, shouldIgnore(trackOnlyDebits = true, amount = 100.0))
+        assertEquals("Debit should NOT be ignored", false, shouldIgnore(trackOnlyDebits = true, amount = -100.0))
+
+        // Test when trackOnlyDebits is false
+        assertEquals("Credit should NOT be ignored when filtering disabled", false, shouldIgnore(trackOnlyDebits = false, amount = 100.0))
+        assertEquals("Debit should NOT be ignored when filtering disabled", false, shouldIgnore(trackOnlyDebits = false, amount = -100.0))
+    }
+
+    private fun shouldIgnore(trackOnlyDebits: Boolean, amount: Double): Boolean {
+        return trackOnlyDebits && amount >= 0
     }
 
     @Test
