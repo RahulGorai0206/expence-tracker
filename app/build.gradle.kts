@@ -89,6 +89,7 @@ dependencies {
     implementation(libs.retrofit)
     implementation(libs.retrofit.gson)
     implementation(libs.okhttp.logging)
+    implementation(libs.mediapipe.genai)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

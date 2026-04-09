@@ -46,36 +46,42 @@ class TransactionExtractor {
         }
 
         return try {
-            if (!modelDownloaded) {
-                entityExtractor.downloadModelIfNeeded().await()
-                modelDownloaded = true
-            }
-
-            val params = EntityExtractionParams.Builder(body)
-                .setEntityTypesFilter(setOf(Entity.TYPE_MONEY)) // Only extract money
-                .build()
-
-            val result = entityExtractor.annotate(params).await()
-
             var extractedAmount: Double? = null
-            // ALWAYS use the SMS received timestamp as requested
-            val transactionDate: Long = timestamp
-
-            // 2. Extract Money using ML Kit
-            for (annotation in result) {
-                for (entity in annotation.entities) {
-                    if (entity is MoneyEntity) {
-                        if (extractedAmount == null) {
-                            // Ignore amounts following "bal" or "balance" (likely account balance)
-                            val startIndex = annotation.start
-                            val prefix = lowerBody.substring((startIndex - 15).coerceAtLeast(0), startIndex)
-                            if (!prefix.contains("bal")) {
-                                extractedAmount = entity.integerPart.toDouble() + (entity.fractionalPart.toDouble() / 100.0)
+            
+            try {
+                if (!modelDownloaded) {
+                    entityExtractor.downloadModelIfNeeded().await()
+                    modelDownloaded = true
+                }
+    
+                val params = EntityExtractionParams.Builder(body)
+                    .setEntityTypesFilter(setOf(Entity.TYPE_MONEY)) // Only extract money
+                    .build()
+    
+                val result = entityExtractor.annotate(params).await()
+    
+                // 2. Extract Money using ML Kit
+                for (annotation in result) {
+                    for (entity in annotation.entities) {
+                        if (entity is MoneyEntity) {
+                            if (extractedAmount == null) {
+                                // Ignore amounts following "bal" or "balance" (likely account balance)
+                                val startIndex = annotation.start
+                                val prefix = lowerBody.substring((startIndex - 15).coerceAtLeast(0), startIndex)
+                                if (!prefix.contains("bal")) {
+                                    extractedAmount = entity.integerPart.toDouble() + (entity.fractionalPart.toDouble() / 100.0)
+                                }
                             }
                         }
                     }
                 }
+            } catch (mlErr: Exception) {
+                mlErr.printStackTrace()
+                // Proceed to regex fallback if ML Kit fails
             }
+
+            // ALWAYS use the SMS received timestamp as requested
+            val transactionDate: Long = timestamp
 
             // 3. Regex Fallback for Amount (Rs. / INR / ₹)
             if (extractedAmount == null) {

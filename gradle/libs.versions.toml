@@ -16,6 +16,7 @@ retrofit = "2.9.0"
 okhttp = "4.12.0"
 playServicesLocation = "21.3.0"
 kotlinxCoroutinesPlayServices = "1.10.2"
+mediapipe-genai = "0.10.33"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -43,6 +44,7 @@ okhttp-logging = { group = "com.squareup.okhttp3", name = "logging-interceptor",
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
 kotlinx-coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-play-services", version.ref = "kotlinxCoroutinesPlayServices" }
 androidx-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
+mediapipe-genai = { group = "com.google.mediapipe", name = "tasks-genai", version.ref = "mediapipe-genai" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

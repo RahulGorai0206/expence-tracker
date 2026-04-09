@@ -35,10 +35,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.myapp.expensetracker.AppDatabase
 import com.myapp.expensetracker.GoogleSheetsLogger
+import com.myapp.expensetracker.LazySyncManager
 import com.myapp.expensetracker.R
 import kotlinx.coroutines.launch
+import java.util.Calendar
+import java.util.Date
 import java.util.UUID
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     isDarkTheme: Boolean, 
@@ -67,6 +71,11 @@ fun SettingsScreen(
     var isCloudEditing by remember { mutableStateOf(false) }
     var isCloudExpanded by remember { mutableStateOf(false) }
     var isTestingConnection by remember { mutableStateOf(false) }
+    
+    var showLazySyncDialog by remember { mutableStateOf(false) }
+    var isLazySyncing by remember { mutableStateOf(false) }
+    var lazySyncStatus by remember { mutableStateOf("") }
+    val dateRangePickerState = rememberDateRangePickerState()
     
     var trackOnlyDebits by remember { mutableStateOf(sharedPrefs.getBoolean("track_only_debits", false)) }
 
@@ -432,6 +441,64 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
             dismissButton = {
                 if (!isRestoring) {
                     TextButton(onClick = { showRestoreDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
+            },
+            shape = RoundedCornerShape(28.dp),
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        )
+    }
+
+    if (showLazySyncDialog) {
+        AlertDialog(
+            onDismissRequest = { if (!isLazySyncing) showLazySyncDialog = false },
+            title = { Text("Lazy Sync (AI Powered)", fontWeight = FontWeight.Black) },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    if (isLazySyncing) {
+                        Text(lazySyncStatus)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+                    } else {
+                        Text("Select a date range to scan for transaction SMS using Gemma AI. The AI model will be downloaded if not present.")
+                        Spacer(modifier = Modifier.height(16.dp))
+                        DateRangePicker(
+                            state = dateRangePickerState,
+                            modifier = Modifier.height(400.dp),
+                            title = { Text("Select Range") },
+                            headline = { Text("Filter SMS") },
+                            showModeToggle = false
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                if (!isLazySyncing) {
+                    Button(
+                        enabled = dateRangePickerState.selectedStartDateMillis != null && dateRangePickerState.selectedEndDateMillis != null,
+                        onClick = {
+                            isLazySyncing = true
+                            scope.launch {
+                                val manager = LazySyncManager(context)
+                                manager.syncMessages(
+                                    dateRangePickerState.selectedStartDateMillis!!,
+                                    dateRangePickerState.selectedEndDateMillis!!
+                                ) { status ->
+                                    lazySyncStatus = status
+                                }
+                                isLazySyncing = false
+                                showLazySyncDialog = false
+                            }
+                        }
+                    ) {
+                        Text("Start Lazy Sync")
+                    }
+                }
+            },
+            dismissButton = {
+                if (!isLazySyncing) {
+                    TextButton(onClick = { showLazySyncDialog = false }) {
                         Text("Cancel")
                     }
                 }
@@ -843,6 +910,46 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
                                 }
                             }
                         }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Text("SMART SYNC", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.5.sp)
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+            shape = RoundedCornerShape(24.dp)
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                        Box(
+                            modifier = Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.tertiaryContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.AutoFixHigh, "Lazy Sync", tint = MaterialTheme.colorScheme.onTertiaryContainer, modifier = Modifier.size(20.dp))
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            Text("Lazy Sync", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                            Text("AI-powered historical SMS scanning", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    Button(
+                        onClick = { showLazySyncDialog = true },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
+                    ) {
+                        Text("Configure")
                     }
                 }
             }
