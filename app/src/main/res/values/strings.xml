@@ -18,4 +18,15 @@
     <string name="setup_feature_insights_desc">Get detailed breakdowns of your spending habits with intuitive charts.</string>
     <string name="setup_feature_cloud_title">Cloud Sync</string>
     <string name="setup_feature_cloud_desc">Securely backup and sync your data with Google Sheets (Setup in Settings).</string>
+
+    <string name="setup_cloud_title">Cloud Sync</string>
+    <string name="setup_cloud_description">Would you like to sync your expenses with Google Sheets? This helps you keep a backup and access data from anywhere.</string>
+    <string name="setup_cloud_enable_label">Enable Cloud Sync</string>
+    <string name="setup_cloud_note">You can always change this later in Settings.</string>
+    <string name="setup_cloud_url_label">Google Script URL</string>
+    <string name="setup_cloud_url_placeholder">https://script.google.com/macros/s/&#8230;</string>
+    <string name="setup_sheet_url_label">Google Sheet URL</string>
+    <string name="setup_sheet_url_placeholder">https://docs.google.com/spreadsheets/d/&#8230;</string>
+    <string name="setup_cloud_generate_key">Generate API Key</string>
+    <string name="setup_cloud_key_label">Your API Key</string>
 </resources>

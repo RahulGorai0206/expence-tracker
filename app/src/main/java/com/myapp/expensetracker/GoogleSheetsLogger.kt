@@ -53,6 +53,28 @@ object GoogleSheetsLogger {
         apiKey = key
     }
 
+    suspend fun testConnection(url: String, key: String): String? {
+        if (api == null) {
+            api = Retrofit.Builder()
+                .baseUrl(DUMMY_BASE_URL)
+                .addConverterFactory(GsonConverterFactory.create())
+                .client(client)
+                .build()
+                .create(GoogleSheetsApi::class.java)
+        }
+        return try {
+            val response = api?.getRecords(url, apiKey = key)
+            if (response?.success == true) {
+                null // Success
+            } else {
+                response?.error ?: "Invalid API Key or Script URL"
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            "Connection failed: ${e.localizedMessage}"
+        }
+    }
+
     suspend fun log(transaction: Transaction): String? {
         val loggerApi = api ?: return null
         val url = currentUrl ?: return null
@@ -134,44 +156,58 @@ object GoogleSheetsLogger {
         }
     }
 
-    suspend fun syncFromCloud(context: Context) {
-        val loggerApi = api ?: return
-        val url = currentUrl ?: return
+    suspend fun syncFromCloud(
+        context: Context,
+        onProgress: (Int, Int) -> Unit = { _, _ -> }
+    ): String? {
+        val loggerApi = api ?: return "Sync not configured"
+        val url = currentUrl ?: return "Script URL not set"
         val key = apiKey
-        if (url.isBlank() || key.isNullOrBlank()) return
+        if (url.isBlank()) return "Script URL is empty"
+        if (key.isNullOrBlank()) return "API Key is empty"
 
-        try {
+        return try {
             val response = loggerApi.getRecords(url, apiKey = key)
             if (response.success && response.records != null) {
                 val db = AppDatabase.getDatabase(context)
                 val dao = db.transactionDao()
                 
-                val transactions = response.records.mapNotNull { remote ->
-                    // Skip invalid records or deleted transactions
-                    if (remote.id.isNullOrBlank() || remote.amount == null || remote.amount == 0.0 || remote.status == "deleted") return@mapNotNull null
-                    
-                    Transaction(
-                        remoteId = remote.id,
-                        sender = remote.sender ?: "",
-                        amount = remote.amount,
-                        date = remote.date ?: System.currentTimeMillis(),
-                        body = remote.body ?: "",
-                        category = remote.category ?: "Other",
-                        status = remote.status ?: "Cleared",
-                        type = remote.type ?: "automated",
-                        latitude = remote.latitude,
-                        longitude = remote.longitude,
-                        syncStatus = "synced"
-                    )
+                val rawRecords = response.records.filter { 
+                    !it.id.isNullOrBlank() && it.amount != null && it.amount != 0.0 && it.status != "deleted"
                 }
                 
-                if (transactions.isNotEmpty()) {
+                val total = rawRecords.size
+                if (total > 0) {
+                    onProgress(0, total)
                     dao.deleteAllTransactions()
-                    transactions.forEach { dao.insert(it) }
+                    rawRecords.forEachIndexed { index, remote ->
+                        val transaction = Transaction(
+                            remoteId = remote.id,
+                            sender = remote.sender ?: "",
+                            amount = remote.amount ?: 0.0,
+                            date = remote.date ?: System.currentTimeMillis(),
+                            body = remote.body ?: "",
+                            category = remote.category ?: "Other",
+                            status = remote.status ?: "Cleared",
+                            type = remote.type ?: "automated",
+                            latitude = remote.latitude,
+                            longitude = remote.longitude,
+                            syncStatus = "synced"
+                        )
+                        dao.insert(transaction)
+                        onProgress(index + 1, total)
+                        kotlinx.coroutines.delay(20) // Give UI time to breathe
+                    }
+                    null // Success
+                } else {
+                    "No valid records found to restore"
                 }
+            } else {
+                response.error ?: "Failed to fetch records"
             }
         } catch (e: Exception) {
             e.printStackTrace()
+            "Connection error: ${e.localizedMessage}"
         }
     }
 
