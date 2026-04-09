@@ -147,8 +147,8 @@ object GoogleSheetsLogger {
                 val dao = db.transactionDao()
                 
                 val transactions = response.records.mapNotNull { remote ->
-                    // Skip invalid records (e.g. if script returns garbage or missing fields)
-                    if (remote.id.isNullOrBlank() || remote.amount == null || remote.amount == 0.0) return@mapNotNull null
+                    // Skip invalid records or deleted transactions
+                    if (remote.id.isNullOrBlank() || remote.amount == null || remote.amount == 0.0 || remote.status == "deleted") return@mapNotNull null
                     
                     Transaction(
                         remoteId = remote.id,

@@ -57,6 +57,8 @@ fun SettingsScreen(
     var apiKey by remember { mutableStateOf(sharedPrefs.getString("api_key", "") ?: "") }
     var isCloudSaved by remember { mutableStateOf(sharedPrefs.contains("script_url")) }
     var isCloudExpanded by remember { mutableStateOf(false) }
+    
+    var trackOnlyDebits by remember { mutableStateOf(sharedPrefs.getBoolean("track_only_debits", false)) }
 
     val extractedSheetId = remember(sheetUrl) {
         val pattern = "/spreadsheets/d/([a-zA-Z0-9-_]+)".toRegex()
@@ -700,7 +702,7 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
 
         Spacer(modifier = Modifier.height(32.dp))
         
-        Text("APPEARANCE", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.5.sp)
+        Text("APPEARANCE & BEHAVIOR", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.5.sp)
         Spacer(modifier = Modifier.height(12.dp))
         
         Card(
@@ -709,6 +711,37 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
             shape = RoundedCornerShape(24.dp)
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                        Box(
+                            modifier = Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Payment, "Debit", tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(20.dp))
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            Text("Track Only Debits", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                            Text("Ignore credited/received SMS", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    Switch(
+                        checked = trackOnlyDebits, 
+                        onCheckedChange = { 
+                            trackOnlyDebits = it
+                            sharedPrefs.edit().putBoolean("track_only_debits", it).apply()
+                        }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                Spacer(modifier = Modifier.height(16.dp))
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,

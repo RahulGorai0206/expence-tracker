@@ -46,6 +46,14 @@ class SmsReceiver : BroadcastReceiver() {
                     val transaction = extractor.extractTransaction(fullBody, sender, timestamp)
                     
                     if (transaction != null) {
+                        // Check if we should only track debits
+                        val sharedPrefs = context.getSharedPreferences("prefs", Context.MODE_PRIVATE)
+                        val trackOnlyDebits = sharedPrefs.getBoolean("track_only_debits", false)
+                        if (trackOnlyDebits && transaction.amount >= 0) {
+                            Log.d("SmsReceiver", "Ignoring non-debit transaction as per settings")
+                            return@launch
+                        }
+
                         // 2. Enhanced Location Fetching with Timeout
                         val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
                         val location = try {
