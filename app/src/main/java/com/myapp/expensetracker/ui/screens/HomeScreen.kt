@@ -98,7 +98,10 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
 
                 Surface(
                     onClick = {
-                        if (failedCount > 0 || pendingCount > 0) {
+                        if (!isSyncEnabled) {
+                            Toast.makeText(context, "Please enable Cloud Sync in settings first", Toast.LENGTH_SHORT).show()
+                            onSettingsClick()
+                        } else if (failedCount > 0 || pendingCount > 0) {
                             // Resync failed/pending
                             scope.launch {
                                 Toast.makeText(context, "Resyncing ${failedCount + pendingCount} transactions...", Toast.LENGTH_SHORT).show()
@@ -107,6 +110,7 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
                                 }
                             }
                         } else {
+                            // Already synced, but maybe user wants to check settings
                             onSettingsClick()
                         }
                     },

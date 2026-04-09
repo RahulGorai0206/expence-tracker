@@ -413,10 +413,15 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
             
             IconButton(
                 onClick = {
-                    scope.launch {
-                        Toast.makeText(context, "Syncing with cloud...", Toast.LENGTH_SHORT).show()
-                        GoogleSheetsLogger.syncFromCloud(context)
-                        Toast.makeText(context, "Sync complete", Toast.LENGTH_SHORT).show()
+                    if (isCloudSaved) {
+                        scope.launch {
+                            Toast.makeText(context, "Syncing with cloud...", Toast.LENGTH_SHORT).show()
+                            GoogleSheetsLogger.syncFromCloud(context)
+                            Toast.makeText(context, "Sync complete", Toast.LENGTH_SHORT).show()
+                        }
+                    } else {
+                        Toast.makeText(context, "Please enable Cloud Sync in settings first", Toast.LENGTH_SHORT).show()
+                        isCloudExpanded = true
                     }
                 },
                 modifier = Modifier
