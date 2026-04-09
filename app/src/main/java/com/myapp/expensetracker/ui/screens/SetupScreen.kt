@@ -426,8 +426,15 @@ function doPost(e) {
   if (!isAuthorized(e.parameter)) return respondError("Unauthorized");
   try {
     var action = (e.parameter.action || "legacy").toLowerCase();
-    var safeParams = Object.assign({}, e.parameter);
-    delete safeParams.api_key;
+    
+    // Safely clone parameters into a pure JS object, explicitly ignoring the API key
+    var safeParams = {};
+    for (var key in e.parameter) {
+      if (key.toLowerCase() !== 'api_key') { // .toLowerCase() catches API_KEY, api_key, etc.
+        safeParams[key] = e.parameter[key];
+      }
+    }
+
     logInfo("doPost_Entry", "Action: " + action + " | Params: " + JSON.stringify(safeParams));
 
     var result;

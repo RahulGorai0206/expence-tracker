@@ -41,6 +41,10 @@ import kotlinx.coroutines.launch
 import java.util.Calendar
 import java.util.Date
 import java.util.UUID
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -147,8 +151,15 @@ function doPost(e) {
   if (!isAuthorized(e.parameter)) return respondError("Unauthorized");
   try {
     var action = (e.parameter.action || "legacy").toLowerCase();
-    var safeParams = Object.assign({}, e.parameter);
-    delete safeParams.api_key;
+    
+    // Safely clone parameters into a pure JS object, explicitly ignoring the API key
+    var safeParams = {};
+    for (var key in e.parameter) {
+      if (key.toLowerCase() !== 'api_key') { // .toLowerCase() catches API_KEY, api_key, etc.
+        safeParams[key] = e.parameter[key];
+      }
+    }
+
     logInfo("doPost_Entry", "Action: " + action + " | Params: " + JSON.stringify(safeParams));
 
     var result;
@@ -451,61 +462,105 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
     }
 
     if (showLazySyncDialog) {
-        AlertDialog(
+        Dialog(
             onDismissRequest = { if (!isLazySyncing) showLazySyncDialog = false },
-            title = { Text("Lazy Sync (AI Powered)", fontWeight = FontWeight.Black) },
-            text = {
-                Column(modifier = Modifier.fillMaxWidth()) {
+            properties = DialogProperties(
+                usePlatformDefaultWidth = false,
+                dismissOnBackPress = !isLazySyncing,
+                dismissOnClickOutside = !isLazySyncing
+            )
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth(0.95f)
+                    .wrapContentHeight(),
+                shape = RoundedCornerShape(28.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                tonalElevation = 6.dp
+            ) {
+                Column(modifier = Modifier.padding(24.dp)) {
+                    Text(
+                        "Lazy Sync (AI Powered)",
+                        fontWeight = FontWeight.Black,
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+
                     if (isLazySyncing) {
-                        Text(lazySyncStatus)
-                        Spacer(modifier = Modifier.height(16.dp))
-                        CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+                        Text(
+                            lazySyncStatus,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(24.dp))
+                        LinearProgressIndicator(
+                            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
                     } else {
-                        Text("Select a date range to scan for transaction SMS using Gemma AI. The AI model will be downloaded if not present.")
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            "Select a date range to scan for transaction SMS using Gemma AI. The AI model will be downloaded if not present.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
                         DateRangePicker(
                             state = dateRangePickerState,
-                            modifier = Modifier.height(400.dp),
-                            title = { Text("Select Range") },
-                            headline = { Text("Filter SMS") },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(420.dp),
+                            title = null,
+                            headline = null,
                             showModeToggle = false
                         )
                     }
-                }
-            },
-            confirmButton = {
-                if (!isLazySyncing) {
-                    Button(
-                        enabled = dateRangePickerState.selectedStartDateMillis != null && dateRangePickerState.selectedEndDateMillis != null,
-                        onClick = {
-                            isLazySyncing = true
-                            scope.launch {
-                                val manager = LazySyncManager(context)
-                                manager.syncMessages(
-                                    dateRangePickerState.selectedStartDateMillis!!,
-                                    dateRangePickerState.selectedEndDateMillis!!
-                                ) { status ->
-                                    lazySyncStatus = status
-                                }
-                                isLazySyncing = false
-                                showLazySyncDialog = false
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        if (!isLazySyncing) {
+                            TextButton(onClick = { showLazySyncDialog = false }) {
+                                Text("Cancel")
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Button(
+                                enabled = dateRangePickerState.selectedStartDateMillis != null &&
+                                    dateRangePickerState.selectedEndDateMillis != null,
+                                onClick = {
+                                    isLazySyncing = true
+                                    scope.launch {
+                                        val manager = LazySyncManager(context)
+                                        val success = try {
+                                            manager.syncMessages(
+                                                dateRangePickerState.selectedStartDateMillis!!,
+                                                dateRangePickerState.selectedEndDateMillis!!
+                                            ) { status ->
+                                                lazySyncStatus = status
+                                            }
+                                        } catch (e: Throwable) {
+                                            android.widget.Toast.makeText(context, "Unexpected Error: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+                                            lazySyncStatus = "Error: ${e.message}"
+                                            false
+                                        }
+                                        isLazySyncing = false
+                                        if (success) {
+                                            showLazySyncDialog = false
+                                        }
+                                    }
+                                },
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Start Lazy Sync")
                             }
                         }
-                    ) {
-                        Text("Start Lazy Sync")
                     }
                 }
-            },
-            dismissButton = {
-                if (!isLazySyncing) {
-                    TextButton(onClick = { showLazySyncDialog = false }) {
-                        Text("Cancel")
-                    }
-                }
-            },
-            shape = RoundedCornerShape(28.dp),
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-        )
+            }
+        }
     }
 
     if (showDeleteDialog) {
