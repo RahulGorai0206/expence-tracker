@@ -518,6 +518,48 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
         }
         
         Spacer(modifier = Modifier.height(32.dp))
+
+        // Added Instructions in Settings
+        AnimatedVisibility(visible = isCloudExpanded) {
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)),
+                shape = RoundedCornerShape(24.dp)
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text("Cloud Sync Setup Instructions", fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    listOf(
+                        R.string.setup_step_1, R.string.setup_step_2, R.string.setup_step_3,
+                        R.string.setup_step_4, R.string.setup_step_5, R.string.setup_step_6,
+                        R.string.setup_step_7, R.string.setup_step_8, R.string.setup_step_9,
+                        R.string.setup_step_10, R.string.setup_step_11
+                    ).forEach { stepRes ->
+                        Text(
+                            stringResource(stepRes), 
+                            style = MaterialTheme.typography.bodySmall, 
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(vertical = 2.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = {
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            val clip = ClipData.newPlainText("Apps Script Code", scriptCode)
+                            clipboard.setPrimaryClip(clip)
+                            Toast.makeText(context, "Code copied to clipboard", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Copy Apps Script Code")
+                    }
+                }
+            }
+        }
         
         Text("BUDGET PLANNING", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.5.sp)
         Spacer(modifier = Modifier.height(12.dp))

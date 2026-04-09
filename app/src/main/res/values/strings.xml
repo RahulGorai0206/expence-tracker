@@ -29,4 +29,18 @@
     <string name="setup_sheet_url_placeholder">https://docs.google.com/spreadsheets/d/&#8230;</string>
     <string name="setup_cloud_generate_key">Generate API Key</string>
     <string name="setup_cloud_key_label">Your API Key</string>
+
+    <string name="setup_instructions_title">Setup Instructions</string>
+    <string name="setup_step_1">1. Create a new Google Sheet and copy its URL.</string>
+    <string name="setup_step_2">2. Paste the Sheet URL in the box below.</string>
+    <string name="setup_step_3">3. Click \"Copy Code\" to copy the Apps Script code.</string>
+    <string name="setup_step_4">4. In your Google Sheet, go to Extensions -> Apps Script.</string>
+    <string name="setup_step_5">5. Delete any existing code, paste the copied code, and Save (Ctrl+S).</string>
+    <string name="setup_step_6">6. Click \"Generate API Key\" below, copy it.</string>
+    <string name="setup_step_7">7. In Apps Script, go to Project Settings (gear icon) -> Script Properties -> Add Property.</string>
+    <string name="setup_step_8">8. Property: API_KEY, Value: [Paste your generated key] -> Save Properties.</string>
+    <string name="setup_step_9">9. Click Deploy -> New Deployment -> Select Type: Web App.</string>
+    <string name="setup_step_10">10. Description: \"Expense Tracker\", Execute as: Me, Who has access: Anyone -> Deploy.</string>
+    <string name="setup_step_11">11. Copy the \"Web App URL\" and paste it into the Script URL box below.</string>
+    <string name="setup_copy_code">Copy Code</string>
 </resources>
