@@ -73,6 +73,14 @@ class LazySyncManager(private val context: Context) {
                     if (transaction != null) {
                         // Respect "Track Only Debits" setting
                         if (trackOnlyDebits && transaction.amount >= 0) return@forEachIndexed
+                        
+                        // Prevent duplicate syncing
+                        val duplicateCount = database.transactionDao().checkDuplicate(transaction.date, transaction.amount)
+                        if (duplicateCount > 0) {
+                            Log.d("LazySync", "Duplicate skipped for transaction at ${transaction.date}")
+                            return@forEachIndexed
+                        }
+                        
                         val localId = database.transactionDao().insertAndReturnId(transaction)
                         // Trigger cloud upload so it actually reaches the sheet
                         GoogleSheetsLogger.logAsync(context, transaction, localId)
@@ -164,10 +172,11 @@ class LazySyncManager(private val context: Context) {
         try {
             val amountMatch = Regex("AMOUNT:.*?([\\d,]+(?:\\.\\d{1,2})?)").find(response)
             val typeMatch = Regex("TYPE:.*?(DEBIT|CREDIT)", RegexOption.IGNORE_CASE).find(response)
-            val categoryMatch = Regex("CATEGORY:.*?([a-zA-Z]+)").find(response)
+            val categoryMatch = Regex("CATEGORY:\\s*([a-zA-Z]+)", RegexOption.IGNORE_CASE).find(response)
             
             val amountStr = amountMatch?.groupValues?.get(1)?.replace(",", "")
-            val categoryStr = categoryMatch?.groupValues?.get(1) ?: "Other"
+            val rawCategory = categoryMatch?.groupValues?.get(1)?.lowercase() ?: "other"
+            val categoryStr = rawCategory.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
             val amount = amountStr?.toDoubleOrNull() ?: return null
             
             // Keyword-based debit/credit verification — more reliable than AI for Indian SMS
