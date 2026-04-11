@@ -37,6 +37,7 @@ import com.myapp.expensetracker.AppDatabase
 import com.myapp.expensetracker.GoogleSheetsLogger
 import com.myapp.expensetracker.LazySyncManager
 import com.myapp.expensetracker.R
+import com.myapp.expensetracker.SmsMonitorService
 import kotlinx.coroutines.launch
 import java.util.Calendar
 import java.util.Date
@@ -82,6 +83,7 @@ fun SettingsScreen(
     val dateRangePickerState = rememberDateRangePickerState()
     
     var trackOnlyDebits by remember { mutableStateOf(sharedPrefs.getBoolean("track_only_debits", false)) }
+    var backgroundMonitoring by remember { mutableStateOf(SmsMonitorService.isEnabled(context)) }
 
     val extractedSheetId = remember(sheetUrl) {
         val pattern = "/spreadsheets/d/([a-zA-Z0-9-_]+)".toRegex()
@@ -1021,6 +1023,46 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
             shape = RoundedCornerShape(24.dp)
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                        Box(
+                            modifier = Modifier.size(40.dp).clip(CircleShape).background(Color(0xFF2E7D32).copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.RadioButtonChecked, "Monitor", tint = Color(0xFF4CAF50), modifier = Modifier.size(20.dp))
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            Text("Background Monitoring", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                            Text(
+                                if (backgroundMonitoring) "Always listening for transactions" else "App will stop when closed",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (backgroundMonitoring) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    Switch(
+                        checked = backgroundMonitoring,
+                        onCheckedChange = {
+                            backgroundMonitoring = it
+                            SmsMonitorService.setEnabled(context, it)
+                            Toast.makeText(
+                                context,
+                                if (it) "Background monitoring enabled" else "Background monitoring disabled",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                Spacer(modifier = Modifier.height(16.dp))
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,

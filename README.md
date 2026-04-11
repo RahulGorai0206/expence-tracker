@@ -72,6 +72,8 @@ The UI is built entirely with **Jetpack Compose** and **Material 3**, featuring 
 | 💰 **Budget Tracking** | Monthly budget target with remaining balance displayed on home card |
 | 🌙 **Premium Dark/Light Themes** | Material You dynamic colors + custom dark/light color schemes |
 | 📊 **Financial Dashboard** | Balance card with gradient design, recent activity feed, and transaction history grouped by date |
+| 🧠 **AI Smart Sync (Lazy Sync)** | On-device AI (Gemma 2B) scans historical SMS Inbox to retrieve older missed transactions |
+| 🛡️ **Reliable Background Tracking** | Persistent Foreground Service & Boot Receiver ensure the app never goes to sleep silently |
 | 🔄 **Offline-First Architecture** | Local Room DB as source of truth; background cloud sync with retry for failed uploads |
 | 📤 **Transaction Sharing** | Screenshot capture + text share of transaction details including Google Maps link |
 
@@ -250,8 +252,11 @@ ExpenseTracker/
 │               ├── TransactionDao.kt        # Room @Dao — queries, inserts, sync status updates
 │               ├── AppDatabase.kt           # Room database singleton (version 6)
 │               │
-│               ├── ── SMS Processing ──
+│               ├── ── SMS Processing & AI ──
 │               ├── SmsReceiver.kt           # BroadcastReceiver — SMS interception + notification
+│               ├── SmsMonitorService.kt     # Foreground Service — Keeps app alive for reliable intercepts
+│               ├── BootReceiver.kt          # BroadcastReceiver — Auto-starts monitor after device reboot
+│               ├── LazySyncManager.kt       # Runs Gemma on-device model to extract transactions from history
 │               ├── TransactionExtractor.kt  # ML Kit + Regex extraction pipeline
 │               ├── NotificationReceiver.kt  # Handles Accept/Deny/Timeout notification actions
 │               │
@@ -517,8 +522,11 @@ The app requests the following permissions at startup:
 | `ACCESS_FINE_LOCATION` | Capture precise GPS coordinates |
 | `ACCESS_COARSE_LOCATION` | Fallback location access |
 | `ACCESS_BACKGROUND_LOCATION` | Capture location even when app is in background |
-| `INTERNET` | Cloud sync to Google Sheets |
+| `INTERNET` | Cloud sync to Google Sheets and downloading AI models |
 | `SCHEDULE_EXACT_ALARM` | 30-second auto-accept timeout alarm |
+| `FOREGROUND_SERVICE` | Keeps the SMS monitoring process alive |
+| `FOREGROUND_SERVICE_SPECIAL_USE` | Android 14+ requirement for the specific foreground process |
+| `RECEIVE_BOOT_COMPLETED` | Automatically restarts SMS monitor upon phone reboot |
 
 > **Note**: For location geo-tagging to work when the app is not in the foreground, grant **"Allow all the time"** location permission in Android Settings → Apps → Expense Tracker → Permissions → Location.
 
@@ -574,6 +582,7 @@ graph LR
 | **Build** | AGP / Gradle | 8.8.2 | Build system |
 | **UI Framework** | Jetpack Compose + Material 3 | BOM 2024.05.00 | Declarative UI with Material You theming |
 | **Local Database** | Room | 2.6.1 | SQLite abstraction with reactive `Flow` queries |
+| **GenAI** | MediaPipe GenAI | LlmInference | Runs Gemma 2B model on-device for historical "Lazy Sync" |
 | **ML / AI** | Google ML Kit Entity Extraction | 16.0.0-beta6 | SMS money extraction |
 | **ML / NLP** | Google ML Kit Language ID | 17.0.6 | Language identification |
 | **Location** | Google Play Services Location | 21.3.0 | Fused Location Provider for geo-tagging |

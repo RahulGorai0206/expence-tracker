@@ -72,6 +72,11 @@ class MainActivity : ComponentActivity() {
         
         GoogleSheetsLogger.init(this)
 
+        // Start persistent background service for SMS monitoring
+        if (SmsMonitorService.isEnabled(this)) {
+            SmsMonitorService.start(this)
+        }
+
         setContent {
             val context = LocalContext.current
             val sharedPrefs = remember { context.getSharedPreferences("prefs", Context.MODE_PRIVATE) }
