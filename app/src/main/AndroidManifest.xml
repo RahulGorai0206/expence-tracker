@@ -45,6 +45,17 @@
             </intent-filter>
         </receiver>
 
+        <!-- NotificationListenerService — catches RCS and other non-SMS transactions
+             by reading notification text from Google Messages, Samsung Messages, etc. -->
+        <service
+            android:name=".TransactionNotificationListener"
+            android:exported="true"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
         <receiver
             android:name=".NotificationReceiver"
             android:enabled="true"

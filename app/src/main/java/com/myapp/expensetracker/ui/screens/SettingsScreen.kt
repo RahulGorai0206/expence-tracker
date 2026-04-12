@@ -43,6 +43,9 @@ import com.myapp.expensetracker.GoogleSheetsLogger
 import com.myapp.expensetracker.LazySyncManager
 import com.myapp.expensetracker.R
 import com.myapp.expensetracker.SmsMonitorService
+import androidx.core.app.NotificationManagerCompat
+import android.content.ComponentName
+import com.myapp.expensetracker.TransactionNotificationListener
 import kotlinx.coroutines.launch
 import java.util.Calendar
 import java.util.Date
@@ -81,6 +84,18 @@ fun SettingsScreen(
             isIgnoringBatteryOptimizations = powerManager?.isIgnoringBatteryOptimizations(context.packageName) ?: true
         }
     }
+
+    // Check if notification listener access is granted (needed for RCS detection)
+    var isNotificationListenerEnabled by remember {
+        mutableStateOf(
+            NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
+        )
+    }
+    // Refresh when returning from system settings
+    LaunchedEffect(Unit) {
+        isNotificationListenerEnabled = NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
+    }
+
     var showRestoreDialog by remember { mutableStateOf(false) }
     var restoreProgress by remember { mutableIntStateOf(0) }
     var restoreTotal by remember { mutableIntStateOf(0) }
@@ -1117,6 +1132,43 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
                                 "Your device may kill the background process. Tap here to disable battery optimization for this app.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
+                            )
+                        }
+                    }
+                }
+
+                // Notification Listener Access Warning (needed for RCS detection)
+                if (!isNotificationListenerEnabled) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFFFFF3E0))
+                            .clickable {
+                                val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+                                context.startActivity(intent)
+                            }
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Notifications,
+                            contentDescription = "Notification Access",
+                            tint = Color(0xFFE65100),
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "Enable RCS Detection",
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFE65100)
+                            )
+                            Text(
+                                "Grant notification access to detect RCS bank transactions (YES Bank, etc). Tap here to enable.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFFBF360C).copy(alpha = 0.8f)
                             )
                         }
                     }

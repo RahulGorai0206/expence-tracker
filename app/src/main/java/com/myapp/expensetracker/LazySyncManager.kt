@@ -122,29 +122,109 @@ class LazySyncManager(private val context: Context) {
 
     private fun fetchSmsMessages(startDate: Long, endDate: Long): List<SmsMessage> {
         val messages = mutableListOf<SmsMessage>()
-        val cursor = context.contentResolver.query(
-            Telephony.Sms.Inbox.CONTENT_URI,  // Inbox only — excludes sent messages
-            arrayOf(Telephony.Sms.BODY, Telephony.Sms.ADDRESS, Telephony.Sms.DATE),
-            "${Telephony.Sms.DATE} >= ? AND ${Telephony.Sms.DATE} <= ?",
-            arrayOf(startDate.toString(), endDate.toString()),
-            "${Telephony.Sms.DATE} ASC"
-        )
+        val seen = mutableSetOf<String>() // Dedup key: "$timestamp|$body"
 
-        cursor?.use {
-            val bodyIndex = it.getColumnIndex(Telephony.Sms.BODY)
-            val addressIndex = it.getColumnIndex(Telephony.Sms.ADDRESS)
-            val dateIndex = it.getColumnIndex(Telephony.Sms.DATE)
-
-            while (it.moveToNext()) {
-                messages.add(
-                    SmsMessage(
-                        body = it.getString(bodyIndex),
-                        sender = it.getString(addressIndex),
-                        timestamp = it.getLong(dateIndex)
-                    )
-                )
+        // Query 1: Telephony.Sms.CONTENT_URI (standard SMS + some RCS)
+        // Use broader URI with type=1 filter to include RCS messages synced by Google Messages.
+        try {
+            val smsCursor = context.contentResolver.query(
+                Telephony.Sms.CONTENT_URI,
+                arrayOf(Telephony.Sms.BODY, Telephony.Sms.ADDRESS, Telephony.Sms.DATE),
+                "${Telephony.Sms.TYPE} = ? AND ${Telephony.Sms.DATE} >= ? AND ${Telephony.Sms.DATE} <= ?",
+                arrayOf(Telephony.Sms.MESSAGE_TYPE_INBOX.toString(), startDate.toString(), endDate.toString()),
+                "${Telephony.Sms.DATE} ASC"
+            )
+            smsCursor?.use {
+                val bodyIdx = it.getColumnIndex(Telephony.Sms.BODY)
+                val addrIdx = it.getColumnIndex(Telephony.Sms.ADDRESS)
+                val dateIdx = it.getColumnIndex(Telephony.Sms.DATE)
+                while (it.moveToNext()) {
+                    val body = it.getString(bodyIdx) ?: continue
+                    val sender = it.getString(addrIdx) ?: "Unknown"
+                    val ts = it.getLong(dateIdx)
+                    val key = "$ts|$body"
+                    if (seen.add(key)) {
+                        messages.add(SmsMessage(body = body, sender = sender, timestamp = ts))
+                    }
+                }
             }
+        } catch (e: Exception) {
+            Log.e("LazySync", "Error querying SMS content URI", e)
         }
+
+        // Query 2: content://mms — Hierarchical MMS table (RCS fallbacks are synced here)
+        try {
+            val mmsUri = android.provider.Telephony.Mms.CONTENT_URI
+            val mmsCursor = context.contentResolver.query(
+                mmsUri,
+                arrayOf(android.provider.Telephony.Mms._ID, android.provider.Telephony.Mms.DATE),
+                "${android.provider.Telephony.Mms.MESSAGE_BOX} = ?",
+                arrayOf(android.provider.Telephony.Mms.MESSAGE_BOX_INBOX.toString()),
+                "${android.provider.Telephony.Mms.DATE} ASC"
+            )
+            mmsCursor?.use {
+                val idIdx = it.getColumnIndex(android.provider.Telephony.Mms._ID)
+                val dateIdx = it.getColumnIndex(android.provider.Telephony.Mms.DATE)
+
+                while (it.moveToNext()) {
+                    val mmsId = it.getString(idIdx) ?: continue
+                    var ts = it.getLong(dateIdx)
+                    
+                    // Normalize MMS date to milliseconds (some devices store as seconds)
+                    if (ts < 10000000000L) {
+                        ts *= 1000
+                    }
+                    if (ts < startDate || ts > endDate) continue
+
+                    // 1. Fetch plain text payload from part table
+                    var body = ""
+                    val partUri = android.net.Uri.parse("content://mms/part")
+                    val partCursor = context.contentResolver.query(
+                        partUri, null, "mid = ?", arrayOf(mmsId), null
+                    )
+                    partCursor?.use { pCursor ->
+                        val ctIdx = pCursor.getColumnIndex("ct")
+                        val textIdx = pCursor.getColumnIndex("text")
+                        if (ctIdx >= 0 && textIdx >= 0) {
+                            while (pCursor.moveToNext()) {
+                                val ct = pCursor.getString(ctIdx)
+                                if ("text/plain" == ct) {
+                                    val text = pCursor.getString(textIdx)
+                                    if (text != null) {
+                                        body += text
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    if (body.isBlank()) continue
+
+                    // 2. Fetch sender address from addr table (Type 137 is FROM)
+                    var sender = "Unknown"
+                    val addrUri = android.net.Uri.parse("content://mms/$mmsId/addr")
+                    val addrCursor = context.contentResolver.query(
+                        addrUri, arrayOf("address", "type"), "type = ?", arrayOf("137"), null
+                    )
+                    addrCursor?.use { aCursor ->
+                        val addrIdx = aCursor.getColumnIndex("address")
+                        if (addrIdx >= 0 && aCursor.moveToFirst()) {
+                            sender = aCursor.getString(addrIdx) ?: "Unknown"
+                        }
+                    }
+
+                    val key = "$ts|$body"
+                    if (seen.add(key)) {
+                        messages.add(SmsMessage(body = body, sender = sender, timestamp = ts))
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.w("LazySync", "content://mms/ query failed (expected on some devices): ${e.message}")
+        }
+
+        // Sort merged results by timestamp
+        messages.sortBy { it.timestamp }
         return messages
     }
 
