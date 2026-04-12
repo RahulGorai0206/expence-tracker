@@ -18,3 +18,5 @@ local.properties
 /app/release/
 /app/debug/
 .vscode/
+/app/build/
+/build/
