@@ -40,4 +40,13 @@ interface TransactionDao {
 
     @Query("UPDATE transactions SET syncStatus = 'failed' WHERE syncStatus = 'pending'")
     suspend fun resetPendingStatus()
+
+    @Query("SELECT SUM(amount) FROM transactions")
+    suspend fun getTotalBalance(): Double?
+
+    @Query("SELECT SUM(ABS(amount)) FROM transactions WHERE amount < 0")
+    suspend fun getTotalSpent(): Double?
+
+    @Query("SELECT * FROM transactions ORDER BY date DESC LIMIT 1")
+    suspend fun getLastTransaction(): Transaction?
 }

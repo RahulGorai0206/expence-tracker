@@ -61,6 +61,18 @@
             android:enabled="true"
             android:exported="false" />
 
+        <receiver
+            android:name=".ExpenseWidgetReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/expense_widget_info" />
+        </receiver>
+
         <!-- Auto-start monitoring after device boot or app update -->
         <receiver
             android:name=".BootReceiver"

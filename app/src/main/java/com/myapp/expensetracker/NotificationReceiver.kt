@@ -87,6 +87,9 @@ class NotificationReceiver : BroadcastReceiver() {
                                 "Saved transaction locally: $amount from $sender"
                             )
 
+                            // Update widget
+                            updateExpenseWidget(context)
+
                             scope.launch(Dispatchers.IO) {
                                 try {
                                     val remoteId = GoogleSheetsLogger.log(transaction)
