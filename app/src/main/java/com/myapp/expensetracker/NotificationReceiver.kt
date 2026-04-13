@@ -57,34 +57,51 @@ class NotificationReceiver : BroadcastReceiver() {
                     val longitudeFromIntent = intent.getDoubleExtra("longitude", 0.0).takeIf { it != 0.0 }
 
                     if (amount != 0.0) {
-                        val transaction = Transaction(
-                            sender = sender,
-                            amount = amount,
-                            date = date,
-                            body = bodyFromIntent,
-                            category = categoryFromIntent,
-                            status = if (action == "TIMEOUT_TRANSACTION") "Auto-Cleared" else "Cleared",
-                            type = "automated",
-                            latitude = latitudeFromIntent,
-                            longitude = longitudeFromIntent,
-                            syncStatus = "pending"
-                        )
-
                         val db = AppDatabase.getDatabase(context)
-                        val localId = db.transactionDao().insertAndReturnId(transaction)
-                        Log.d("NotificationReceiver", "Saved transaction locally: $amount from $sender")
-                        
-                        scope.launch(Dispatchers.IO) {
-                            try {
-                                val remoteId = GoogleSheetsLogger.log(transaction)
-                                if (remoteId != null) {
-                                    db.transactionDao().updateSyncStatus(localId.toInt(), remoteId, "synced")
-                                } else {
-                                    db.transactionDao().updateSyncStatus(localId.toInt(), null, "failed")
+
+                        // DB-level dedup: last line of defense against duplicate entries
+                        val dupeCount =
+                            db.transactionDao().checkDuplicateByBody(amount, bodyFromIntent)
+                        if (dupeCount > 0) {
+                            Log.d(
+                                "NotificationReceiver",
+                                "Duplicate detected in DB — skipping insert for $amount from $sender"
+                            )
+                        } else {
+                            val transaction = Transaction(
+                                sender = sender,
+                                amount = amount,
+                                date = date,
+                                body = bodyFromIntent,
+                                category = categoryFromIntent,
+                                status = if (action == "TIMEOUT_TRANSACTION") "Auto-Cleared" else "Cleared",
+                                type = "automated",
+                                latitude = latitudeFromIntent,
+                                longitude = longitudeFromIntent,
+                                syncStatus = "pending"
+                            )
+
+                            val localId = db.transactionDao().insertAndReturnId(transaction)
+                            Log.d(
+                                "NotificationReceiver",
+                                "Saved transaction locally: $amount from $sender"
+                            )
+
+                            scope.launch(Dispatchers.IO) {
+                                try {
+                                    val remoteId = GoogleSheetsLogger.log(transaction)
+                                    if (remoteId != null) {
+                                        db.transactionDao()
+                                            .updateSyncStatus(localId.toInt(), remoteId, "synced")
+                                    } else {
+                                        db.transactionDao()
+                                            .updateSyncStatus(localId.toInt(), null, "failed")
+                                    }
+                                } catch (e: Exception) {
+                                    db.transactionDao()
+                                        .updateSyncStatus(localId.toInt(), null, "failed")
+                                    e.printStackTrace()
                                 }
-                            } catch (e: Exception) {
-                                db.transactionDao().updateSyncStatus(localId.toInt(), null, "failed")
-                                e.printStackTrace()
                             }
                         }
                     }

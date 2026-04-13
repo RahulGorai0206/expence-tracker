@@ -46,6 +46,15 @@ class SmsReceiver : BroadcastReceiver() {
                     val transaction = extractor.extractTransaction(fullBody, sender, timestamp)
                     
                     if (transaction != null) {
+                        // Cross-layer dedup: skip if already processed by ContentObserver or NotificationListener
+                        if (TransactionDedup.isDuplicate(fullBody)) {
+                            Log.d(
+                                "SmsReceiver",
+                                "Skipping — already processed by another detection layer"
+                            )
+                            return@launch
+                        }
+
                         // Check if we should only track debits
                         val sharedPrefs = context.getSharedPreferences("prefs", Context.MODE_PRIVATE)
                         val trackOnlyDebits = sharedPrefs.getBoolean("track_only_debits", false)

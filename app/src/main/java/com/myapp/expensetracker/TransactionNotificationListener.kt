@@ -49,11 +49,6 @@ class TransactionNotificationListener : NotificationListenerService() {
             "com.jio.myjio",                        // Jio messaging
             "org.thoughtcrime.securesms",            // Signal
         )
-
-        // In-memory dedup: maps message body hash → timestamp of when we processed it
-        // Prevents double-processing if both this listener and SmsReceiver fire
-        private val recentlyProcessed = LinkedHashMap<Int, Long>(50, 0.75f, true)
-        private const val DEDUP_WINDOW_MS = 60_000L // 1 minute
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
@@ -97,17 +92,10 @@ class TransactionNotificationListener : NotificationListenerService() {
             lower.contains("upi") || lower.contains("txn") || lower.contains("deposited")
         if (!hasCurrency || !hasTransactionWord) return
 
-        // Dedup check: have we processed this exact message body recently?
-        val bodyHash = messageBody.hashCode()
-        synchronized(recentlyProcessed) {
-            val now = System.currentTimeMillis()
-            // Evict old entries
-            recentlyProcessed.entries.removeAll { now - it.value > DEDUP_WINDOW_MS }
-            if (recentlyProcessed.containsKey(bodyHash)) {
-                Log.d(TAG, "Dedup: already processed this message, skipping")
-                return
-            }
-            recentlyProcessed[bodyHash] = now
+        // Cross-layer dedup: skip if already processed by SmsReceiver or ContentObserver
+        if (TransactionDedup.isDuplicate(messageBody)) {
+            Log.d(TAG, "Skipping — already processed by another detection layer")
+            return
         }
 
         Log.d(TAG, "Potential transaction detected via notification — processing")

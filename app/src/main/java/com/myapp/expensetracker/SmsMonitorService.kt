@@ -23,6 +23,8 @@ import com.google.android.gms.location.Priority
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -32,6 +34,7 @@ class SmsMonitorService : Service() {
     private val extractor = TransactionExtractor()
     private var smsObserver: SmsContentObserver? = null
     private var mmsSmsObserver: SmsContentObserver? = null
+    private val processLock = Mutex() // Prevents concurrent processNewMessages() calls
 
     companion object {
         private const val TAG = "SmsMonitorService"
@@ -168,8 +171,9 @@ class SmsMonitorService : Service() {
     inner class SmsContentObserver(handler: Handler) : ContentObserver(handler) {
 
         // Debounce: Android may fire onChange multiple times for a single message
+        @Volatile
         private var lastChangeTime = 0L
-        private val debounceMs = 1500L
+        private val debounceMs = 3000L // 3s debounce to avoid rapid re-fires
 
         override fun onChange(selfChange: Boolean, uri: Uri?) {
             super.onChange(selfChange, uri)
@@ -184,7 +188,9 @@ class SmsMonitorService : Service() {
     }
 
     @SuppressLint("MissingPermission")
-    private suspend fun processNewMessages() {
+    private suspend fun processNewMessages() = processLock.withLock {
+        // Mutex ensures only one processNewMessages() runs at a time,
+        // preventing race conditions when onChange fires rapidly.
         try {
             val prefs = getSharedPreferences("prefs", Context.MODE_PRIVATE)
             val lastId = prefs.getLong(PREF_LAST_SMS_ID, 0L)
@@ -217,18 +223,28 @@ class SmsMonitorService : Service() {
                     val sender = it.getString(addrIdx) ?: "Unknown"
                     val timestamp = it.getLong(dateIdx)
 
+                    // Always advance watermark for every row, even non-transactions
+                    if (smsId > newHighestId) newHighestId = smsId
+
                     Log.d(TAG, "ContentObserver processing new message ID=$smsId from $sender")
 
                     val transaction = extractor.extractTransaction(body, sender, timestamp)
 
                     if (transaction != null) {
+                        // Cross-layer dedup: skip if SmsReceiver or NotificationListener already got it
+                        if (TransactionDedup.isDuplicate(body)) {
+                            Log.d(TAG, "Skipping ID=$smsId — already processed by another layer")
+                            continue
+                        }
+
                         // Check track-only-debits preference
                         val trackOnlyDebits = prefs.getBoolean("track_only_debits", false)
                         if (trackOnlyDebits && transaction.amount >= 0) {
                             Log.d(TAG, "Ignoring non-debit transaction (ContentObserver)")
                         } else {
                             // Capture location
-                            val fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+                            val fusedLocationClient =
+                                LocationServices.getFusedLocationProviderClient(this@SmsMonitorService)
                             val location = try {
                                 withTimeoutOrNull(5000) {
                                     val lastLoc = fusedLocationClient.lastLocation.await()
@@ -252,12 +268,11 @@ class SmsMonitorService : Service() {
                             showTransactionNotification(withLocation)
                         }
                     }
-
-                    if (smsId > newHighestId) newHighestId = smsId
                 }
             }
 
-            // Persist the new watermark
+            // Persist the new watermark — always, even if no transactions were found.
+            // This prevents re-processing non-transaction messages on subsequent onChange fires.
             if (newHighestId > lastId) {
                 prefs.edit().putLong(PREF_LAST_SMS_ID, newHighestId).apply()
                 Log.d(TAG, "Updated last processed SMS ID to $newHighestId")
