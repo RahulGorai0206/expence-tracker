@@ -193,7 +193,7 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
                 ) {
                     Column {
                         Text(
-                            "TOTAL BALANCE",
+                            "TOTAL EXPENSE",
                             style = MaterialTheme.typography.labelLarge,
                             color = Color.White.copy(alpha = 0.6f),
                             letterSpacing = 2.sp,
