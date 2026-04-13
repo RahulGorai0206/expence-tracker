@@ -10,11 +10,11 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Kotlin-2.1.10-7F52FF?logo=kotlin&logoColor=white" alt="Kotlin"/>
+  <img src="https://img.shields.io/badge/Kotlin-2.3.20-7F52FF?logo=kotlin&logoColor=white" alt="Kotlin"/>
   <img src="https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?logo=jetpackcompose&logoColor=white" alt="Compose"/>
   <img src="https://img.shields.io/badge/ML%20Kit-Entity%20Extraction-34A853?logo=google&logoColor=white" alt="ML Kit"/>
-  <img src="https://img.shields.io/badge/Room-2.6.1-orange?logo=android" alt="Room"/>
-  <img src="https://img.shields.io/badge/Min%20SDK-33-green?logo=android" alt="Min SDK"/>
+  <img src="https://img.shields.io/badge/Room-2.8.4-orange?logo=android" alt="Room"/>
+  <img src="https://img.shields.io/badge/Min%20SDK-31-green?logo=android" alt="Min SDK"/>
   <img src="https://img.shields.io/badge/Target%20SDK-36-blue?logo=android" alt="Target SDK"/>
 </p>
 
@@ -60,22 +60,24 @@ The UI is built entirely with **Jetpack Compose** and **Material 3**, featuring 
 
 ## Key Features
 
-| Feature | Description |
-|---------|-------------|
-| 📱 **Automatic SMS Detection** | BroadcastReceiver intercepts incoming SMS and extracts transactions in real-time |
-| 🤖 **ML Kit Extraction** | Google ML Kit Entity Extraction identifies monetary amounts; regex fallback for ₹/INR/Rs patterns |
-| 🏷️ **Smart Categorization** | Keyword-based classification across 7 categories (Dining, Transport, Groceries, Shopping, Bills, Entertainment, Health) |
-| 📍 **Geo-Tagged Transactions** | Captures precise GPS coordinates at time of transaction using Fused Location Provider |
-| 🔔 **30-Second Accept/Deny** | Rich notification with Accept/Deny actions; auto-accepts on timeout |
-| ☁️ **Google Sheets Cloud Sync** | Full CRUD sync via Google Apps Script with duplicate prevention and API key auth |
-| ✏️ **Manual Logging** | Bottom sheet for manually entering expenses with location capture |
-| 💰 **Budget Tracking** | Monthly budget target with remaining balance displayed on home card |
-| 🌙 **Premium Dark/Light Themes** | Material You dynamic colors + custom dark/light color schemes |
-| 📊 **Financial Dashboard** | Balance card with gradient design, recent activity feed, and transaction history grouped by date |
-| 🧠 **AI Smart Sync (Lazy Sync)** | On-device AI (Gemma 2B) scans historical SMS Inbox to retrieve older missed transactions |
-| 🛡️ **Reliable Background Tracking** | Persistent Foreground Service & Boot Receiver ensure the app never goes to sleep silently |
-| 🔄 **Offline-First Architecture** | Local Room DB as source of truth; background cloud sync with retry for failed uploads |
-| 📤 **Transaction Sharing** | Screenshot capture + text share of transaction details including Google Maps link |
+| Feature                           | Description                                                                                                             |
+|-----------------------------------|-------------------------------------------------------------------------------------------------------------------------|
+| 📱 **Automatic SMS Detection**    | BroadcastReceiver intercepts incoming SMS and extracts transactions in real-time                                        |
+| 💬 **RCS Bank Intercept**         | NotificationListenerService captures modern RCS bank transactions directly from system notifications                    |
+| 🤖 **ML Kit Extraction**          | Google ML Kit Entity Extraction identifies monetary amounts; regex fallback                                             |
+| 🧩 **Glance App Widget**          | Expressive Material 3 dynamic color widget allowing single-tap tracking from your homescreen                            |
+| 🏷️ **Smart Categorization**      | Keyword-based classification across 7 categories (Dining, Transport, Groceries, Shopping, Bills, Entertainment, Health) |
+| 📍 **Geo-Tagged Transactions**    | Captures precise GPS coordinates at time of transaction using Fused Location Provider                                   |
+| 🔔 **30-Second Accept/Deny**      | Rich notification with Accept/Deny actions; auto-accepts on timeout                                                     |
+| ☁️ **Google Sheets Cloud Sync**   | Full CRUD sync via Google Apps Script with duplicate prevention and API key auth                                        |
+| ✏️ **Manual Logging**             | Bottom sheet for manually entering expenses with location capture                                                       |
+| 💰 **Budget Tracking**            | Monthly budget target with remaining balance displayed on home card                                                     |
+| 🌙 **Premium Dark/Light Themes**  | Material You dynamic colors + custom dark/light color schemes                                                           |
+| 📊 **Financial Dashboard**        | Balance card with gradient design, recent activity feed, and transaction history grouped by date                        |
+| 🧠 **AI Smart Sync (Lazy Sync)**  | On-device AI (Gemma 2B) scans historical SMS Inbox to retrieve older missed transactions                                |
+| 🛡️ **Reliable Tracking**         | Persistent Foreground Service & Boot Receiver ensure the app never goes to sleep silently                               |
+| 🔄 **Offline-First Architecture** | Local Room DB as source of truth; background cloud sync with retry for failed uploads                                   |
+| 📤 **Transaction Sharing**        | Screenshot capture + text share of transaction details including Google Maps link                                       |
 
 ---
 
@@ -277,11 +279,12 @@ ExpenseTracker/
 │                   │   ├── SettingsScreen.kt          # Budget, cloud sync, appearance, data management
 │                   │   └── SetupScreen.kt             # 3-step onboarding wizard
 │                   │
-│                   └── ── Components ──
-│                       └── components/
-│                           ├── TransactionListItem.kt        # Reusable transaction row with sync indicators
-│                           ├── ManualTransactionBottomSheet.kt # Manual expense entry bottom sheet
-│                           └── CategoryUtils.kt               # Category → icon/color mapping
+│                   └── ── Components & Widgets ──
+│                       ├── components/
+│                       │   ├── TransactionListItem.kt        # Reusable transaction row with sync indicators
+│                       │   ├── ManualTransactionBottomSheet.kt # Manual expense entry bottom sheet
+│                       │   └── CategoryUtils.kt               # Category → icon/color mapping
+│                       └── ExpenseWidget.kt                  # Material 3 Glance homescreen widget
 │
 ├── build.gradle.kts                         # Project-level Gradle config
 ├── settings.gradle.kts                      # Project settings (name, module includes)
@@ -548,21 +551,21 @@ The app requests the following permissions at startup:
 ```mermaid
 graph LR
     subgraph Language & Build
-        KT["Kotlin 2.1.10"]
-        GR["Gradle 8.8.2"]
-        KSP["KSP 2.1.10"]
+        KT["Kotlin 2.3.20"]
+        GR["Gradle 9.4.1"]
+        KSP["KSP 2.3.6"]
     end
 
     subgraph UI Framework
         JC["Jetpack Compose"]
-        M3["Material 3"]
+        M3["Material 3 & Glance"]
         MY["Material You<br/>(Dynamic Colors)"]
     end
 
     subgraph Data Layer
-        RM["Room 2.6.1"]
-        RT["Retrofit 2.9"]
-        OK["OkHttp 4.12"]
+        RM["Room 2.8.4"]
+        RT["Retrofit 3.0.0"]
+        OK["OkHttp 5.3.2"]
     end
 
     subgraph ML & Services
@@ -576,20 +579,21 @@ graph LR
     KT --> RT --> OK
 ```
 
-| Layer | Technology | Version | Purpose |
-|-------|-----------|---------|---------|
-| **Language** | Kotlin | 2.1.10 | Primary language |
-| **Build** | AGP / Gradle | 8.8.2 | Build system |
-| **UI Framework** | Jetpack Compose + Material 3 | BOM 2024.05.00 | Declarative UI with Material You theming |
-| **Local Database** | Room | 2.6.1 | SQLite abstraction with reactive `Flow` queries |
-| **GenAI** | MediaPipe GenAI | LlmInference | Runs Gemma 2B model on-device for historical "Lazy Sync" |
-| **ML / AI** | Google ML Kit Entity Extraction | 16.0.0-beta6 | SMS money extraction |
-| **ML / NLP** | Google ML Kit Language ID | 17.0.6 | Language identification |
-| **Location** | Google Play Services Location | 21.3.0 | Fused Location Provider for geo-tagging |
-| **HTTP Client** | Retrofit + OkHttp | 2.9.0 / 4.12.0 | Google Sheets API communication |
-| **Serialization** | Gson | via Retrofit | JSON parsing for Sheets API responses |
-| **Coroutines** | Kotlinx Coroutines Play Services | 1.10.2 | `await()` for Play Services Tasks |
-| **Annotation Processing** | KSP | 2.1.10-1.0.29 | Room annotation processing |
+| Layer                     | Technology                       | Version        | Purpose                                                  |
+|---------------------------|----------------------------------|----------------|----------------------------------------------------------|
+| **Language**              | Kotlin                           | 2.3.20         | Primary language                                         |
+| **Build**                 | AGP / Gradle                     | 9.1.1 / 9.4.1  | Build system                                             |
+| **UI Framework**          | Jetpack Compose + Material 3     | BOM 2026.03.01 | Declarative UI with Material You theming                 |
+| **Widgets**               | Glance App Widget                | 1.1.1          | Expressive dynamic Android homescreen widget             |
+| **Local Database**        | Room                             | 2.8.4          | SQLite abstraction with reactive `Flow` queries          |
+| **GenAI**                 | MediaPipe GenAI                  | LlmInference   | Runs Gemma 2B model on-device for historical "Lazy Sync" |
+| **ML / AI**               | Google ML Kit Entity Extraction  | 16.0.0-beta6   | SMS money extraction                                     |
+| **ML / NLP**              | Google ML Kit Language ID        | 17.0.6         | Language identification                                  |
+| **Location**              | Google Play Services Location    | 21.3.0         | Fused Location Provider for geo-tagging                  |
+| **HTTP Client**           | Retrofit + OkHttp                | 2.9.0 / 4.12.0 | Google Sheets API communication                          |
+| **Serialization**         | Gson                             | via Retrofit   | JSON parsing for Sheets API responses                    |
+| **Coroutines**            | Kotlinx Coroutines Play Services | 1.10.2         | `await()` for Play Services Tasks                        |
+| **Annotation Processing** | KSP                              | 2.1.10-1.0.29  | Room annotation processing                               |
 
 ---
 
