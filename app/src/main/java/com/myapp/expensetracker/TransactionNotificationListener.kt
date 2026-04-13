@@ -7,7 +7,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.os.Build
+import android.os.Parcelable
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
@@ -61,7 +61,8 @@ class TransactionNotificationListener : NotificationListenerService() {
 
         // Try to extract from MessagingStyle first (modern RCS/Messaging apps)
         var messageBody: String? = null
-        val messages = extras.getParcelableArray(NotificationCompat.EXTRA_MESSAGES)
+        val messages =
+            extras.getParcelableArray(NotificationCompat.EXTRA_MESSAGES, Parcelable::class.java)
         if (messages != null && messages.isNotEmpty()) {
             val lastMessage = messages.last() as? android.os.Bundle
             if (lastMessage != null) {
@@ -148,13 +149,15 @@ class TransactionNotificationListener : NotificationListenerService() {
     }
 
     private fun showTransactionNotification(transaction: Transaction) {
-        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val notificationManager = getSystemService(NotificationManager::class.java)
         val channelId = "transaction_alerts"
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(channelId, "Transaction Alerts", NotificationManager.IMPORTANCE_HIGH)
-            notificationManager.createNotificationChannel(channel)
-        }
+        val channel = NotificationChannel(
+            channelId,
+            "Transaction Alerts",
+            NotificationManager.IMPORTANCE_HIGH
+        )
+        notificationManager.createNotificationChannel(channel)
 
         val notificationId = (transaction.date % Int.MAX_VALUE).toInt()
 
@@ -196,15 +199,19 @@ class TransactionNotificationListener : NotificationListenerService() {
 
         notificationManager.notify(notificationId, notification)
 
-        val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (alarmManager.canScheduleExactAlarms()) {
-                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, timeoutPendingIntent)
-            } else {
-                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, timeoutPendingIntent)
-            }
+        val alarmManager = getSystemService(AlarmManager::class.java)
+        if (alarmManager.canScheduleExactAlarms()) {
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                triggerAt,
+                timeoutPendingIntent
+            )
         } else {
-            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, timeoutPendingIntent)
+            alarmManager.setAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                triggerAt,
+                timeoutPendingIntent
+            )
         }
     }
 

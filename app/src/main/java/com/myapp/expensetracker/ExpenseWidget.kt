@@ -7,7 +7,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
-import androidx.glance.LocalContext
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.provideContent
@@ -17,9 +16,7 @@ import androidx.glance.layout.*
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
-import androidx.glance.unit.ColorProvider
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import androidx.glance.color.ColorProvider
 import kotlin.math.abs
 
 class ExpenseWidget : GlanceAppWidget() {
@@ -53,7 +50,7 @@ class ExpenseWidget : GlanceAppWidget() {
                 style = TextStyle(
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
-                    color = ColorProvider(Color.Gray)
+                    color = ColorProvider(day = Color.Gray, night = Color.LightGray)
                 )
             )
             Text(
@@ -61,7 +58,7 @@ class ExpenseWidget : GlanceAppWidget() {
                 style = TextStyle(
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = ColorProvider(Color.Black)
+                    color = ColorProvider(day = Color.Black, night = Color.White)
                 )
             )
 
@@ -74,14 +71,17 @@ class ExpenseWidget : GlanceAppWidget() {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         text = "Monthly Budget",
-                        style = TextStyle(fontSize = 10.sp, color = ColorProvider(Color.Gray))
+                        style = TextStyle(
+                            fontSize = 10.sp,
+                            color = ColorProvider(day = Color.Gray, night = Color.LightGray)
+                        )
                     )
                     Text(
                         text = "₹ ${"%,.0f".format(budget)}",
                         style = TextStyle(
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            color = ColorProvider(Color.Black)
+                            color = ColorProvider(day = Color.Black, night = Color.White)
                         )
                     )
                 }
@@ -92,7 +92,10 @@ class ExpenseWidget : GlanceAppWidget() {
             if (lastTransaction != null) {
                 Text(
                     text = "Last: ${lastTransaction.sender}",
-                    style = TextStyle(fontSize = 10.sp, color = ColorProvider(Color.DarkGray))
+                    style = TextStyle(
+                        fontSize = 10.sp,
+                        color = ColorProvider(day = Color.DarkGray, night = Color.LightGray)
+                    )
                 )
                 Text(
                     text = "${if (lastTransaction.amount < 0) "-" else "+"} ₹ ${
@@ -106,8 +109,11 @@ class ExpenseWidget : GlanceAppWidget() {
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = ColorProvider(
-                            if (lastTransaction.amount < 0) Color(0xFFD32F2F) else Color(
+                            day = if (lastTransaction.amount < 0) Color(0xFFD32F2F) else Color(
                                 0xFF388E3C
+                            ),
+                            night = if (lastTransaction.amount < 0) Color(0xFFEF5350) else Color(
+                                0xFF66BB6A
                             )
                         )
                     )
@@ -115,7 +121,10 @@ class ExpenseWidget : GlanceAppWidget() {
             } else {
                 Text(
                     text = "No transactions",
-                    style = TextStyle(fontSize = 10.sp, color = ColorProvider(Color.Gray))
+                    style = TextStyle(
+                        fontSize = 10.sp,
+                        color = ColorProvider(day = Color.Gray, night = Color.LightGray)
+                    )
                 )
             }
         }

@@ -83,7 +83,7 @@ fun TransactionScreen(onTransactionClick: (Transaction) -> Unit) {
                     }
                 }
                 items(items, key = { it.id }) { transaction ->
-                    Box(modifier = Modifier.animateItemPlacement()) {
+                    Box(modifier = Modifier.animateItem()) {
                         TransactionListItem(transaction, onClick = { onTransactionClick(transaction) })
                     }
                 }

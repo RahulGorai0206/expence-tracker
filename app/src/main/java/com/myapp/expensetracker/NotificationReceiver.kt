@@ -20,10 +20,6 @@ class NotificationReceiver : BroadcastReceiver() {
         val notificationId = intent.getIntExtra("notificationId", 0)
         
         val body = intent.getStringExtra("body") ?: ""
-        val category = intent.getStringExtra("category") ?: "Other"
-        val latitude = intent.getDoubleExtra("latitude", 0.0).takeIf { it != 0.0 }
-        val longitude = intent.getDoubleExtra("longitude", 0.0).takeIf { it != 0.0 }
-        
         Log.d("NotificationReceiver", "Action: $action, ID: $notificationId, Body: $body")
 
         // Dismiss notification immediately

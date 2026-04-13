@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.AlarmManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
@@ -18,6 +19,8 @@ import android.os.Looper
 import android.provider.Telephony
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.content.edit
+import androidx.core.net.toUri
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import kotlinx.coroutines.CoroutineScope
@@ -44,11 +47,7 @@ class SmsMonitorService : Service() {
 
         fun start(context: Context) {
             val intent = Intent(context, SmsMonitorService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent)
-            } else {
-                context.startService(intent)
-            }
+            context.startForegroundService(intent)
         }
 
         fun stop(context: Context) {
@@ -62,7 +61,7 @@ class SmsMonitorService : Service() {
 
         fun setEnabled(context: Context, enabled: Boolean) {
             context.getSharedPreferences("prefs", Context.MODE_PRIVATE)
-                .edit().putBoolean("background_monitoring", enabled).apply()
+                .edit { putBoolean("background_monitoring", enabled) }
             if (enabled) start(context) else stop(context)
         }
     }
@@ -90,9 +89,7 @@ class SmsMonitorService : Service() {
         // Auto-restart if still enabled (handles edge case where system kills us)
         if (isEnabled(this)) {
             val restartIntent = Intent(this, SmsMonitorService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(restartIntent)
-            }
+            startForegroundService(restartIntent)
         }
     }
 
@@ -105,13 +102,13 @@ class SmsMonitorService : Service() {
 
         // Watch content://sms — triggers on standard SMS database writes
         contentResolver.registerContentObserver(
-            Uri.parse("content://sms/"),
+            "content://sms/".toUri(),
             true,
             smsObserver!!
         )
         // Watch content://mms-sms — some devices/Google Messages write RCS here
         contentResolver.registerContentObserver(
-            Uri.parse("content://mms-sms/"),
+            "content://mms-sms/".toUri(),
             true,
             mmsSmsObserver!!
         )
@@ -138,7 +135,7 @@ class SmsMonitorService : Service() {
         if (!prefs.contains(PREF_LAST_SMS_ID)) {
             // Seed with the current highest SMS ID so we only process new messages going forward
             val highestId = getHighestSmsId()
-            prefs.edit().putLong(PREF_LAST_SMS_ID, highestId).apply()
+            prefs.edit { putLong(PREF_LAST_SMS_ID, highestId) }
             Log.d(TAG, "Seeded last processed SMS ID: $highestId")
         }
     }
@@ -274,7 +271,7 @@ class SmsMonitorService : Service() {
             // Persist the new watermark — always, even if no transactions were found.
             // This prevents re-processing non-transaction messages on subsequent onChange fires.
             if (newHighestId > lastId) {
-                prefs.edit().putLong(PREF_LAST_SMS_ID, newHighestId).apply()
+                prefs.edit { putLong(PREF_LAST_SMS_ID, newHighestId) }
                 Log.d(TAG, "Updated last processed SMS ID to $newHighestId")
             }
         } catch (e: Exception) {
@@ -288,10 +285,12 @@ class SmsMonitorService : Service() {
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val channelId = "transaction_alerts"
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(channelId, "Transaction Alerts", NotificationManager.IMPORTANCE_HIGH)
-            notificationManager.createNotificationChannel(channel)
-        }
+        val channel = NotificationChannel(
+            channelId,
+            "Transaction Alerts",
+            NotificationManager.IMPORTANCE_HIGH
+        )
+        notificationManager.createNotificationChannel(channel)
 
         val notificationId = (transaction.date % Int.MAX_VALUE).toInt()
 
@@ -333,33 +332,35 @@ class SmsMonitorService : Service() {
 
         notificationManager.notify(notificationId, notification)
 
-        val alarmManager = getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (alarmManager.canScheduleExactAlarms()) {
-                alarmManager.setExactAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, triggerAt, timeoutPendingIntent)
-            } else {
-                alarmManager.setAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, triggerAt, timeoutPendingIntent)
-            }
+        val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        if (alarmManager.canScheduleExactAlarms()) {
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                triggerAt,
+                timeoutPendingIntent
+            )
         } else {
-            alarmManager.setExactAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, triggerAt, timeoutPendingIntent)
+            alarmManager.setAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                triggerAt,
+                timeoutPendingIntent
+            )
         }
     }
 
     // ── Foreground notification ───────────────────────────────────────
 
     private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "Transaction Monitoring",
-                NotificationManager.IMPORTANCE_LOW // Low = no sound, shows in shade
-            ).apply {
-                description = "Keeps the app running to capture transaction SMS"
-                setShowBadge(false)
-            }
-            val manager = getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(channel)
+        val channel = NotificationChannel(
+            CHANNEL_ID,
+            "Transaction Monitoring",
+            NotificationManager.IMPORTANCE_LOW // Low = no sound, shows in shade
+        ).apply {
+            description = "Keeps the app running to capture transaction SMS"
+            setShowBadge(false)
         }
+        val manager = getSystemService(NotificationManager::class.java)
+        manager.createNotificationChannel(channel)
     }
 
     private fun startForegroundWithType() {

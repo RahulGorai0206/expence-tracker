@@ -12,7 +12,6 @@ import androidx.compose.material.icons.automirrored.filled.Notes
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -115,7 +114,7 @@ fun ManualTransactionBottomSheet(
                         isCapturingLocation = true
                         try {
                             location = fusedLocationClient.lastLocation.await()
-                        } catch (e: Exception) {
+                        } catch (_: Exception) {
                             // Handle error
                         } finally {
                             isCapturingLocation = false
@@ -179,19 +178,5 @@ fun ManualTransactionBottomSheet(
                 Text("Save Transaction", style = MaterialTheme.typography.titleMedium)
             }
         }
-    }
-}
-
-@Composable
-fun ScrollableRow(
-    modifier: Modifier = Modifier,
-    horizontalArrangement: Arrangement.Horizontal = Arrangement.Start,
-    content: @Composable () -> Unit
-) {
-    androidx.compose.foundation.lazy.LazyRow(
-        modifier = modifier,
-        horizontalArrangement = horizontalArrangement
-    ) {
-        item { content() }
     }
 }

@@ -2,7 +2,6 @@ package com.myapp.expensetracker
 
 import android.Manifest
 import android.content.Context
-import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -37,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.myapp.expensetracker.ui.screens.*
 import com.myapp.expensetracker.ui.theme.LedgerTheme
+import androidx.core.content.edit
 
 class MainActivity : ComponentActivity() {
     private val requestPermissionLauncher = registerForActivityResult(
@@ -47,9 +47,7 @@ class MainActivity : ComponentActivity() {
         
         if (fineLocationGranted || coarseLocationGranted) {
             // Foreground location granted, request background location separately for Android 11+
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                backgroundPermissionLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-            }
+            backgroundPermissionLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
         }
     }
 
@@ -98,12 +96,12 @@ class MainActivity : ComponentActivity() {
                     isDarkTheme = darkTheme, 
                     onDarkThemeChange = { 
                         darkTheme = it
-                        sharedPrefs.edit().putBoolean("dark_theme", it).apply()
+                        sharedPrefs.edit { putBoolean("dark_theme", it) }
                     },
                     followSystemTheme = followSystemTheme,
                     onFollowSystemThemeChange = {
                         followSystemTheme = it
-                        sharedPrefs.edit().putBoolean("follow_system_theme", it).apply()
+                        sharedPrefs.edit { putBoolean("follow_system_theme", it) }
                     }
                 )
             }
@@ -123,8 +121,8 @@ fun MainScreen(
     var isSetupComplete by remember { mutableStateOf(sharedPrefs.getBoolean("is_setup_complete", false)) }
 
     if (!isSetupComplete) {
-        SetupScreen(onSetupComplete = { 
-            isSetupComplete = true 
+        SetupScreen(onSetupComplete = {
+            isSetupComplete = true
         })
         return
     }
@@ -224,7 +222,7 @@ fun MainScreen(
             }
 
             // === Layer 2: Detail screen overlay — slides in/out on top ===
-            androidx.compose.animation.AnimatedVisibility(
+            AnimatedVisibility(
                 visible = selectedTransaction != null,
                 enter = slideInHorizontally(animationSpec = tween(500)) { it } + fadeIn(
                     animationSpec = tween(500)

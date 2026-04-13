@@ -60,7 +60,9 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
     val wholePart = remember(totalBalance) { totalBalance.toInt().toString() }
     val decimalPart = remember(totalBalance) { "%.2f".format(totalBalance % 1).removePrefix("0").removePrefix("-0") }
 
-    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+    Box(modifier = Modifier
+        .fillMaxSize()
+        .background(MaterialTheme.colorScheme.background)) {
         Column(modifier = Modifier.padding(20.dp)) {
             Spacer(modifier = Modifier.height(12.dp))
             
@@ -133,7 +135,9 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
                                 animationSpec = infiniteRepeatable(animation = tween(2000, easing = LinearEasing), repeatMode = RepeatMode.Restart),
                                 label = "rotation"
                             )
-                            Icon(Icons.Default.Sync, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp).graphicsLayer { rotationZ = rotation })
+                            Icon(Icons.Default.Sync, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier
+                                .size(22.dp)
+                                .graphicsLayer { rotationZ = rotation })
                         } else if (failedCount > 0) {
                             Icon(
                                 if (failedWithLocation) Icons.Default.CloudOff else Icons.Default.CloudDone,
@@ -290,7 +294,7 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
                 contentPadding = PaddingValues(bottom = 100.dp)
             ) {
                 items(transactions.take(10), key = { it.id }) { transaction ->
-                    Box(modifier = Modifier.animateItemPlacement()) {
+                    Box(modifier = Modifier.animateItem()) {
                         TransactionListItem(transaction, onClick = { onTransactionClick(transaction) })
                     }
                 }
