@@ -119,6 +119,15 @@ class TransactionNotificationListener : NotificationListenerService() {
                 return
             }
 
+            // DB-level dedup: skip if this transaction was already saved
+            // (covers cases where the in-memory dedup window has expired)
+            val db = AppDatabase.getDatabase(this)
+            val existsInDb = db.transactionDao().checkDuplicateByBody(transaction.amount, body)
+            if (existsInDb > 0) {
+                Log.d(TAG, "Skipping — transaction already exists in DB")
+                return
+            }
+
             // Capture location
             val fusedLocationClient = LocationServices.getFusedLocationProviderClient(this@TransactionNotificationListener)
             val location = try {

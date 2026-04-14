@@ -234,6 +234,16 @@ class SmsMonitorService : Service() {
                             continue
                         }
 
+                        // DB-level dedup: skip if this transaction was already saved
+                        // (covers cases where the in-memory dedup window has expired)
+                        val db = AppDatabase.getDatabase(this@SmsMonitorService)
+                        val existsInDb =
+                            db.transactionDao().checkDuplicateByBody(transaction.amount, body)
+                        if (existsInDb > 0) {
+                            Log.d(TAG, "Skipping ID=$smsId — transaction already exists in DB")
+                            continue
+                        }
+
                         // Check track-only-debits preference
                         val trackOnlyDebits = prefs.getBoolean("track_only_debits", false)
                         if (trackOnlyDebits && transaction.amount >= 0) {
