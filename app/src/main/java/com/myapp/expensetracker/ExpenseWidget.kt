@@ -61,9 +61,9 @@ class ExpenseWidget : GlanceAppWidget() {
                         )
                     )
                 )
-                .padding(12.dp),
+                .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalAlignment = Alignment.Start
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
                 text = "Total Expense",
@@ -81,11 +81,11 @@ class ExpenseWidget : GlanceAppWidget() {
             Text(
                 text = formattedBalance,
                 style = TextStyle(
-                    fontSize = 28.sp,
+                    fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                     color = GlanceTheme.colors.onSurface
                 ),
-                modifier = GlanceModifier.padding(bottom = 6.dp)
+                modifier = GlanceModifier.padding(bottom = 2.dp)
             )
 
             val isExpense = lastTransaction != null && lastTransaction.amount < 0
@@ -94,16 +94,17 @@ class ExpenseWidget : GlanceAppWidget() {
             val pillTextColor =
                 if (isExpense) GlanceTheme.colors.onErrorContainer else GlanceTheme.colors.onSecondaryContainer
 
-            val trendLabel = if (lastTransaction != null) "Last Transaction" else "Monthly Budget"
+            val trendLabel =
+                if (lastTransaction != null) "Last transaction amount" else "Monthly Budget"
             val trendText = if (lastTransaction != null) {
-                "${if (isExpense) "↘" else "↗"} ₹${"%,.0f".format(abs(lastTransaction.amount))}"
+                "${if (isExpense) "↘" else "↗"}\u00A0₹${"%,.0f".format(abs(lastTransaction.amount))}"
             } else {
                 "₹${"%,.0f".format(budget)}"
             }
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = GlanceModifier.fillMaxWidth()
+            Column(
+                modifier = GlanceModifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
                     text = trendLabel,
@@ -112,7 +113,8 @@ class ExpenseWidget : GlanceAppWidget() {
                         fontWeight = FontWeight.Medium,
                         color = GlanceTheme.colors.onSurfaceVariant
                     ),
-                    modifier = GlanceModifier.padding(end = 8.dp)
+                    modifier = GlanceModifier.padding(bottom = 2.dp),
+                    maxLines = 1
                 )
 
                 Box(
@@ -128,7 +130,8 @@ class ExpenseWidget : GlanceAppWidget() {
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
                             color = pillTextColor
-                        )
+                        ),
+                        maxLines = 1
                     )
                 }
             }
