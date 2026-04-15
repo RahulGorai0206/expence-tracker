@@ -18,6 +18,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
@@ -37,6 +39,7 @@ import androidx.compose.ui.unit.sp
 import com.myapp.expensetracker.ui.screens.*
 import com.myapp.expensetracker.ui.theme.LedgerTheme
 import androidx.core.content.edit
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private val requestPermissionLauncher = registerForActivityResult(
@@ -127,7 +130,9 @@ fun MainScreen(
         return
     }
 
-    var selectedTab by remember { mutableIntStateOf(0) }
+    val pagerState = rememberPagerState(pageCount = { 3 })
+    val coroutineScope = rememberCoroutineScope()
+
     var selectedTransaction by remember { mutableStateOf<Transaction?>(null) }
 
     // Keep reference to the last selected transaction for exit animation
@@ -151,32 +156,30 @@ fun MainScreen(
                     .fillMaxSize()
                     .padding(top = paddingValues.calculateTopPadding())
             ) {
-                AnimatedContent(
-                    targetState = selectedTab,
-                    transitionSpec = {
-                        if (targetState > initialState) {
-                            (slideInHorizontally(animationSpec = tween(400)) { it } + fadeIn(
-                                animationSpec = tween(400)
-                            ))
-                                .togetherWith(slideOutHorizontally(animationSpec = tween(400)) { -it } + fadeOut(
-                                    animationSpec = tween(400)
-                                ))
-                        } else {
-                            (slideInHorizontally(animationSpec = tween(400)) { -it } + fadeIn(
-                                animationSpec = tween(400)
-                            ))
-                                .togetherWith(slideOutHorizontally(animationSpec = tween(400)) { it } + fadeOut(
-                                    animationSpec = tween(400)
-                                ))
-                        }
-                    },
-                    label = "ScreenTransition"
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxSize(),
+                    beyondViewportPageCount = 1
                 ) { targetTab ->
                     when (targetTab) {
                         0 -> HomeScreen(
                             onTransactionClick = { selectedTransaction = it },
-                            onSeeAllClick = { selectedTab = 1 },
-                            onSettingsClick = { selectedTab = 2 }
+                            onSeeAllClick = {
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage(
+                                        1,
+                                        animationSpec = tween(400)
+                                    )
+                                }
+                            },
+                            onSettingsClick = {
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage(
+                                        2,
+                                        animationSpec = tween(400)
+                                    )
+                                }
+                            }
                         )
 
                         1 -> TransactionScreen(onTransactionClick = { selectedTransaction = it })
@@ -206,17 +209,38 @@ fun MainScreen(
                         horizontalArrangement = Arrangement.SpaceAround,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        NavItem(selectedTab == 0, Icons.Default.Home, "Home") { selectedTab = 0 }
+                        NavItem(pagerState.currentPage == 0, Icons.Default.Home, "Home") {
+                            coroutineScope.launch {
+                                pagerState.animateScrollToPage(
+                                    0,
+                                    animationSpec = tween(400)
+                                )
+                            }
+                        }
                         NavItem(
-                            selectedTab == 1,
+                            pagerState.currentPage == 1,
                             Icons.AutoMirrored.Filled.ReceiptLong,
                             "History"
-                        ) { selectedTab = 1 }
+                        ) {
+                            coroutineScope.launch {
+                                pagerState.animateScrollToPage(
+                                    1,
+                                    animationSpec = tween(400)
+                                )
+                            }
+                        }
                         NavItem(
-                            selectedTab == 2,
+                            pagerState.currentPage == 2,
                             Icons.Default.Settings,
                             "Settings"
-                        ) { selectedTab = 2 }
+                        ) {
+                            coroutineScope.launch {
+                                pagerState.animateScrollToPage(
+                                    2,
+                                    animationSpec = tween(400)
+                                )
+                            }
+                        }
                     }
                 }
             }
