@@ -17,8 +17,6 @@ interface TransactionDao {
     @Query("SELECT COUNT(id) FROM transactions WHERE date = :date AND amount = :amount")
     suspend fun checkDuplicate(date: Long, amount: Double): Int
 
-    @Query("SELECT COUNT(id) FROM transactions WHERE amount = :amount AND body = :body")
-    suspend fun checkDuplicateByBody(amount: Double, body: String): Int
 
     @Query("SELECT * FROM transactions WHERE id = :id")
     suspend fun getTransactionSync(id: Int): Transaction?

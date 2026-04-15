@@ -102,8 +102,47 @@ class TransactionNotificationListener : NotificationListenerService() {
         Log.d(TAG, "Potential transaction detected via notification — processing")
 
         scope.launch {
-            processTransactionMessage(messageBody, title, System.currentTimeMillis())
+            // Look up the system SMS database to get the carrier-assigned timestamp.
+            // This ensures all detection layers use the same timestamp for dedup.
+            val smsTimestamp = lookupSmsTimestamp(messageBody)
+            val timestamp = smsTimestamp ?: System.currentTimeMillis()
+            if (smsTimestamp != null) {
+                Log.d(TAG, "Found system SMS timestamp: $smsTimestamp")
+            } else {
+                Log.d(TAG, "SMS not found in system DB (RCS-only?), using current time")
+            }
+            processTransactionMessage(messageBody, title, timestamp)
         }
+    }
+
+    /**
+     * Queries the system SMS database to find a message matching the given body text
+     * and returns its carrier-assigned timestamp. This ensures all detection layers
+     * (notification, broadcast, content observer, lazy sync) use the exact same timestamp.
+     *
+     * Returns null if the message isn't in the SMS database (e.g., RCS-only messages
+     * stored in Google Messages' private database).
+     */
+    @SuppressLint("MissingPermission")
+    private fun lookupSmsTimestamp(body: String): Long? {
+        try {
+            // Search for the most recent SMS with matching body text
+            val cursor = contentResolver.query(
+                android.provider.Telephony.Sms.Inbox.CONTENT_URI,
+                arrayOf(android.provider.Telephony.Sms.DATE),
+                "${android.provider.Telephony.Sms.BODY} = ?",
+                arrayOf(body),
+                "${android.provider.Telephony.Sms._ID} DESC LIMIT 1"
+            )
+            cursor?.use {
+                if (it.moveToFirst()) {
+                    return it.getLong(it.getColumnIndexOrThrow(android.provider.Telephony.Sms.DATE))
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error looking up SMS timestamp: ${e.message}")
+        }
+        return null
     }
 
     @SuppressLint("MissingPermission")
@@ -119,12 +158,12 @@ class TransactionNotificationListener : NotificationListenerService() {
                 return
             }
 
-            // DB-level dedup: skip if this transaction was already saved
-            // (covers cases where the in-memory dedup window has expired)
+            // DB-level dedup: check by system timestamp + amount
             val db = AppDatabase.getDatabase(this)
-            val existsInDb = db.transactionDao().checkDuplicateByBody(transaction.amount, body)
+            val existsInDb =
+                db.transactionDao().checkDuplicate(transaction.date, transaction.amount)
             if (existsInDb > 0) {
-                Log.d(TAG, "Skipping — transaction already exists in DB")
+                Log.d(TAG, "Skipping — transaction already exists in DB (date+amount match)")
                 return
             }
 

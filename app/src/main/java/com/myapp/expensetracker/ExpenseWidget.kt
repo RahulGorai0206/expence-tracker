@@ -32,19 +32,19 @@ class ExpenseWidget : GlanceAppWidget() {
         val db = AppDatabase.getDatabase(context)
         val sharedPrefs = context.getSharedPreferences("prefs", Context.MODE_PRIVATE)
 
-        val totalBalance = db.transactionDao().getTotalBalance() ?: 0.0
+        val totalSpent = db.transactionDao().getTotalSpent() ?: 0.0
         val budget = sharedPrefs.getFloat("budget", 0f).toDouble()
         val lastTransaction = db.transactionDao().getLastTransaction()
 
         provideContent {
             GlanceTheme {
-                WidgetContent(totalBalance, budget, lastTransaction)
+                WidgetContent(totalSpent, budget, lastTransaction)
             }
         }
     }
 
     @Composable
-    private fun WidgetContent(totalBalance: Double, budget: Double, lastTransaction: Transaction?) {
+    private fun WidgetContent(totalSpent: Double, budget: Double, lastTransaction: Transaction?) {
         val context = LocalContext.current
         Column(
             modifier = GlanceModifier
@@ -74,12 +74,9 @@ class ExpenseWidget : GlanceAppWidget() {
                 )
             )
 
-            val formattedBalance =
-                if (totalBalance < 0) "-₹${"%,.0f".format(abs(totalBalance))}" else "₹${
-                    "%,.0f".format(totalBalance)
-                }"
+            val formattedSpent = "₹${"%,.0f".format(totalSpent)}"
             Text(
-                text = formattedBalance,
+                text = formattedSpent,
                 style = TextStyle(
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,

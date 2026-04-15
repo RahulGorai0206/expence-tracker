@@ -73,11 +73,15 @@ class LazySyncManager(private val context: Context) {
                     if (transaction != null) {
                         // Respect "Track Only Debits" setting
                         if (trackOnlyDebits && transaction.amount >= 0) return@forEachIndexed
-                        
-                        // Prevent duplicate syncing
+
+                        // Prevent duplicate syncing — all detection layers now use the
+                        // system SMS timestamp, so exact date+amount matching works reliably
                         val duplicateCount = database.transactionDao().checkDuplicate(transaction.date, transaction.amount)
                         if (duplicateCount > 0) {
-                            Log.d("LazySync", "Duplicate skipped for transaction at ${transaction.date}")
+                            Log.d(
+                                "LazySync",
+                                "Duplicate skipped — already exists in DB (date+amount match)"
+                            )
                             return@forEachIndexed
                         }
                         

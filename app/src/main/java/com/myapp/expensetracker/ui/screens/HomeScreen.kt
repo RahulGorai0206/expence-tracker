@@ -57,8 +57,9 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
     val remainingBudget = budget.value - totalSpent
     
     val totalBalance = remember(transactions) { transactions.sumOf { it.amount } }
-    val wholePart = remember(totalBalance) { totalBalance.toInt().toString() }
-    val decimalPart = remember(totalBalance) { "%.2f".format(totalBalance % 1).removePrefix("0").removePrefix("-0") }
+    val wholePart = remember(totalSpent) { totalSpent.toInt().toString() }
+    val decimalPart =
+        remember(totalSpent) { "%.2f".format(totalSpent % 1).removePrefix("0").removePrefix("-0") }
 
     Box(modifier = Modifier
         .fillMaxSize()
@@ -204,14 +205,14 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
                         
                         Row(verticalAlignment = Alignment.Bottom) {
                             Text(
-                                text = if (totalBalance >= 0) "₹ " else "-₹ ",
+                                text = "₹ ",
                                 style = MaterialTheme.typography.displaySmall,
                                 color = Color.White,
                                 fontWeight = FontWeight.Light,
                                 modifier = Modifier.padding(bottom = 8.dp)
                             )
                             Text(
-                                text = wholePart.replace("-", ""),
+                                text = wholePart,
                                 style = MaterialTheme.typography.displayLarge.copy(
                                     fontSize = 44.sp,
                                     fontWeight = FontWeight.Black,

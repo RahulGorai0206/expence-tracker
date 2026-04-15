@@ -53,13 +53,15 @@ class SmsReceiver : BroadcastReceiver() {
                             return@launch
                         }
 
-                        // DB-level dedup: skip if this transaction was already saved
-                        // (covers cases where the in-memory dedup window has expired)
+                        // DB-level dedup: check by system timestamp + amount
                         val db = AppDatabase.getDatabase(context)
                         val existsInDb =
-                            db.transactionDao().checkDuplicateByBody(transaction.amount, fullBody)
+                            db.transactionDao().checkDuplicate(transaction.date, transaction.amount)
                         if (existsInDb > 0) {
-                            Log.d("SmsReceiver", "Skipping — transaction already exists in DB")
+                            Log.d(
+                                "SmsReceiver",
+                                "Skipping — transaction already exists in DB (date+amount match)"
+                            )
                             return@launch
                         }
 
