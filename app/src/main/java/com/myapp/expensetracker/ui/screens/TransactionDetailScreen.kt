@@ -130,7 +130,9 @@ fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit)
                 },
                 actions = {
                     IconButton(
-                        modifier = Modifier.clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)),
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)),
                         onClick = { captureAndShare() }
                     ) { Icon(Icons.Default.Share, null, tint = MaterialTheme.colorScheme.primary) }
                     Spacer(modifier = Modifier.width(8.dp))
@@ -231,7 +233,9 @@ fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit)
                             context.startActivity(browserIntent)
                         }
                     },
-                    modifier = Modifier.fillMaxWidth().height(60.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(60.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer),
                     shape = RoundedCornerShape(20.dp)
                 ) {
@@ -253,7 +257,9 @@ fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit)
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Button(
                     onClick = { showCategoryDialog = true },
-                    modifier = Modifier.weight(1f).height(60.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(60.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     shape = RoundedCornerShape(20.dp)
                 ) {
@@ -268,10 +274,14 @@ fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit)
                             val toDelete = currentTransaction
                             AppDatabase.getDatabase(context).transactionDao().delete(toDelete)
                             com.myapp.expensetracker.GoogleSheetsLogger.delete(toDelete)
+                            com.myapp.expensetracker.updateExpenseWidget(context)
                             onBack()
                         }
                     },
-                    modifier = Modifier.size(60.dp).clip(RoundedCornerShape(20.dp)).background(MaterialTheme.colorScheme.errorContainer)
+                    modifier = Modifier
+                        .size(60.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(MaterialTheme.colorScheme.errorContainer)
                 ) {
                     Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error)
                 }
@@ -284,7 +294,9 @@ fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit)
 @Composable
 fun DetailCard(label: String, value: String, icon: ImageVector? = null, subValue: String? = null, isCategory: Boolean = false) {
     Card(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
         shape = RoundedCornerShape(24.dp)
     ) {
@@ -298,9 +310,16 @@ fun DetailCard(label: String, value: String, icon: ImageVector? = null, subValue
                 if (icon != null) Icon(icon, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f))
                 if (isCategory) {
                     Row {
-                        Box(modifier = Modifier.width(32.dp).height(4.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary))
+                        Box(modifier = Modifier
+                            .width(32.dp)
+                            .height(4.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Box(modifier = Modifier.size(4.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)))
+                        Box(modifier = Modifier
+                            .size(4.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)))
                     }
                 }
             }

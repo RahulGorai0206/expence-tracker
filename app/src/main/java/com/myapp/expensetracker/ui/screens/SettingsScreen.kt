@@ -447,7 +447,10 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
                             val progressValue = restoreProgress.toFloat() / restoreTotal.toFloat()
                             LinearProgressIndicator(
                                 progress = { progressValue },
-                                modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(8.dp)
+                                    .clip(RoundedCornerShape(4.dp)),
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text("$restoreProgress / $restoreTotal records", style = MaterialTheme.typography.bodySmall)
@@ -534,7 +537,9 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
                         )
                         Spacer(modifier = Modifier.height(24.dp))
                         LinearProgressIndicator(
-                            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                     } else {
@@ -615,6 +620,7 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
                     onClick = {
                         scope.launch {
                             db.transactionDao().deleteAllTransactions()
+                            com.myapp.expensetracker.updateExpenseWidget(context)
                             showDeleteDialog = false
                         }
                     }
@@ -632,7 +638,9 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
         )
     }
 
-    Column(modifier = Modifier.padding(20.dp).verticalScroll(rememberScrollState())) {
+    Column(modifier = Modifier
+        .padding(20.dp)
+        .verticalScroll(rememberScrollState())) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -684,7 +692,9 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
         // Added Instructions in Settings
         AnimatedVisibility(visible = isCloudExpanded) {
             Card(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 24.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)),
                 shape = RoundedCornerShape(24.dp)
             ) {
@@ -814,7 +824,10 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
-                            modifier = Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(Icons.Default.CloudSync, "Sync", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
@@ -843,7 +856,9 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
                     enter = expandVertically() + fadeIn(),
                     exit = shrinkVertically() + fadeOut()
                 ) {
-                    Column(modifier = Modifier.padding(horizontal = 20.dp).padding(bottom = 20.dp)) {
+                    Column(modifier = Modifier
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 20.dp)) {
                         HorizontalDivider(modifier = Modifier.padding(bottom = 20.dp), color = MaterialTheme.colorScheme.outlineVariant)
                         
                         Text("1. Google Sheet URL", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
@@ -1028,7 +1043,10 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                         Box(
-                            modifier = Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.tertiaryContainer),
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.tertiaryContainer),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(Icons.Default.AutoFixHigh, "Lazy Sync", tint = MaterialTheme.colorScheme.onTertiaryContainer, modifier = Modifier.size(20.dp))
@@ -1068,7 +1086,10 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                         Box(
-                            modifier = Modifier.size(40.dp).clip(CircleShape).background(Color(0xFF2E7D32).copy(alpha = 0.15f)),
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF2E7D32).copy(alpha = 0.15f)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(Icons.Default.RadioButtonChecked, "Monitor", tint = Color(0xFF4CAF50), modifier = Modifier.size(20.dp))
@@ -1106,9 +1127,10 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
                             .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f))
                             .clickable {
                                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                    val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                                        data = Uri.parse("package:${context.packageName}")
-                                    }
+                                    val intent =
+                                        Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                                            data = Uri.parse("package:${context.packageName}")
+                                        }
                                     context.startActivity(intent)
                                 }
                             }
@@ -1185,7 +1207,10 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                         Box(
-                            modifier = Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primaryContainer),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(Icons.Default.Payment, "Debit", tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(20.dp))
@@ -1216,7 +1241,10 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
-                            modifier = Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.secondaryContainer),
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.secondaryContainer),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(Icons.Default.SettingsSuggest, "System", tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(20.dp))
@@ -1244,7 +1272,10 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Box(
-                            modifier = Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primaryContainer),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(Icons.Default.NightsStay, "Theme", tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(20.dp))
@@ -1280,7 +1311,10 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
-                    modifier = Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.error.copy(alpha = 0.2f)),
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.error.copy(alpha = 0.2f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(Icons.Default.DeleteForever, "Clear Data", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
