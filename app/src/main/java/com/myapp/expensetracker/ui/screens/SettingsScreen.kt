@@ -238,10 +238,10 @@ function handleCreate(params) {
       var dDate = parseFloat(data[i][COL.DATE-1]);
       var dSender = String(data[i][COL.SENDER-1] || "").trim().toLowerCase();
 
-      // STRICT DUPLICATE CHECK: Date and Amount must be identical (Millisecond Precision)
+      // FUZZY DUPLICATE CHECK: Date within 2 seconds and Amount very close
       // Date is the millisecond timestamp from the device
-      if (dAmount === pAmount && dDate === pDate) {
-        logInfo("Create_Skip", "Exact MS Duplicate found. Returning ID: " + data[i][COL.ID-1]);
+      if (Math.abs(dAmount - pAmount) < 0.001 && Math.abs(dDate - pDate) < 2000) {
+        logInfo("Create_Skip", "Fuzzy Duplicate found. Returning ID: " + data[i][COL.ID-1]);
         return { success: true, action: "create", id: data[i][COL.ID-1], records: [rowToObject(data[i])] };
       }
     }
