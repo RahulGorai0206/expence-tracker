@@ -62,7 +62,12 @@ class TransactionNotificationListener : NotificationListenerService() {
         // Try to extract from MessagingStyle first (modern RCS/Messaging apps)
         var messageBody: String? = null
         val messages =
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
             extras.getParcelableArray(NotificationCompat.EXTRA_MESSAGES, Parcelable::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                extras.getParcelableArray(NotificationCompat.EXTRA_MESSAGES)
+            }
         if (messages != null && messages.isNotEmpty()) {
             val lastMessage = messages.last() as? android.os.Bundle
             if (lastMessage != null) {

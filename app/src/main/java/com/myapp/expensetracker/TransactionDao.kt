@@ -14,7 +14,7 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE id = :id")
     fun getTransactionById(id: Int): Flow<Transaction?>
 
-    @Query("SELECT COUNT(id) FROM transactions WHERE date = :date AND amount = :amount")
+    @Query("SELECT COUNT(id) FROM transactions WHERE ABS(date - :date) < 2000 AND ABS(amount - :amount) < 0.001")
     suspend fun checkDuplicate(date: Long, amount: Double): Int
 
 

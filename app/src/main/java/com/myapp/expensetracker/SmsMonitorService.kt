@@ -143,8 +143,9 @@ class SmsMonitorService : Service() {
     private fun getHighestSmsId(): Long {
         var maxId = 0L
         try {
+            // Query all messages (not just Inbox) to get the true highest ID for watermark tracking
             val cursor = contentResolver.query(
-                Telephony.Sms.Inbox.CONTENT_URI,
+                Telephony.Sms.CONTENT_URI,
                 arrayOf(Telephony.Sms._ID),
                 null, null,
                 "${Telephony.Sms._ID} DESC LIMIT 1"
@@ -188,9 +189,12 @@ class SmsMonitorService : Service() {
     private suspend fun processNewMessages() = processLock.withLock {
         // Mutex ensures only one processNewMessages() runs at a time,
         // preventing race conditions when onChange fires rapidly.
+        var lastId = 0L
+        var newHighestId = 0L
         try {
             val prefs = getSharedPreferences("prefs", Context.MODE_PRIVATE)
-            val lastId = prefs.getLong(PREF_LAST_SMS_ID, 0L)
+            lastId = prefs.getLong(PREF_LAST_SMS_ID, 0L)
+            newHighestId = lastId
 
             // Query inbox for messages newer than our last processed ID
             val cursor = contentResolver.query(
@@ -206,8 +210,6 @@ class SmsMonitorService : Service() {
                 "${Telephony.Sms._ID} ASC"
             )
 
-            var newHighestId = lastId
-
             cursor?.use {
                 val idIdx = it.getColumnIndexOrThrow(Telephony.Sms._ID)
                 val bodyIdx = it.getColumnIndexOrThrow(Telephony.Sms.BODY)
@@ -216,78 +218,92 @@ class SmsMonitorService : Service() {
 
                 while (it.moveToNext()) {
                     val smsId = it.getLong(idIdx)
-                    val body = it.getString(bodyIdx) ?: continue
-                    val sender = it.getString(addrIdx) ?: "Unknown"
-                    val timestamp = it.getLong(dateIdx)
-
-                    // Always advance watermark for every row, even non-transactions
                     if (smsId > newHighestId) newHighestId = smsId
 
-                    Log.d(TAG, "ContentObserver processing new message ID=$smsId from $sender")
+                    try {
+                        val body = it.getString(bodyIdx) ?: continue
+                        val sender = it.getString(addrIdx) ?: "Unknown"
+                        val timestamp = it.getLong(dateIdx)
 
-                    val transaction = extractor.extractTransaction(body, sender, timestamp)
+                        Log.d(TAG, "ContentObserver processing new message ID=$smsId from $sender")
 
-                    if (transaction != null) {
-                        // Cross-layer dedup: skip if SmsReceiver or NotificationListener already got it
-                        if (TransactionDedup.isDuplicate(body)) {
-                            Log.d(TAG, "Skipping ID=$smsId — already processed by another layer")
-                            continue
-                        }
+                        val transaction = extractor.extractTransaction(body, sender, timestamp)
 
-                        // DB-level dedup: check by system timestamp + amount
-                        val db = AppDatabase.getDatabase(this@SmsMonitorService)
-                        val existsInDb =
-                            db.transactionDao().checkDuplicate(transaction.date, transaction.amount)
-                        if (existsInDb > 0) {
-                            Log.d(
-                                TAG,
-                                "Skipping ID=$smsId — transaction already exists in DB (date+amount match)"
-                            )
-                            continue
-                        }
-
-                        // Check track-only-debits preference
-                        val trackOnlyDebits = prefs.getBoolean("track_only_debits", false)
-                        if (trackOnlyDebits && transaction.amount >= 0) {
-                            Log.d(TAG, "Ignoring non-debit transaction (ContentObserver)")
-                        } else {
-                            // Capture location
-                            val fusedLocationClient =
-                                LocationServices.getFusedLocationProviderClient(this@SmsMonitorService)
-                            val location = try {
-                                withTimeoutOrNull(5000) {
-                                    val lastLoc = fusedLocationClient.lastLocation.await()
-                                    if (lastLoc == null || (System.currentTimeMillis() - lastLoc.time) > 5 * 60 * 1000) {
-                                        fusedLocationClient.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, null).await()
-                                    } else {
-                                        lastLoc
-                                    }
-                                }
-                            } catch (e: Exception) {
-                                Log.e(TAG, "Location capture failed (ContentObserver): ${e.message}")
-                                null
+                        if (transaction != null) {
+                            // Cross-layer dedup: skip if SmsReceiver or NotificationListener already got it
+                            if (TransactionDedup.isDuplicate(body)) {
+                                Log.d(
+                                    TAG,
+                                    "Skipping ID=$smsId — already processed by another layer"
+                                )
+                                continue
                             }
 
-                            val withLocation = transaction.copy(
-                                latitude = location?.latitude,
-                                longitude = location?.longitude
-                            )
+                            // DB-level dedup: check by system timestamp + amount
+                            val db = AppDatabase.getDatabase(this@SmsMonitorService)
+                            val existsInDb =
+                                db.transactionDao()
+                                    .checkDuplicate(transaction.date, transaction.amount)
+                            if (existsInDb > 0) {
+                                Log.d(
+                                    TAG,
+                                    "Skipping ID=$smsId — transaction already exists in DB (date+amount match)"
+                                )
+                                continue
+                            }
 
-                            // Use the same notification flow as SmsReceiver
-                            showTransactionNotification(withLocation)
+                            // Check track-only-debits preference
+                            val trackOnlyDebits = prefs.getBoolean("track_only_debits", false)
+                            if (trackOnlyDebits && transaction.amount >= 0) {
+                                Log.d(TAG, "Ignoring non-debit transaction (ContentObserver)")
+                            } else {
+                                // Capture location
+                                val fusedLocationClient =
+                                    LocationServices.getFusedLocationProviderClient(this@SmsMonitorService)
+                                val location = try {
+                                    withTimeoutOrNull(5000) {
+                                        val lastLoc = fusedLocationClient.lastLocation.await()
+                                        if (lastLoc == null || (System.currentTimeMillis() - lastLoc.time) > 5 * 60 * 1000) {
+                                            fusedLocationClient.getCurrentLocation(
+                                                Priority.PRIORITY_BALANCED_POWER_ACCURACY,
+                                                null
+                                            ).await()
+                                        } else {
+                                            lastLoc
+                                        }
+                                    }
+                                } catch (e: Exception) {
+                                    Log.e(
+                                        TAG,
+                                        "Location capture failed (ContentObserver): ${e.message}"
+                                    )
+                                    null
+                                }
+
+                                val withLocation = transaction.copy(
+                                    latitude = location?.latitude,
+                                    longitude = location?.longitude
+                                )
+
+                                // Use the same notification flow as SmsReceiver
+                                showTransactionNotification(withLocation)
+                            }
                         }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error processing individual message ID=$smsId", e)
                     }
                 }
             }
-
+        } catch (e: Exception) {
+            Log.e(TAG, "Error processing new messages via ContentObserver", e)
+        } finally {
             // Persist the new watermark — always, even if no transactions were found.
             // This prevents re-processing non-transaction messages on subsequent onChange fires.
             if (newHighestId > lastId) {
+                val prefs = getSharedPreferences("prefs", Context.MODE_PRIVATE)
                 prefs.edit { putLong(PREF_LAST_SMS_ID, newHighestId) }
                 Log.d(TAG, "Updated last processed SMS ID to $newHighestId")
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error processing new messages via ContentObserver", e)
         }
     }
 
