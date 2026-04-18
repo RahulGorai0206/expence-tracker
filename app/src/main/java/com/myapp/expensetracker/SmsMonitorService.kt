@@ -25,6 +25,7 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -85,6 +86,7 @@ class SmsMonitorService : Service() {
         super.onDestroy()
         Log.d(TAG, "Service destroyed")
         unregisterSmsObserver()
+        scope.cancel()
 
         // Auto-restart if still enabled (handles edge case where system kills us)
         if (isEnabled(this)) {

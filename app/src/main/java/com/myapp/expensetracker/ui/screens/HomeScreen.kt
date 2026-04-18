@@ -27,8 +27,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.myapp.expensetracker.AppDatabase
 import com.myapp.expensetracker.GoogleSheetsLogger
+import com.myapp.expensetracker.viewmodel.HomeViewModel
+import org.koin.androidx.compose.koinViewModel
 import com.myapp.expensetracker.Transaction
 import com.myapp.expensetracker.ui.components.ManualTransactionBottomSheet
 import com.myapp.expensetracker.ui.components.TransactionListItem
@@ -39,7 +40,8 @@ import kotlin.math.abs
 @Composable
 fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> Unit, onSettingsClick: () -> Unit) {
     val context = LocalContext.current
-    val transactions by AppDatabase.getDatabase(context).transactionDao().getAllTransactions().collectAsState(initial = emptyList())
+    val viewModel: HomeViewModel = koinViewModel()
+    val transactions by viewModel.transactions.collectAsState()
     var showManualLog by remember { mutableStateOf(false) }
 
     if (showManualLog) {

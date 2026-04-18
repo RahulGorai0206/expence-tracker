@@ -14,8 +14,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
-import com.myapp.expensetracker.AppDatabase
 import com.myapp.expensetracker.Transaction
+import com.myapp.expensetracker.viewmodel.TransactionViewModel
+import org.koin.androidx.compose.koinViewModel
 import com.myapp.expensetracker.ui.components.TransactionListItem
 import java.text.SimpleDateFormat
 import java.util.*
@@ -24,7 +25,8 @@ import java.util.*
 @Composable
 fun TransactionScreen(onTransactionClick: (Transaction) -> Unit) {
     val context = LocalContext.current
-    val transactions by AppDatabase.getDatabase(context).transactionDao().getAllTransactions().collectAsState(initial = emptyList())
+    val viewModel: TransactionViewModel = koinViewModel()
+    val transactions by viewModel.transactions.collectAsState()
 
     Column(modifier = Modifier.padding(20.dp)) {
         Text(

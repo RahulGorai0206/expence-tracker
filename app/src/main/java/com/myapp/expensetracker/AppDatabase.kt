@@ -35,7 +35,6 @@ abstract class AppDatabase : RoomDatabase() {
                         }
                     }
                 })
-                    .fallbackToDestructiveMigration(dropAllTables = true)
                 .build()
                 INSTANCE = instance
                 instance

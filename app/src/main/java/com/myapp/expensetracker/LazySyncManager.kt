@@ -106,6 +106,12 @@ class LazySyncManager(private val context: Context) {
     }
 
     private fun downloadModel(targetFile: File) {
+        val statFs = android.os.StatFs(context.filesDir.absolutePath)
+        val availableSpace = statFs.availableBlocksLong * statFs.blockSizeLong
+        if (availableSpace < 2L * 1024 * 1024 * 1024) {
+            throw Exception("Insufficient storage space. At least 2GB of free space is required to download the AI model.")
+        }
+
         val tempFile = File(targetFile.parent, "${targetFile.name}.tmp")
         try {
             URL(MODEL_URL).openConnection().apply {

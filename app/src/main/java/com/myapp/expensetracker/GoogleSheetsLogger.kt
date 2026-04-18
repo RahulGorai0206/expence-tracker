@@ -218,27 +218,18 @@ object GoogleSheetsLogger {
             
             // Mark as pending immediately to show loading UI
             dao.updateSyncStatus(localId.toInt(), transaction.remoteId, "pending")
-
-            try {
-                // Fetch the latest transaction from DB to get the most current remoteId
-                val currentTransaction = dao.getTransactionSync(localId.toInt())
-                
-                // Check if already synced or has remoteId
-                if (currentTransaction != null && !currentTransaction.remoteId.isNullOrBlank()) {
-                    dao.updateSyncStatus(localId.toInt(), currentTransaction.remoteId, "synced")
-                    return@launch
-                }
-
-                val remoteId = log(transaction)
-                if (remoteId != null) {
-                    dao.updateSyncStatus(localId.toInt(), remoteId, "synced")
-                } else {
-                    dao.updateSyncStatus(localId.toInt(), null, "failed")
-                }
-            } catch (e: Exception) {
-                dao.updateSyncStatus(localId.toInt(), null, "failed")
-                e.printStackTrace()
-            }
         }
+
+        val constraints = androidx.work.Constraints.Builder()
+            .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
+            .build()
+
+        val workRequest =
+            androidx.work.OneTimeWorkRequestBuilder<com.myapp.expensetracker.worker.SheetsSyncWorker>()
+                .setConstraints(constraints)
+                .setInputData(androidx.work.workDataOf("TRANSACTION_ID" to localId))
+                .build()
+
+        androidx.work.WorkManager.getInstance(context).enqueue(workRequest)
     }
 }
