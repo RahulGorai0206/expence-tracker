@@ -38,12 +38,13 @@ class LazySyncManager(private val context: Context) {
             LlmInference.createFromOptions(context, options).use { llmInference ->
                 onProgress("Fetching SMS messages...")
                 val messages = fetchSmsMessages(startDate, endDate)
-                // Stage 1: Block promotional/spam messages first
+                // Stage 1: Block promotional/spam/OTP messages first
                 val promoKeywords = listOf(
                     "recharge", "offer", "click", "subscribe", "download", "unlimited",
                     "plan ", "plans ", "validity", "activate", "www.", "http://", "https://",
                     "get ", "win ", "earn ", "reward", "cashback offer", "discount",
-                    "congratulations", "dear customer", "promo", "deal", "free", "renew your"
+                    "congratulations", "dear customer", "promo", "deal", "free", "renew your",
+                    "otp", "verification code", "valid till", "secret code", "do not share"
                 )
                 // Stage 2: Must have a strong bank transaction signal
                 val transactionSignals = listOf(
@@ -59,11 +60,11 @@ class LazySyncManager(private val context: Context) {
 
                 val candidateMessages = messages.filter { sms ->
                     val lower = sms.body.lowercase()
-                    val isPromo = promoKeywords.any { lower.contains(it) }
+                    val isPromoOrOtp = promoKeywords.any { lower.contains(it) }
                     val hasTransaction = transactionSignals.any { lower.contains(it) }
                     val hasCurrency = currencySignals.any { lower.contains(it) }
 
-                    if (isPromo || !hasTransaction || !hasCurrency) return@filter false
+                    if (isPromoOrOtp || !hasTransaction || !hasCurrency) return@filter false
 
                     if (ignoreCcBills && extractor.isCreditCardBill(sms.body)) {
                         Log.d("LazySync", "Ignoring CC Bill candidate: ${sms.body}")
@@ -262,13 +263,19 @@ class LazySyncManager(private val context: Context) {
             <start_of_turn>user
             Extract transaction details from this SMS. If it is NOT a bank transaction or if it's an OTP, answer INVALID.
             Otherwise, extract the details precisely in this format:
-            AMOUNT: (number only, use dot for decimals, e.g., 12.50)
+            AMOUNT: (number only, use dot for decimals)
             TYPE: (DEBIT or CREDIT)
             CATEGORY: (Dining, Transport, Groceries, Shopping, Bills, Entertainment, Health, or Other)
 
+            Examples:
+            SMS: "Your A/c XX123 debited by Rs 500.00 for txn at Amazon"
+            Response: AMOUNT: 500.00, TYPE: DEBIT, CATEGORY: Shopping
+
+            SMS: "OTP is 123456 for txn of Rs 100.00"
+            Response: INVALID
+
             SMS: "$body"<end_of_turn>
             <start_of_turn>model
-            
         """.trimIndent()
         
         val response = llmInference.generateResponse(prompt).trim()
