@@ -76,7 +76,11 @@ class LazySyncManager(private val context: Context) {
 
                         // Prevent duplicate syncing — all detection layers now use the
                         // system SMS timestamp, so exact date+amount matching works reliably
-                        val duplicateCount = database.transactionDao().checkDuplicate(transaction.date, transaction.amount)
+                        val duplicateCount = database.transactionDao().checkDuplicate(
+                            transaction.date,
+                            transaction.amount,
+                            transaction.bodyHash
+                        )
                         if (duplicateCount > 0) {
                             Log.d(
                                 "LazySync",
@@ -93,6 +97,9 @@ class LazySyncManager(private val context: Context) {
                 }
 
                 onProgress("Sync complete! Added $count transactions.")
+                if (count > 0) {
+                    updateExpenseWidget(context)
+                }
                 true
             }
         } catch (e: Throwable) {
@@ -243,7 +250,7 @@ class LazySyncManager(private val context: Context) {
             <start_of_turn>user
             Extract transaction details from this SMS. If it is NOT a bank transaction or if it's an OTP, answer INVALID.
             Otherwise, extract the details precisely in this format:
-            AMOUNT: (number only)
+            AMOUNT: (number only, use dot for decimals, e.g., 12.50)
             TYPE: (DEBIT or CREDIT)
             CATEGORY: (Dining, Transport, Groceries, Shopping, Bills, Entertainment, Health, or Other)
 
@@ -260,14 +267,24 @@ class LazySyncManager(private val context: Context) {
         }
         
         try {
-            val amountMatch = Regex("AMOUNT:.*?([\\d,]+(?:\\.\\d{1,2})?)").find(response)
-            val typeMatch = Regex("TYPE:.*?(DEBIT|CREDIT)", RegexOption.IGNORE_CASE).find(response)
-            val categoryMatch = Regex("CATEGORY:\\s*([a-zA-Z]+)", RegexOption.IGNORE_CASE).find(response)
-            
-            val amountStr = amountMatch?.groupValues?.get(1)?.replace(",", "")
-            val rawCategory = categoryMatch?.groupValues?.get(1)?.lowercase() ?: "other"
-            val categoryStr = rawCategory.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+            // Updated regex to be more robust with whitespace and decimals
+            val amountMatch =
+                Regex("""AMOUNT:\s*([\d,]+\.?\d*)""", RegexOption.IGNORE_CASE).find(response)
+            val typeMatch =
+                Regex("""TYPE:\s*(DEBIT|CREDIT)""", RegexOption.IGNORE_CASE).find(response)
+            val categoryMatch =
+                Regex("""CATEGORY:\s*([a-zA-Z]+)""", RegexOption.IGNORE_CASE).find(response)
+
+            // Handle commas as thousand separators by removing them, but keep the dot
+            val rawAmountStr = amountMatch?.groupValues?.get(1)
+            val amountStr = rawAmountStr?.replace(",", "")
             val amount = amountStr?.toDoubleOrNull() ?: return null
+
+            val rawCategory = categoryMatch?.groupValues?.get(1)?.lowercase() ?: "other"
+            val categoryStr =
+                rawCategory.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+
+            Log.d("LazySync", "Parsed amount: $amount from raw string: $rawAmountStr")
             
             // Keyword-based debit/credit verification — more reliable than AI for Indian SMS
             val lower = body.lowercase()
@@ -292,7 +309,7 @@ class LazySyncManager(private val context: Context) {
                 body = body,
                 category = categoryStr,
                 status = "Cleared",
-                type = "automated",
+                type = "AI",
                 syncStatus = "pending"  // will be uploaded to Google Sheets
             )
         } catch (e: Exception) {

@@ -141,8 +141,14 @@ fun MainScreen(
         lastSelectedTransaction = selectedTransaction
     }
 
-    BackHandler(enabled = selectedTransaction != null) {
-        selectedTransaction = null
+    BackHandler(enabled = selectedTransaction != null || pagerState.currentPage != 0) {
+        if (selectedTransaction != null) {
+            selectedTransaction = null
+        } else if (pagerState.currentPage != 0) {
+            coroutineScope.launch {
+                pagerState.animateScrollToPage(0)
+            }
+        }
     }
 
     Scaffold(

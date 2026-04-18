@@ -9,7 +9,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
-@Database(entities = [Transaction::class], version = 6, exportSchema = false)
+@Database(entities = [Transaction::class], version = 7, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun transactionDao(): TransactionDao
 
@@ -35,6 +35,7 @@ abstract class AppDatabase : RoomDatabase() {
                         }
                     }
                 })
+                    .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance
                 instance

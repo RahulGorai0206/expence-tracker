@@ -245,7 +245,11 @@ class SmsMonitorService : Service() {
                             val db = AppDatabase.getDatabase(this@SmsMonitorService)
                             val existsInDb =
                                 db.transactionDao()
-                                    .checkDuplicate(transaction.date, transaction.amount)
+                                    .checkDuplicate(
+                                        transaction.date,
+                                        transaction.amount,
+                                        transaction.bodyHash
+                                    )
                             if (existsInDb > 0) {
                                 Log.d(
                                     TAG,

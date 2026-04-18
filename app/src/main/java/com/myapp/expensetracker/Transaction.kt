@@ -12,6 +12,7 @@ data class Transaction(
     val amount: Double,
     val date: Long,
     val body: String,
+    val bodyHash: Int = body.hashCode(),
     val category: String = "Other",
     val status: String = "Cleared",
     val type: String = "automated",

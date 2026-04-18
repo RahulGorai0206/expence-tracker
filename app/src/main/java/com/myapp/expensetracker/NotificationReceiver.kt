@@ -57,7 +57,11 @@ class NotificationReceiver : BroadcastReceiver() {
 
                         // DB-level dedup: last line of defense against duplicate entries
                         val dupeCount =
-                            db.transactionDao().checkDuplicate(date, amount)
+                            db.transactionDao().checkDuplicate(
+                                date,
+                                amount,
+                                (intent.getStringExtra("body") ?: "").hashCode()
+                            )
                         if (dupeCount > 0) {
                             Log.d(
                                 "NotificationReceiver",

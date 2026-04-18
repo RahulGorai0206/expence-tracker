@@ -82,13 +82,21 @@ fun TransactionListItem(transaction: Transaction, onClick: () -> Unit) {
                 Spacer(modifier = Modifier.height(4.dp))
                 
                 Surface(
-                    color = (if (transaction.type == "manual") MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.secondaryContainer).copy(alpha = 0.2f),
+                    color = when (transaction.type) {
+                        "manual" -> MaterialTheme.colorScheme.tertiaryContainer
+                        "AI" -> MaterialTheme.colorScheme.primaryContainer
+                        else -> MaterialTheme.colorScheme.secondaryContainer
+                    }.copy(alpha = 0.2f),
                     shape = RoundedCornerShape(4.dp)
                 ) {
                     Text(
                         transaction.type.uppercase(),
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp),
-                        color = if (transaction.type == "manual") MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.secondary,
+                        color = when (transaction.type) {
+                            "manual" -> MaterialTheme.colorScheme.tertiary
+                            "AI" -> MaterialTheme.colorScheme.primary
+                            else -> MaterialTheme.colorScheme.secondary
+                        },
                         modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
                         fontWeight = FontWeight.Bold
                     )

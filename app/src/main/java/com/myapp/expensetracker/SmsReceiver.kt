@@ -56,7 +56,11 @@ class SmsReceiver : BroadcastReceiver() {
                         // DB-level dedup: check by system timestamp + amount
                         val db = AppDatabase.getDatabase(context)
                         val existsInDb =
-                            db.transactionDao().checkDuplicate(transaction.date, transaction.amount)
+                            db.transactionDao().checkDuplicate(
+                                transaction.date,
+                                transaction.amount,
+                                transaction.bodyHash
+                            )
                         if (existsInDb > 0) {
                             Log.d(
                                 "SmsReceiver",

@@ -181,15 +181,28 @@ object GoogleSheetsLogger {
                     onProgress(0, total)
                     dao.deleteAllTransactions()
                     rawRecords.forEachIndexed { index, remote ->
+                        val remoteAmount = remote.amount ?: 0.0
+                        val remoteType = remote.type ?: "automated"
+
+                        // Ensure amount is negative for debits (matching app's internal logic)
+                        // If it's a debit (type is not typically 'credit' in logic, but here we can check)
+                        // Actually, app logic uses amount < 0 for spent.
+                        // Google Sheets might store absolute values or negative.
+                        val isDebit = remoteType.lowercase() != "credit" &&
+                                !(remote.body?.lowercase()?.contains("credited") ?: false)
+
+                        val normalizedAmount =
+                            if (isDebit && remoteAmount > 0) -remoteAmount else remoteAmount
+
                         val transaction = Transaction(
                             remoteId = remote.id,
                             sender = remote.sender ?: "",
-                            amount = remote.amount ?: 0.0,
+                            amount = normalizedAmount,
                             date = remote.date ?: System.currentTimeMillis(),
                             body = remote.body ?: "",
                             category = remote.category ?: "Other",
                             status = remote.status ?: "Cleared",
-                            type = remote.type ?: "automated",
+                            type = remoteType,
                             latitude = remote.latitude,
                             longitude = remote.longitude,
                             syncStatus = "synced"
@@ -198,6 +211,7 @@ object GoogleSheetsLogger {
                         onProgress(index + 1, total)
                         kotlinx.coroutines.delay(20) // Give UI time to breathe
                     }
+                    updateExpenseWidget(context)
                     null // Success
                 } else {
                     "No valid records found to restore"

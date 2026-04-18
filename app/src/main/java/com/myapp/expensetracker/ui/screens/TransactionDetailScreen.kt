@@ -67,6 +67,7 @@ fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit)
                 scope.launch {
                     val updated = currentTransaction.copy(category = newCategory)
                     AppDatabase.getDatabase(context).transactionDao().insert(updated)
+                    com.myapp.expensetracker.updateExpenseWidget(context)
                     com.myapp.expensetracker.GoogleSheetsLogger.update(updated)
                 }
                 showCategoryDialog = false
@@ -197,10 +198,18 @@ fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit)
             
             Spacer(modifier = Modifier.height(40.dp))
             DetailCard("TRANSACTION DATE", SimpleDateFormat("MMMM dd, yyyy • hh:mm a", Locale.getDefault()).format(Date(currentTransaction.date)), Icons.Default.CalendarMonth)
-            
-            val sourceLabel = if (currentTransaction.type == "manual") "LOGGED BY USER" else "MERCHANT SOURCE"
+
+            val sourceLabel = when (currentTransaction.type) {
+                "manual" -> "LOGGED BY USER"
+                "AI" -> "AI ANALYZED SOURCE"
+                else -> "MERCHANT SOURCE"
+            }
             val sourceValue = currentTransaction.sender
-            val sourceSub = if (currentTransaction.type == "manual") "Manual entry via Dashboard" else "Identified from incoming SMS"
+            val sourceSub = when (currentTransaction.type) {
+                "manual" -> "Manual entry via Dashboard"
+                "AI" -> "Historical SMS analyzed by On-Device AI"
+                else -> "Identified from incoming SMS"
+            }
             
             DetailCard(sourceLabel, sourceValue, null, sourceSub)
             
@@ -273,8 +282,8 @@ fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit)
                         scope.launch {
                             val toDelete = currentTransaction
                             AppDatabase.getDatabase(context).transactionDao().delete(toDelete)
-                            com.myapp.expensetracker.GoogleSheetsLogger.delete(toDelete)
                             com.myapp.expensetracker.updateExpenseWidget(context)
+                            com.myapp.expensetracker.GoogleSheetsLogger.delete(toDelete)
                             onBack()
                         }
                     },

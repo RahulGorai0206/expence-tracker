@@ -170,7 +170,8 @@ class TransactionNotificationListener : NotificationListenerService() {
             // DB-level dedup: check by system timestamp + amount
             val db = AppDatabase.getDatabase(this)
             val existsInDb =
-                db.transactionDao().checkDuplicate(transaction.date, transaction.amount)
+                db.transactionDao()
+                    .checkDuplicate(transaction.date, transaction.amount, transaction.bodyHash)
             if (existsInDb > 0) {
                 Log.d(TAG, "Skipping — transaction already exists in DB (date+amount match)")
                 return
