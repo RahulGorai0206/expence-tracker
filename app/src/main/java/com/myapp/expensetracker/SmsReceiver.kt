@@ -41,6 +41,14 @@ class SmsReceiver : BroadcastReceiver() {
 
                     Log.d("SmsReceiver", "Processing SMS from $sender: $fullBody")
 
+                    val sharedPrefs = context.getSharedPreferences("prefs", Context.MODE_PRIVATE)
+                    val ignoreCcBills = sharedPrefs.getBoolean("ignore_cc_bills", false)
+
+                    if (ignoreCcBills && extractor.isCreditCardBill(fullBody)) {
+                        Log.d("SmsReceiver", "Ignoring Credit Card bill alert as per settings")
+                        return@launch
+                    }
+
                     val transaction = extractor.extractTransaction(fullBody, sender, timestamp)
                     
                     if (transaction != null) {

@@ -121,6 +121,14 @@ fun SettingsScreen(
     val dateRangePickerState = rememberDateRangePickerState()
     
     var trackOnlyDebits by remember { mutableStateOf(sharedPrefs.getBoolean("track_only_debits", false)) }
+    var ignoreCcBills by remember {
+        mutableStateOf(
+            sharedPrefs.getBoolean(
+                "ignore_cc_bills",
+                false
+            )
+        )
+    }
     var backgroundMonitoring by remember { mutableStateOf(SmsMonitorService.isEnabled(context)) }
 
     val extractedSheetId = remember(sheetUrl) {
@@ -1226,6 +1234,56 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
                         onCheckedChange = { 
                             trackOnlyDebits = it
                             sharedPrefs.edit().putBoolean("track_only_debits", it).apply()
+                        }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.secondaryContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.CreditCardOff,
+                                "CC Bill",
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            Text(
+                                "Ignore CC Bills",
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                "Skip credit card statement/due alerts",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    Switch(
+                        checked = ignoreCcBills,
+                        onCheckedChange = {
+                            ignoreCcBills = it
+                            sharedPrefs.edit().putBoolean("ignore_cc_bills", it).apply()
                         }
                     )
                 }

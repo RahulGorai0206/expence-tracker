@@ -229,6 +229,14 @@ class SmsMonitorService : Service() {
 
                         Log.d(TAG, "ContentObserver processing new message ID=$smsId from $sender")
 
+                        val prefs = getSharedPreferences("prefs", Context.MODE_PRIVATE)
+                        val ignoreCcBills = prefs.getBoolean("ignore_cc_bills", false)
+
+                        if (ignoreCcBills && extractor.isCreditCardBill(body)) {
+                            Log.d(TAG, "Skipping CC Bill as per settings")
+                            continue
+                        }
+
                         val transaction = extractor.extractTransaction(body, sender, timestamp)
 
                         if (transaction != null) {

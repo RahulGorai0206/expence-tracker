@@ -157,10 +157,17 @@ class TransactionNotificationListener : NotificationListenerService() {
     @SuppressLint("MissingPermission")
     private suspend fun processTransactionMessage(body: String, sender: String, timestamp: Long) {
         try {
+            val prefs = getSharedPreferences("prefs", Context.MODE_PRIVATE)
+            val ignoreCcBills = prefs.getBoolean("ignore_cc_bills", false)
+
+            if (ignoreCcBills && extractor.isCreditCardBill(body)) {
+                Log.d(TAG, "Skipping CC Bill as per settings")
+                return
+            }
+
             val transaction = extractor.extractTransaction(body, sender, timestamp) ?: return
 
             // Check track-only-debits preference
-            val prefs = getSharedPreferences("prefs", Context.MODE_PRIVATE)
             val trackOnlyDebits = prefs.getBoolean("track_only_debits", false)
             if (trackOnlyDebits && transaction.amount >= 0) {
                 Log.d(TAG, "Ignoring non-debit transaction as per settings")

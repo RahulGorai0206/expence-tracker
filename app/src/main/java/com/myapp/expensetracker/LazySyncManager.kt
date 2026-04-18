@@ -53,12 +53,24 @@ class LazySyncManager(private val context: Context) {
                 // Stage 3: Must contain a currency mention
                 val currencySignals = listOf("rs.", "rs ", "inr", "₹")
 
+                val ignoreCcBills =
+                    context.getSharedPreferences("prefs", android.content.Context.MODE_PRIVATE)
+                        .getBoolean("ignore_cc_bills", false)
+
                 val candidateMessages = messages.filter { sms ->
                     val lower = sms.body.lowercase()
                     val isPromo = promoKeywords.any { lower.contains(it) }
                     val hasTransaction = transactionSignals.any { lower.contains(it) }
                     val hasCurrency = currencySignals.any { lower.contains(it) }
-                    !isPromo && hasTransaction && hasCurrency
+
+                    if (isPromo || !hasTransaction || !hasCurrency) return@filter false
+
+                    if (ignoreCcBills && extractor.isCreditCardBill(sms.body)) {
+                        Log.d("LazySync", "Ignoring CC Bill candidate: ${sms.body}")
+                        return@filter false
+                    }
+
+                    true
                 }
                 
                 onProgress("Found ${candidateMessages.size} potential transactions. AI Analyzing...")

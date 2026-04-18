@@ -37,6 +37,39 @@ class TransactionExtractor {
         "credited", "received", "deposited", "added", "refunded", "cashback"
     )
 
+    fun isCreditCardBill(body: String): Boolean {
+        val lowerBody = body.lowercase()
+
+        // 1. Direct Bill Indicators (Specific enough on their own)
+        val billPhrases = listOf(
+            "total amount due",
+            "minimum amount due",
+            "statement for your card",
+            "bill for your card",
+            "outstanding on your card",
+            "statement is generated",
+            "bill is generated",
+            "card bill"
+        )
+
+        if (billPhrases.any { lowerBody.contains(it) }) return true
+
+        // 2. Secondary check for "Card" + "Bill/Due/Statement" combinations
+        val hasCardRef =
+            lowerBody.contains("card ending") || lowerBody.contains("credit card") || lowerBody.contains(
+                "your card"
+            ) || lowerBody.contains(" card ")
+        val isBillContext =
+            lowerBody.contains("due date") || lowerBody.contains("statement") || lowerBody.contains(
+                "outstanding"
+            ) || lowerBody.contains("bill")
+
+        // Explicit check for Card + Bill combination
+        if (lowerBody.contains("card") && lowerBody.contains("bill")) return true
+
+        return hasCardRef && isBillContext
+    }
+
     suspend fun extractTransaction(body: String, sender: String, timestamp: Long): Transaction? {
         val lowerBody = body.lowercase()
         
