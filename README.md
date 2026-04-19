@@ -60,24 +60,24 @@ The UI is built entirely with **Jetpack Compose** and **Material 3**, featuring 
 
 ## Key Features
 
-| Feature                           | Description                                                                                                             |
-|-----------------------------------|-------------------------------------------------------------------------------------------------------------------------|
-| 📱 **Automatic SMS Detection**    | BroadcastReceiver intercepts incoming SMS and extracts transactions in real-time                                        |
-| 💬 **RCS Bank Intercept**         | NotificationListenerService captures modern RCS bank transactions directly from system notifications                    |
-| 🤖 **ML Kit Extraction**          | Google ML Kit Entity Extraction identifies monetary amounts; regex fallback                                             |
-| 🧩 **Glance App Widget**          | Expressive Material 3 dynamic color widget allowing single-tap tracking from your homescreen                            |
-| 🏷️ **Smart Categorization**      | Keyword-based classification across 7 categories (Dining, Transport, Groceries, Shopping, Bills, Entertainment, Health) |
-| 📍 **Geo-Tagged Transactions**    | Captures precise GPS coordinates at time of transaction using Fused Location Provider                                   |
-| 🔔 **30-Second Accept/Deny**      | Rich notification with Accept/Deny actions; auto-accepts on timeout                                                     |
-| ☁️ **Google Sheets Cloud Sync**   | Full CRUD sync via Google Apps Script with duplicate prevention and API key auth                                        |
-| ✏️ **Manual Logging**             | Bottom sheet for manually entering expenses with location capture                                                       |
-| 💰 **Budget Tracking**            | Monthly budget target with remaining balance displayed on home card                                                     |
-| 🌙 **Premium Dark/Light Themes**  | Material You dynamic colors + custom dark/light color schemes                                                           |
-| 📊 **Financial Dashboard**        | Balance card with gradient design, recent activity feed, and transaction history grouped by date                        |
-| 🧠 **AI Smart Sync (Lazy Sync)**  | On-device AI (Gemma 2B) scans historical SMS Inbox to retrieve older missed transactions                                |
-| 🛡️ **Reliable Tracking**         | Persistent Foreground Service & Boot Receiver ensure the app never goes to sleep silently                               |
-| 🔄 **Offline-First Architecture** | Local Room DB as source of truth; background cloud sync with retry for failed uploads                                   |
-| 📤 **Transaction Sharing**        | Screenshot capture + text share of transaction details including Google Maps link                                       |
+| Feature                           | Description                                                                                                         |
+|-----------------------------------|---------------------------------------------------------------------------------------------------------------------|
+| 📱 **Automatic SMS Detection**    | BroadcastReceiver intercepts incoming SMS and extracts transactions in real-time                                    |
+| 💬 **RCS Bank Intercept**         | NotificationListenerService captures modern RCS bank transactions directly from system notifications                |
+| 🤖 **ML Kit Extraction**          | Google ML Kit Entity Extraction identifies monetary amounts; regex fallback                                         |
+| 🧩 **Glance App Widget**          | Material 3 widget with real-time updates; auto-refreshes whenever app is backgrounded or minimized                  |
+| 🛡️ **Robust Deduplication**      | Hash-based matching with 60s time-windows prevents duplicates even after phone reboots or database rebuilds         |
+| 💳 **Ignore CC Bills**            | Smart filter and settings toggle to automatically skip credit card statement and due-date alerts                    |
+| 🏷️ **AI Chip Tags**              | Clear visual labeling (MANUAL, AUTOMATED, or AI) to identify the source of each transaction                         |
+| 📍 **Geo-Tagged Transactions**    | Captures precise GPS coordinates at time of transaction using Fused Location Provider                               |
+| 🔔 **30-Second Accept/Deny**      | Rich notification with Accept/Deny actions; auto-accepts on timeout                                                 |
+| ☁️ **Google Sheets Cloud Sync**   | Full CRUD sync via Google Apps Script with debit-normalization during restore and API key auth                      |
+| 🧠 **AI Smart Sync (Lazy Sync)**  | On-device AI (Gemma 2B) with few-shot prompting to scan historical SMS for missed transactions while filtering OTPs |
+| 💰 **Budget Tracking**            | Monthly budget target with remaining balance displayed on home card                                                 |
+| 🌙 **Premium Theme System**       | Follow system theme or manually toggle Premium Dark Mode (deep blacks)                                              |
+| 🔄 **Intelligent Navigation**     | Refined back-gesture logic: Detail → Previous Page, History/Settings → Home, Home → Exit                            |
+| 🔄 **Offline-First Architecture** | Local Room DB as source of truth (v7); background cloud sync with retry for failed uploads                          |
+| 📤 **Transaction Sharing**        | Screenshot capture + text share of transaction details including Google Maps link                                   |
 
 ---
 
@@ -90,16 +90,16 @@ graph TB
     subgraph Android Device
         SMS["📱 SMS Inbox<br/>(Incoming Messages)"]
         RCV["SmsReceiver<br/>(BroadcastReceiver)"]
-        EXT["TransactionExtractor<br/>(ML Kit + Regex)"]
+        EXT["TransactionExtractor<br/>(ML Kit + Regex + CC Filter)"]
         LOC["Fused Location<br/>Provider"]
         NOTIF["Notification System<br/>(Accept / Deny / Timeout)"]
         NRCV["NotificationReceiver<br/>(BroadcastReceiver)"]
     end
 
     subgraph Data Layer
-        DB["Room Database<br/>(SQLite)"]
-        DAO["TransactionDao<br/>(Reactive Flow)"]
-        PREFS["SharedPreferences<br/>(Settings)"]
+        DB["Room Database<br/>(SQLite v7)"]
+        DAO["TransactionDao<br/>(bodyHash Dedup)"]
+        PREFS["SharedPreferences<br/>(Ignore CC Bills, etc.)"]
     end
 
     subgraph UI Layer ["UI Layer (Jetpack Compose)"]
@@ -161,7 +161,7 @@ sequenceDiagram
 
     SMS->>Receiver: SMS_RECEIVED broadcast
     Receiver->>Receiver: Combine multi-part SMS
-    Receiver->>Receiver: Filter OTPs & non-financial SMS
+    Receiver->>Receiver: Filter OTPs & CC Bills
 
     Receiver->>MLKit: Extract money entities
     alt ML Kit finds amount
@@ -181,7 +181,7 @@ sequenceDiagram
 
     alt User taps "Accept" OR 30s timeout
         Notif->>NReceiver: ACCEPT / TIMEOUT intent
-        NReceiver->>Room: Insert transaction (syncStatus=pending)
+        NReceiver->>Room: Insert transaction (with bodyHash)
         Room-->>NReceiver: Local ID
         NReceiver->>Logger: logAsync(transaction)
         Logger->>Script: HTTP POST (action=create)
@@ -202,7 +202,7 @@ stateDiagram-v2
     [*] --> SMSReceived: Incoming SMS
     SMSReceived --> OTPCheck: Parse message
 
-    OTPCheck --> Discarded: Contains OTP/verification
+    OTPCheck --> Discarded: OTP / CC Bill (if enabled)
     OTPCheck --> Extraction: Financial content detected
 
     Extraction --> MLKitExtraction: ML Kit Entity Extraction
@@ -221,7 +221,7 @@ stateDiagram-v2
     NotificationShown --> Denied: User taps "Deny"
     NotificationShown --> AutoAccepted: 30-second timeout
 
-    Accepted --> SavedLocally: Insert to Room DB
+    Accepted --> SavedLocally: Insert to Room DB (v7)
     AutoAccepted --> SavedLocally: Insert to Room DB (status=Auto-Cleared)
 
     SavedLocally --> CloudSync: Background sync to Sheets
@@ -249,17 +249,17 @@ ExpenseTracker/
 │           └── java/com/myapp/expensetracker/
 │               │
 │               ├── ── Core ──
-│               ├── MainActivity.kt          # Entry point, permission handling, theme, navigation
-│               ├── Transaction.kt           # Room @Entity — data model with 12 fields
-│               ├── TransactionDao.kt        # Room @Dao — queries, inserts, sync status updates
-│               ├── AppDatabase.kt           # Room database singleton (version 6)
+│               ├── MainActivity.kt          # Entry point, lifecycle-aware widget updates, navigation
+│               ├── Transaction.kt           # Room @Entity — added bodyHash for robust dedup
+│               ├── TransactionDao.kt        # Room @Dao — improved duplicate checks
+│               ├── AppDatabase.kt           # Room database singleton (version 7)
 │               │
 │               ├── ── SMS Processing & AI ──
 │               ├── SmsReceiver.kt           # BroadcastReceiver — SMS interception + notification
 │               ├── SmsMonitorService.kt     # Foreground Service — Keeps app alive for reliable intercepts
 │               ├── BootReceiver.kt          # BroadcastReceiver — Auto-starts monitor after device reboot
-│               ├── LazySyncManager.kt       # Runs Gemma on-device model to extract transactions from history
-│               ├── TransactionExtractor.kt  # ML Kit + Regex extraction pipeline
+│               ├── LazySyncManager.kt       # AI-Powered historical SMS analysis (Gemma 2B)
+│               ├── TransactionExtractor.kt  # ML Kit + Regex + CC Bill detection pipeline
 │               ├── NotificationReceiver.kt  # Handles Accept/Deny/Timeout notification actions
 │               │
 │               ├── ── Cloud Sync ──
@@ -276,23 +276,16 @@ ExpenseTracker/
 │                   │   ├── HomeScreen.kt             # Financial dashboard + balance card + recent list
 │                   │   ├── TransactionScreen.kt      # Full transaction history grouped by date
 │                   │   ├── TransactionDetailScreen.kt # Detail view + re-categorize + delete + share + map
-│                   │   ├── SettingsScreen.kt          # Budget, cloud sync, appearance, data management
+│                   │   ├── SettingsScreen.kt          # Budget, cloud sync, CC Bill toggle, data management
 │                   │   └── SetupScreen.kt             # 3-step onboarding wizard
 │                   │
 │                   └── ── Components & Widgets ──
 │                       ├── components/
-│                       │   ├── TransactionListItem.kt        # Reusable transaction row with sync indicators
+│                       │   ├── TransactionListItem.kt        # Reusable row with AI/Manual/Auto chip tags
 │                       │   ├── ManualTransactionBottomSheet.kt # Manual expense entry bottom sheet
 │                       │   └── CategoryUtils.kt               # Category → icon/color mapping
 │                       └── ExpenseWidget.kt                  # Material 3 Glance homescreen widget
-│
-├── build.gradle.kts                         # Project-level Gradle config
-├── settings.gradle.kts                      # Project settings (name, module includes)
-├── gradle/
-│   └── libs.versions.toml                   # Version catalog (Kotlin 2.1.10, Compose BOM, Room, etc.)
-├── gradle.properties                        # Gradle JVM and Android settings
-├── gradlew / gradlew.bat                    # Gradle wrapper scripts
-└── .gitignore
+...
 ```
 
 ---
@@ -331,119 +324,13 @@ graph LR
     style SETTINGS fill:#01579B,color:#fff
 ```
 
-| Screen | Description |
-|--------|-------------|
-| **SetupScreen** | 3-step onboarding: Welcome → Set monthly budget → Feature highlights |
-| **HomeScreen** | Premium gradient balance card, monthly budget tracker, recent activity feed, FAB for manual logging, cloud sync status indicator |
-| **TransactionScreen** | Full transaction history grouped by date (Today, Yesterday, dated headers) with animated list items |
-| **TransactionDetailScreen** | Detailed view with category icon, amount display, date, merchant source, original SMS body, GPS coordinates, Google Maps link, re-categorize, delete, and share actions |
-| **SettingsScreen** | Budget planning, Google Sheets cloud sync configuration (with embedded Apps Script code), appearance toggles (dark mode, system theme, debit-only tracking), data management |
-
----
-
-## Transaction Extraction Pipeline
-
-### ML Kit Entity Extraction
-
-The primary extraction uses **Google ML Kit's Entity Extraction API** with the `ENGLISH` language model:
-
-1. Downloads the ML model on first use (cached for subsequent extractions)
-2. Annotates the SMS body for `Entity.TYPE_MONEY` entities
-3. Extracts `MoneyEntity.integerPart` and `MoneyEntity.fractionalPart`
-4. Skips amounts preceded by "bal" or "balance" (account balance, not transaction)
-
-### Regex Fallback
-
-If ML Kit fails to extract an amount, regex patterns are applied:
-
-| Pattern | Example Match |
-|---------|---------------|
-| `Rs\.?\s*(\d+(?:,\d+)*(?:\.\d{1,2})?)` | `Rs. 1,500.00`, `Rs 250` |
-| `INR\s*(\d+(?:,\d+)*(?:\.\d{1,2})?)` | `INR 3,200` |
-| `₹\s*(\d+(?:,\d+)*(?:\.\d{1,2})?)` | `₹ 499.50` |
-| `debited by\s*(\d+(?:,\d+)*(?:\.\d{1,2})?)` | `debited by 1500` |
-
-### Category Classification
-
-Transactions are classified via keyword matching against the SMS body:
-
-| Category | Keywords |
-|----------|----------|
-| 🍔 **Dining** | Starbucks, Coffee, Restaurant, Zomato, Swiggy, McDonalds, KFC, Burger, Pizza, Cafe, Bake |
-| 🚗 **Transport** | Uber, Ola, Taxi, Fuel, Petrol, Shell, Metro, IRCTC, Railway, Bus, Rapido |
-| 🛒 **Groceries** | Market, Grocery, Foods, BigBasket, Blinkit, Zepto, Reliance, Fresh, Vegetable, Milk |
-| 🛍️ **Shopping** | Shopping, Mall, Store, Amazon, Flipkart, Myntra, Ajio, Fashion, Clothing, Electronics |
-| 💡 **Bills** | Bill, Utility, Electricity, Water, Gas, Recharge, Mobile, Internet, Broadband, Insurance, Premium |
-| 🎬 **Entertainment** | Netflix, Hotstar, Spotify, Movie, Cinema, Theater, Prime, Gaming, Ticket |
-| 🏥 **Health** | Pharmacy, Hospital, Clinic, Medical, Apollo, Doctor, Gym, Fitness |
-| 💳 **Other** | Default fallback category |
-
-### Debit/Credit Detection
-
-| Type | Keywords |
-|------|----------|
-| **Debit** (negative) | debited, spent, paid, transferred, payment, sent, withdrawal, purchased, txn, using, done, deducted |
-| **Credit** (positive) | credited, received, deposited, added, refunded, cashback |
-
----
-
-## Cloud Sync — Google Sheets
-
-### Sync Architecture
-
-```mermaid
-graph LR
-    subgraph Android App
-        ROOM["Room DB<br/>(Source of Truth)"]
-        LOGGER["GoogleSheetsLogger<br/>(Singleton)"]
-        RETROFIT["Retrofit Client<br/>(OkHttp)"]
-    end
-
-    subgraph Google Cloud
-        SCRIPT["Apps Script<br/>(Web App)"]
-        SHEET_DB["'database' Sheet<br/>(Structured CRUD)"]
-        SHEET_LEGACY["Legacy Sheet<br/>(Quick Amounts)"]
-        SHEET_LOGS["'logs' Sheet<br/>(Audit Trail)"]
-    end
-
-    ROOM -->|Transaction| LOGGER
-    LOGGER --> RETROFIT
-    RETROFIT -->|HTTP POST<br/>action=create/read/update/delete| SCRIPT
-    SCRIPT --> SHEET_DB
-    SCRIPT --> SHEET_LEGACY
-    SCRIPT --> SHEET_LOGS
-
-    style ROOM fill:#004494,color:#fff
-    style SCRIPT fill:#34A853,color:#fff
-```
-
-### Apps Script Backend
-
-The app generates a complete **Google Apps Script** dynamically (with the user's Sheet ID embedded) that provides:
-
-- **CRUD Operations**: Create, Read, Update, Soft/Hard Delete
-- **Duplicate Prevention**: Strict millisecond-timestamp + amount matching
-- **API Key Authentication**: Script Property-based security
-- **Audit Logging**: All operations logged to a dedicated `logs` sheet
-- **Concurrency Control**: `LockService` for write operations
-- **Legacy Mode**: Writes debit amounts to a specific column for simple tracking
-
-### API Operations
-
-| Action | Method | Description |
-|--------|--------|-------------|
-| `create` | POST | Insert new transaction with duplicate check; returns `remoteId` |
-| `read` | POST | Fetch all records or single record by ID |
-| `update` | POST | Update amount, category, or status by `remoteId` |
-| `delete` | POST | Soft delete (status → "deleted") or hard delete (row removal) |
-
-### Sync States
-
-| State | Icon | Description |
-|-------|------|-------------|
-| `pending` | ⏳ Spinning | Upload in progress |
-| `synced` | ☁️ ✅ | Successfully synced with remote ID |
-| `failed` | ☁️ ❌ | Upload failed; available for manual retry from home screen |
+| Screen                      | Description                                                                                                                                                                                  |
+|-----------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **SetupScreen**             | 3-step onboarding: Welcome → Set monthly budget → Feature highlights                                                                                                                         |
+| **HomeScreen**              | Premium gradient balance card, monthly budget tracker, recent activity feed, FAB for manual logging, cloud sync status indicator                                                             |
+| **TransactionScreen**       | Full transaction history grouped by date (Today, Yesterday, dated headers) with animated list items                                                                                          |
+| **TransactionDetailScreen** | Detailed view with category icon, amount display, date, merchant source, original SMS body, GPS coordinates, Google Maps link, re-categorize, delete, and share actions                      |
+| **SettingsScreen**          | Budget planning, Google Sheets cloud sync configuration (with embedded Apps Script code), appearance toggles (dark mode, system theme, debit-only tracking, CC bill filter), data management |
 
 ---
 
@@ -455,148 +342,36 @@ The app generates a complete **Google Apps Script** dynamically (with the user's
 @Entity(tableName = "transactions")
 data class Transaction(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
-    val remoteId: String? = null,        // Google Sheets row ID (e.g., "REC-1712345678901-123")
-    val syncStatus: String = "synced",   // "pending" | "synced" | "failed"
-    val sender: String,                  // SMS sender or merchant name
-    val amount: Double,                  // Negative = debit, Positive = credit
-    val date: Long,                      // Epoch milliseconds (SMS timestamp)
-    val body: String,                    // Original SMS body or manual notes
-    val category: String = "Other",      // Auto-classified category
-    val status: String = "Cleared",      // "Cleared" | "Auto-Cleared" | "deleted"
-    val type: String = "automated",      // "automated" (SMS) | "manual" (user entry)
-    val latitude: Double? = null,        // GPS latitude at transaction time
-    val longitude: Double? = null        // GPS longitude at transaction time
+    val remoteId: String? = null,
+    val syncStatus: String = "synced",
+    val sender: String,
+    val amount: Double,
+    val date: Long,
+    val body: String,
+    val bodyHash: Int = body.hashCode(), // Added for restart-proof deduplication
+    val category: String = "Other",
+    val status: String = "Cleared",
+    val type: String = "automated",      // "automated" | "manual" | "AI"
+    val latitude: Double? = null,
+    val longitude: Double? = null
 )
 ```
 
 ### Database Operations (DAO)
 
-| Operation | Method | Return |
-|-----------|--------|--------|
-| Get all transactions | `getAllTransactions()` | `Flow<List<Transaction>>` |
-| Get by ID | `getTransactionById(id)` | `Flow<Transaction?>` |
-| Get by ID (suspend) | `getTransactionSync(id)` | `Transaction?` |
-| Insert/Update | `insert(transaction)` | — |
-| Insert & get ID | `insertAndReturnId(transaction)` | `Long` |
-| Update sync status | `updateSyncStatus(id, remoteId, status)` | — |
-| Delete single | `delete(transaction)` | — |
-| Delete all | `deleteAllTransactions()` | — |
-| Reset pending → failed | `resetPendingStatus()` | — |
+| Operation              | Method                                   | Return                         |
+|------------------------|------------------------------------------|--------------------------------|
+| Get all transactions   | `getAllTransactions()`                   | `Flow<List<Transaction>>`      |
+| Get by ID              | `getTransactionById(id)`                 | `Flow<Transaction?>`           |
+| Duplicate Check        | `checkDuplicate(date, amount, bodyHash)` | `Int` (Uses 60s window + hash) |
+| Insert/Update          | `insert(transaction)`                    | —                              |
+| Insert & get ID        | `insertAndReturnId(transaction)`         | `Long`                         |
+| Update sync status     | `updateSyncStatus(id, remoteId, status)` | —                              |
+| Delete single          | `delete(transaction)`                    | —                              |
+| Delete all             | `deleteAllTransactions()`                | —                              |
+| Reset pending → failed | `resetPendingStatus()`                   | —                              |
 
 ---
-
-## Getting Started
-
-### Prerequisites
-
-- **Android Studio** Ladybug or later
-- **JDK 17** (configured in Gradle)
-- **Android SDK 36** (compile SDK)
-- **Physical Android device** with SMS capability (emulators won't receive real SMS)
-- **Min SDK 33** (Android 13+)
-
-### Build & Run
-
-```bash
-# 1. Clone the repository
-git clone <repo-url> && cd ExpenseTracker
-
-# 2. Open in Android Studio
-#    File → Open → Select the ExpenseTracker directory
-
-# 3. Sync Gradle
-#    Android Studio will auto-sync. If not: File → Sync Project with Gradle Files
-
-# 4. Connect a physical device with USB debugging enabled
-
-# 5. Run the app
-#    Click ▶️ Run or: ./gradlew installDebug
-```
-
-### Permissions
-
-The app requests the following permissions at startup:
-
-| Permission | Purpose |
-|------------|---------|
-| `RECEIVE_SMS` | Intercept incoming SMS for transaction detection |
-| `READ_SMS` | Read SMS content for extraction |
-| `POST_NOTIFICATIONS` | Show Accept/Deny transaction notifications |
-| `ACCESS_FINE_LOCATION` | Capture precise GPS coordinates |
-| `ACCESS_COARSE_LOCATION` | Fallback location access |
-| `ACCESS_BACKGROUND_LOCATION` | Capture location even when app is in background |
-| `INTERNET` | Cloud sync to Google Sheets and downloading AI models |
-| `SCHEDULE_EXACT_ALARM` | 30-second auto-accept timeout alarm |
-| `FOREGROUND_SERVICE` | Keeps the SMS monitoring process alive |
-| `FOREGROUND_SERVICE_SPECIAL_USE` | Android 14+ requirement for the specific foreground process |
-| `RECEIVE_BOOT_COMPLETED` | Automatically restarts SMS monitor upon phone reboot |
-
-> **Note**: For location geo-tagging to work when the app is not in the foreground, grant **"Allow all the time"** location permission in Android Settings → Apps → Expense Tracker → Permissions → Location.
-
-### Setting Up Cloud Sync
-
-1. **Create a Google Sheet** and copy its URL
-2. Open the app → **Settings** → **Cloud Sync (Google Sheets)** → Expand
-3. Paste your **Google Sheet URL**
-4. The app auto-generates the **Apps Script code** with your Sheet ID embedded
-5. Copy the code → go to your Sheet → **Extensions → Apps Script** → Paste & Save
-6. In Apps Script → **Project Settings** (⚙️) → **Script Properties** → Add: `API_KEY` = `your-secret-key`
-7. **Deploy** → New Deployment → Web App → Access: "Anyone" → Copy the Web App URL
-8. Back in the app, paste your **API Key** and **Web App URL** → Save
-
----
-
-## Tech Stack
-
-```mermaid
-graph LR
-    subgraph Language & Build
-        KT["Kotlin 2.3.20"]
-        GR["Gradle 9.4.1"]
-        KSP["KSP 2.3.6"]
-    end
-
-    subgraph UI Framework
-        JC["Jetpack Compose"]
-        M3["Material 3 & Glance"]
-        MY["Material You<br/>(Dynamic Colors)"]
-    end
-
-    subgraph Data Layer
-        RM["Room 2.8.4"]
-        RT["Retrofit 3.0.0"]
-        OK["OkHttp 5.3.2"]
-    end
-
-    subgraph ML & Services
-        ML["ML Kit<br/>Entity Extraction"]
-        FL["Fused Location<br/>Provider 21.3"]
-    end
-
-    KT --> JC --> M3
-    M3 --> MY
-    KT --> RM
-    KT --> RT --> OK
-```
-
-| Layer                     | Technology                       | Version        | Purpose                                                  |
-|---------------------------|----------------------------------|----------------|----------------------------------------------------------|
-| **Language**              | Kotlin                           | 2.3.20         | Primary language                                         |
-| **Build**                 | AGP / Gradle                     | 9.1.1 / 9.4.1  | Build system                                             |
-| **UI Framework**          | Jetpack Compose + Material 3     | BOM 2026.03.01 | Declarative UI with Material You theming                 |
-| **Widgets**               | Glance App Widget                | 1.1.1          | Expressive dynamic Android homescreen widget             |
-| **Local Database**        | Room                             | 2.8.4          | SQLite abstraction with reactive `Flow` queries          |
-| **GenAI**                 | MediaPipe GenAI                  | LlmInference   | Runs Gemma 2B model on-device for historical "Lazy Sync" |
-| **ML / AI**               | Google ML Kit Entity Extraction  | 16.0.0-beta6   | SMS money extraction                                     |
-| **ML / NLP**              | Google ML Kit Language ID        | 17.0.6         | Language identification                                  |
-| **Location**              | Google Play Services Location    | 21.3.0         | Fused Location Provider for geo-tagging                  |
-| **HTTP Client**           | Retrofit + OkHttp                | 2.9.0 / 4.12.0 | Google Sheets API communication                          |
-| **Serialization**         | Gson                             | via Retrofit   | JSON parsing for Sheets API responses                    |
-| **Coroutines**            | Kotlinx Coroutines Play Services | 1.10.2         | `await()` for Play Services Tasks                        |
-| **Annotation Processing** | KSP                              | 2.1.10-1.0.29  | Room annotation processing                               |
-
----
-
 <p align="center">
   <b>Built with ❤️ for effortless financial tracking</b><br/>
   <i>Your spending, captured automatically — one SMS at a time.</i>
