@@ -281,7 +281,8 @@ fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit)
                     onClick = {
                         scope.launch {
                             val toDelete = currentTransaction
-                            AppDatabase.getDatabase(context).transactionDao().delete(toDelete)
+                            AppDatabase.getDatabase(context).transactionDao()
+                                .softDelete(toDelete.id)
                             com.myapp.expensetracker.updateExpenseWidget(context)
                             com.myapp.expensetracker.GoogleSheetsLogger.delete(toDelete)
                             onBack()

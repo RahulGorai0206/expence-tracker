@@ -47,32 +47,32 @@ class NotificationReceiver : BroadcastReceiver() {
                     val sender = intent.getStringExtra("sender") ?: "Unknown"
                     val amount = intent.getDoubleExtra("amount", 0.0)
                     val date = intent.getLongExtra("date", System.currentTimeMillis())
-                    val bodyFromIntent = intent.getStringExtra("body") ?: ""
                     val categoryFromIntent = intent.getStringExtra("category") ?: "Other"
                     val latitudeFromIntent = intent.getDoubleExtra("latitude", 0.0).takeIf { it != 0.0 }
                     val longitudeFromIntent = intent.getDoubleExtra("longitude", 0.0).takeIf { it != 0.0 }
 
                     if (amount != 0.0) {
                         val db = AppDatabase.getDatabase(context)
+                        val txnBody = intent.getStringExtra("body") ?: ""
+                        val bodyHash = txnBody.hashCode()
 
                         // DB-level dedup: last line of defense against duplicate entries
-                        val dupeCount =
-                            db.transactionDao().checkDuplicate(
-                                date,
-                                amount,
-                                (intent.getStringExtra("body") ?: "").hashCode()
-                            )
-                        if (dupeCount > 0) {
+                        // We check for exact bodyHash OR (near date AND exact amount)
+                        val existing =
+                            db.transactionDao().findExistingTransaction(date, amount, bodyHash)
+
+                        if (existing != null) {
                             Log.d(
                                 "NotificationReceiver",
-                                "Duplicate detected in DB — skipping insert for $amount from $sender"
+                                "Duplicate or previously handled transaction detected in DB (ID: ${existing.id}, Status: ${existing.status}) — skipping insert for $amount from $sender"
                             )
                         } else {
                             val transaction = Transaction(
                                 sender = sender,
                                 amount = amount,
                                 date = date,
-                                body = bodyFromIntent,
+                                body = txnBody,
+                                bodyHash = bodyHash,
                                 category = categoryFromIntent,
                                 status = if (action == "TIMEOUT_TRANSACTION") "Auto-Cleared" else "Cleared",
                                 type = "automated",

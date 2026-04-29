@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface TransactionDao {
-    @Query("SELECT * FROM transactions ORDER BY date DESC")
+    @Query("SELECT * FROM transactions WHERE status != 'deleted' ORDER BY date DESC")
     fun getAllTransactions(): Flow<List<Transaction>>
 
     @Query("SELECT * FROM transactions WHERE id = :id")
@@ -16,6 +16,9 @@ interface TransactionDao {
 
     @Query("SELECT COUNT(id) FROM transactions WHERE (bodyHash = :bodyHash OR (ABS(date - :date) < 60000 AND ABS(amount - :amount) < 0.001))")
     suspend fun checkDuplicate(date: Long, amount: Double, bodyHash: Int): Int
+
+    @Query("SELECT * FROM transactions WHERE bodyHash = :bodyHash OR (ABS(date - :date) < 60000 AND ABS(amount - :amount) < 0.001) LIMIT 1")
+    suspend fun findExistingTransaction(date: Long, amount: Double, bodyHash: Int): Transaction?
 
 
     @Query("SELECT * FROM transactions WHERE id = :id")
@@ -30,8 +33,8 @@ interface TransactionDao {
     @Query("UPDATE transactions SET remoteId = :remoteId, syncStatus = :status WHERE id = :id")
     suspend fun updateSyncStatus(id: Int, remoteId: String?, status: String)
 
-    @androidx.room.Delete
-    suspend fun delete(transaction: Transaction)
+    @Query("UPDATE transactions SET status = 'deleted', syncStatus = 'pending' WHERE id = :id")
+    suspend fun softDelete(id: Int)
 
     @Query("DELETE FROM transactions")
     suspend fun deleteAllTransactions()
@@ -39,13 +42,13 @@ interface TransactionDao {
     @Query("UPDATE transactions SET syncStatus = 'failed' WHERE syncStatus = 'pending'")
     suspend fun resetPendingStatus()
 
-    @Query("SELECT SUM(amount) FROM transactions")
+    @Query("SELECT SUM(amount) FROM transactions WHERE status != 'deleted'")
     suspend fun getTotalBalance(): Double?
 
-    @Query("SELECT SUM(ABS(amount)) FROM transactions WHERE amount < 0")
+    @Query("SELECT SUM(ABS(amount)) FROM transactions WHERE amount < 0 AND status != 'deleted'")
     suspend fun getTotalSpent(): Double?
 
-    @Query("SELECT SUM(ABS(amount)) FROM transactions WHERE amount < 0 AND date >= :startDate AND date <= :endDate")
+    @Query("SELECT SUM(ABS(amount)) FROM transactions WHERE amount < 0 AND status != 'deleted' AND date >= :startDate AND date <= :endDate")
     suspend fun getTotalSpentBetween(startDate: Long, endDate: Long): Double?
 
     @Query("SELECT * FROM transactions ORDER BY date DESC LIMIT 1")
