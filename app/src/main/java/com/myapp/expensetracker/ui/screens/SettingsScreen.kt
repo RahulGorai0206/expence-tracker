@@ -733,7 +733,6 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
             .padding(horizontal = 20.dp)
             .verticalScroll(rememberScrollState())
     ) {
-        Spacer(modifier = Modifier.height(24.dp))
         Text(
             "Settings",
             style = MaterialTheme.typography.headlineLarge,

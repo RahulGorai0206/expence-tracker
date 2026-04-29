@@ -28,7 +28,9 @@ fun TransactionScreen(onTransactionClick: (Transaction) -> Unit) {
     val viewModel: TransactionViewModel = koinViewModel()
     val transactions by viewModel.transactions.collectAsState()
 
-    Column(modifier = Modifier.padding(20.dp)) {
+    Column(modifier = Modifier
+        .fillMaxSize()
+        .padding(horizontal = 20.dp)) {
         Text(
             "Ledger History", 
             style = MaterialTheme.typography.headlineLarge, 

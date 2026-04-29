@@ -78,10 +78,8 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
 
     Box(modifier = Modifier
         .fillMaxSize()
-        .background(MaterialTheme.colorScheme.background)) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Spacer(modifier = Modifier.height(12.dp))
-            
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 20.dp)) {
             // Header Row
             Row(
                 modifier = Modifier.fillMaxWidth(),

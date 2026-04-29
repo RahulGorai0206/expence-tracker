@@ -121,6 +121,10 @@ fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit)
     }
 
     Scaffold(
+        modifier = Modifier
+            .fillMaxSize()
+            .navigationBarsPadding(),
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = { Text("Transaction Details", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },

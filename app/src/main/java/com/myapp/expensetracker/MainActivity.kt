@@ -124,9 +124,13 @@ fun MainScreen(
     var isSetupComplete by remember { mutableStateOf(sharedPrefs.getBoolean("is_setup_complete", false)) }
 
     if (!isSetupComplete) {
-        SetupScreen(onSetupComplete = {
-            isSetupComplete = true
-        })
+        Box(modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()) {
+            SetupScreen(onSetupComplete = {
+                isSetupComplete = true
+            })
+        }
         return
     }
 
@@ -167,15 +171,16 @@ fun MainScreen(
     }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background
-    ) { paddingValues ->
+        containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0) // Force drawing behind bars
+    ) { _ ->
         Box(modifier = Modifier.fillMaxSize()) {
             // === Layer 1: Main content — ALWAYS in composition tree ===
             // This ensures scroll position, data state, etc. are never lost
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(top = paddingValues.calculateTopPadding())
+                    .statusBarsPadding()
             ) {
                 HorizontalPager(
                     state = pagerState,
@@ -276,11 +281,15 @@ fun MainScreen(
                     animationSpec = tween(500)
                 )
             ) {
-                lastSelectedTransaction?.let { transaction ->
-                    TransactionDetailScreen(
-                        initialTransaction = transaction,
-                        onBack = { selectedTransaction = null }
-                    )
+                Box(modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()) {
+                    lastSelectedTransaction?.let { transaction ->
+                        TransactionDetailScreen(
+                            initialTransaction = transaction,
+                            onBack = { selectedTransaction = null }
+                        )
+                    }
                 }
             }
         }
