@@ -50,10 +50,84 @@ import kotlinx.coroutines.launch
 import java.util.Calendar
 import java.util.Date
 import java.util.UUID
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+
+@Composable
+fun SettingsItem(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    iconColor: Color = MaterialTheme.colorScheme.primary,
+    containerColor: Color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+    onClick: (() -> Unit)? = null,
+    trailing: (@Composable () -> Unit)? = null
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(containerColor),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, null, tint = iconColor, modifier = Modifier.size(22.dp))
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column {
+                Text(
+                    title,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        if (trailing != null) {
+            Box(modifier = Modifier.padding(start = 12.dp)) {
+                trailing()
+            }
+        }
+    }
+}
+
+@Composable
+fun SettingsCategory(title: String, content: @Composable ColumnScope.() -> Unit) {
+    Column(modifier = Modifier.padding(vertical = 12.dp)) {
+        Text(
+            title,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.Black,
+            letterSpacing = 1.sp,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+            shape = RoundedCornerShape(24.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                content()
+            }
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -654,29 +728,32 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
         )
     }
 
-    Column(modifier = Modifier
-        .padding(20.dp)
-        .verticalScroll(rememberScrollState())) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    "Preferences", 
-                    style = MaterialTheme.typography.headlineLarge, 
-                    fontWeight = FontWeight.Black, 
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Text(
-                    "Customize your financial workspace.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            
-            IconButton(
+    Column(
+        modifier = Modifier
+            .padding(horizontal = 20.dp)
+            .verticalScroll(rememberScrollState())
+    ) {
+        Spacer(modifier = Modifier.height(24.dp))
+        Text(
+            "Settings",
+            style = MaterialTheme.typography.headlineLarge,
+            fontWeight = FontWeight.Black,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        Text(
+            "Manage your preferences and backup.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // --- QUICK ACTIONS ---
+        SettingsCategory("QUICK ACTIONS") {
+            SettingsItem(
+                title = "Sync Now",
+                subtitle = "Update local and cloud ledger",
+                icon = Icons.Default.Sync,
                 onClick = {
                     if (isCloudSaved) {
                         scope.launch {
@@ -685,383 +762,283 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
                             Toast.makeText(context, "Sync complete", Toast.LENGTH_SHORT).show()
                         }
                     } else {
-                        Toast.makeText(context, "Please enable Cloud Sync in settings first", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Cloud Sync not configured", Toast.LENGTH_SHORT)
+                            .show()
                         isCloudExpanded = true
                     }
-                },
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))
-            ) {
-                Icon(
-                    Icons.Default.Sync,
-                    contentDescription = "Sync Now",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
+                }
+            )
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            SettingsItem(
+                title = "Lazy Sync (AI)",
+                subtitle = "Scan history with Gemma AI",
+                icon = Icons.Default.AutoFixHigh,
+                iconColor = MaterialTheme.colorScheme.tertiary,
+                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                onClick = { showLazySyncDialog = true }
+            )
         }
-        
-        Spacer(modifier = Modifier.height(32.dp))
 
-        // Added Instructions in Settings
-        AnimatedVisibility(visible = isCloudExpanded) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 24.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)),
-                shape = RoundedCornerShape(24.dp)
-            ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Text("Cloud Sync Setup Instructions", fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    listOf(
-                        R.string.setup_step_1, R.string.setup_step_2, R.string.setup_step_3,
-                        R.string.setup_step_4, R.string.setup_step_5, R.string.setup_step_6,
-                        R.string.setup_step_7, R.string.setup_step_8, R.string.setup_step_9,
-                        R.string.setup_step_10, R.string.setup_step_11
-                    ).forEach { stepRes ->
-                        Text(
-                            stringResource(stepRes), 
-                            style = MaterialTheme.typography.bodySmall, 
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(vertical = 2.dp)
-                        )
+        // --- BUDGETING ---
+        SettingsCategory("BUDGETING") {
+            Text(
+                "Monthly Target Budget",
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = budgetText,
+                onValueChange = { budgetText = it },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Budget Amount (₹)") },
+                enabled = !isBudgetSaved || isBudgetEditing,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                shape = RoundedCornerShape(16.dp)
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                if (isBudgetSaved && !isBudgetEditing) {
+                    TextButton(onClick = { isBudgetEditing = true }) {
+                        Icon(Icons.Default.Edit, null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Edit")
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    TextButton(onClick = {
+                        isBudgetSaved = false
+                        budgetText = ""
+                        sharedPrefs.edit().remove("budget").apply()
+                    }) {
+                        Text("Reset", color = MaterialTheme.colorScheme.error)
+                    }
+                } else {
+                    if (isBudgetEditing) {
+                        TextButton(onClick = {
+                            isBudgetEditing = false
+                            budgetText = sharedPrefs.getFloat("budget", 0f)
+                                .let { if (it == 0f) "" else it.toString() }
+                        }) {
+                            Text("Cancel")
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
                     Button(
                         onClick = {
-                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            val clip = ClipData.newPlainText("Apps Script Code", scriptCode)
-                            clipboard.setPrimaryClip(clip)
-                            Toast.makeText(context, "Code copied to clipboard", Toast.LENGTH_SHORT).show()
+                            val budget = budgetText.toFloatOrNull() ?: 0f
+                            sharedPrefs.edit().putFloat("budget", budget).apply()
+                            isBudgetSaved = true
+                            isBudgetEditing = false
+                            Toast.makeText(context, "Budget saved", Toast.LENGTH_SHORT).show()
                         },
-                        modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Copy Apps Script Code")
+                        Text(if (isBudgetEditing) "Update" else "Save")
                     }
                 }
             }
-        }
-        
-        Text("BUDGET PLANNING", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.5.sp)
-        Spacer(modifier = Modifier.height(12.dp))
-        
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-            shape = RoundedCornerShape(24.dp)
-        ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Text("Monthly Target Budget", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = budgetText,
-                    onValueChange = { budgetText = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Budget Amount (₹)") },
-                    enabled = !isBudgetSaved || isBudgetEditing,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    shape = RoundedCornerShape(16.dp)
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    if (isBudgetSaved && !isBudgetEditing) {
-                        TextButton(
-                            onClick = { isBudgetEditing = true }
-                        ) {
-                            Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Edit")
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        TextButton(
-                            onClick = { 
-                                isBudgetSaved = false 
-                                budgetText = ""
-                                sharedPrefs.edit().remove("budget").apply()
-                            }
-                        ) {
-                            Text("Reset", color = MaterialTheme.colorScheme.error)
-                        }
-                    } else {
-                        if (isBudgetEditing) {
-                            TextButton(
-                                onClick = { 
-                                    isBudgetEditing = false
-                                    budgetText = sharedPrefs.getFloat("budget", 0f).let { if (it == 0f) "" else it.toString() }
-                                }
-                            ) {
-                                Text("Cancel")
-                            }
-                            Spacer(modifier = Modifier.width(8.dp))
-                        }
-                        Button(
-                            onClick = {
-                                val budget = budgetText.toFloatOrNull() ?: 0f
-                                sharedPrefs.edit().putFloat("budget", budget).apply()
-                                isBudgetSaved = true
-                                isBudgetEditing = false
-                                Toast.makeText(context, "Budget saved", Toast.LENGTH_SHORT).show()
-                            },
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text(if (isBudgetEditing) "Update" else "Save")
-                        }
-                    }
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 16.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            )
+            SettingsItem(
+                title = "Current Month Only",
+                subtitle = "Track only this month's spending",
+                icon = Icons.Default.CalendarMonth,
+                trailing = {
+                    Switch(checked = isMonthlyBudget, onCheckedChange = {
+                        isMonthlyBudget = it
+                        sharedPrefs.edit().putBoolean("budget_monthly", it).apply()
+                    })
                 }
-                Spacer(modifier = Modifier.height(16.dp))
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                Spacer(modifier = Modifier.height(16.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            "Monthly Tracking",
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            "Calculate spent against current month",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Switch(
-                        checked = isMonthlyBudget,
-                        onCheckedChange = {
-                            isMonthlyBudget = it
-                            sharedPrefs.edit().putBoolean("budget_monthly", it).apply()
-                        }
-                    )
-                }
-            }
+            )
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
-
-        Text("CLOUD SYNC (GOOGLE SHEETS)", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.5.sp)
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-            shape = RoundedCornerShape(24.dp)
-        ) {
-            Column {
-                // Header / Toggle Area
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { isCloudExpanded = !isCloudExpanded }
-                        .padding(20.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Default.CloudSync, "Sync", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                        }
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column {
-                            Text("Google Sheets Sync", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                            Text(
-                                if (isCloudSaved) "Connected & Synchronized" else "Configure cloud backup",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = if (isCloudSaved) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
+        // --- CLOUD & BACKUP ---
+        SettingsCategory("CLOUD & BACKUP") {
+            SettingsItem(
+                title = "Google Sheets Sync",
+                subtitle = if (isCloudSaved) "Connected & Synchronized" else "Configure cloud backup",
+                icon = Icons.Default.CloudSync,
+                iconColor = if (isCloudSaved) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary,
+                onClick = { isCloudExpanded = !isCloudExpanded },
+                trailing = {
                     val rotation by animateFloatAsState(if (isCloudExpanded) 180f else 0f)
                     Icon(
                         Icons.Default.KeyboardArrowDown,
-                        contentDescription = "Expand",
-                        modifier = Modifier.graphicsLayer(rotationZ = rotation),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        null,
+                        modifier = Modifier.graphicsLayer(rotationZ = rotation)
                     )
                 }
+            )
 
-                AnimatedVisibility(
-                    visible = isCloudExpanded,
-                    enter = expandVertically() + fadeIn(),
-                    exit = shrinkVertically() + fadeOut()
-                ) {
-                    Column(modifier = Modifier
-                        .padding(horizontal = 20.dp)
-                        .padding(bottom = 20.dp)) {
-                        HorizontalDivider(modifier = Modifier.padding(bottom = 20.dp), color = MaterialTheme.colorScheme.outlineVariant)
-                        
-                        Text("1. Google Sheet URL", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                        OutlinedTextField(
-                            value = sheetUrl,
-                            onValueChange = { sheetUrl = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = !isCloudSaved || isCloudEditing,
-                            placeholder = { Text("https://docs.google.com/spreadsheets/d/...") },
-                            shape = RoundedCornerShape(16.dp)
-                        )
+            AnimatedVisibility(visible = isCloudExpanded) {
+                Column(modifier = Modifier.padding(top = 16.dp)) {
+                    // Instructions Card
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(
+                                alpha = 0.3f
+                            )
+                        ),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                "Setup Guide",
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            listOf(
+                                R.string.setup_step_1, R.string.setup_step_2, R.string.setup_step_3,
+                                R.string.setup_step_4, R.string.setup_step_5, R.string.setup_step_6,
+                                R.string.setup_step_7, R.string.setup_step_8, R.string.setup_step_9,
+                                R.string.setup_step_10, R.string.setup_step_11
+                            ).forEach { stepRes ->
+                                Text(
+                                    "• ${stringResource(stepRes)}",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Button(
+                                onClick = {
+                                    val clipboard =
+                                        context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                    clipboard.setPrimaryClip(
+                                        ClipData.newPlainText(
+                                            "Apps Script",
+                                            scriptCode
+                                        )
+                                    )
+                                    Toast.makeText(context, "Code copied", Toast.LENGTH_SHORT)
+                                        .show()
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(
+                                    Icons.Default.ContentCopy,
+                                    null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Copy Script Code")
+                            }
+                        }
+                    }
 
-                        Spacer(modifier = Modifier.height(16.dp))
-                        // ... (Apps Script Code part remains unchanged in middle)
-                        // ...
-                        
-                        Text("4. API Security Key (Required)", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                        OutlinedTextField(
-                            value = apiKey,
-                            onValueChange = { apiKey = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = !isCloudSaved || isCloudEditing,
-                            placeholder = { Text("your-secret-key") },
-                            shape = RoundedCornerShape(16.dp),
-                            trailingIcon = {
-                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(end = 4.dp)) {
-                                    if (apiKey.isNotEmpty()) {
-                                        IconButton(onClick = {
-                                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                            val clip = ClipData.newPlainText("API Key", apiKey)
-                                            clipboard.setPrimaryClip(clip)
-                                            Toast.makeText(context, "Key copied to clipboard", Toast.LENGTH_SHORT).show()
-                                        }) {
-                                            Icon(Icons.Default.ContentCopy, contentDescription = "Copy", modifier = Modifier.size(20.dp))
-                                        }
-                                    }
-                                    if (!isCloudSaved || isCloudEditing) {
-                                        TextButton(onClick = { 
-                                            val charPool = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
-                                            val randomKey = (1..43)
-                                                .map { charPool.random() }
-                                                .joinToString("")
-                                            apiKey = randomKey
-                                        }) {
-                                            Text(stringResource(R.string.setup_cloud_generate_key))
-                                        }
-                                    }
-                                }
-                            },
-                            readOnly = true
-                        )
+                    OutlinedTextField(
+                        value = sheetUrl,
+                        onValueChange = { sheetUrl = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !isCloudSaved || isCloudEditing,
+                        label = { Text("Google Sheet URL") },
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = apiKey,
+                        onValueChange = { apiKey = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !isCloudSaved || isCloudEditing,
+                        label = { Text("API Security Key") },
+                        shape = RoundedCornerShape(16.dp),
+                        readOnly = true,
+                        trailingIcon = {
+                            if (!isCloudSaved || isCloudEditing) {
+                                TextButton(onClick = {
+                                    apiKey = UUID.randomUUID().toString().replace("-", "").take(32)
+                                }) { Text("Generate") }
+                            }
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = scriptUrl,
+                        onValueChange = { scriptUrl = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !isCloudSaved || isCloudEditing,
+                        label = { Text("Web App URL") },
+                        shape = RoundedCornerShape(16.dp)
+                    )
 
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text("5. Apps Script Web App URL", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                        OutlinedTextField(
-                            value = scriptUrl,
-                            onValueChange = { scriptUrl = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = !isCloudSaved || isCloudEditing,
-                            placeholder = { Text("https://script.google.com/macros/s/...") },
-                            shape = RoundedCornerShape(16.dp)
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
                         if (isCloudSaved && !isCloudEditing) {
                             Button(
                                 onClick = { showRestoreDialog = true },
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp),
                                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
                             ) {
-                                Icon(Icons.Default.CloudDownload, contentDescription = null, modifier = Modifier.size(20.dp))
+                                Icon(
+                                    Icons.Default.CloudDownload,
+                                    null,
+                                    modifier = Modifier.size(18.dp)
+                                )
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Restore from Cloud")
+                                Text("Restore")
                             }
-                            Spacer(modifier = Modifier.height(12.dp))
-                        }
-
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                            if (isCloudSaved && !isCloudEditing) {
-                                TextButton(
-                                    onClick = { isCloudEditing = true }
-                                ) {
-                                    Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Edit")
-                                }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            TextButton(onClick = { isCloudEditing = true }) { Text("Edit") }
+                            TextButton(onClick = {
+                                isCloudSaved = false
+                                sheetUrl = ""; scriptUrl = ""; apiKey = ""
+                                sharedPrefs.edit().remove("sheet_url").remove("script_url")
+                                    .remove("api_key").apply()
+                                GoogleSheetsLogger.updateUrl(""); GoogleSheetsLogger.updateApiKey("")
+                            }) { Text("Reset", color = MaterialTheme.colorScheme.error) }
+                        } else {
+                            if (isCloudEditing) {
+                                TextButton(onClick = {
+                                    isCloudEditing = false
+                                    sheetUrl = sharedPrefs.getString("sheet_url", "") ?: ""
+                                    scriptUrl = sharedPrefs.getString("script_url", "") ?: ""
+                                    apiKey = sharedPrefs.getString("api_key", "") ?: ""
+                                }) { Text("Cancel") }
                                 Spacer(modifier = Modifier.width(8.dp))
-                                TextButton(
-                                    onClick = { 
-                                        isCloudSaved = false 
-                                        sheetUrl = ""
-                                        scriptUrl = ""
-                                        apiKey = ""
-                                        sharedPrefs.edit().remove("sheet_url").remove("script_url").remove("api_key").apply()
-                                        GoogleSheetsLogger.updateUrl("")
-                                        GoogleSheetsLogger.updateApiKey("")
-                                    }
-                                ) {
-                                    Text("Reset", color = MaterialTheme.colorScheme.error)
-                                }
-                            } else {
-                                if (isCloudEditing) {
-                                    TextButton(
-                                        onClick = { 
-                                            isCloudEditing = false
-                                            sheetUrl = sharedPrefs.getString("sheet_url", "") ?: ""
-                                            scriptUrl = sharedPrefs.getString("script_url", "") ?: ""
-                                            apiKey = sharedPrefs.getString("api_key", "") ?: ""
-                                        }
-                                    ) {
-                                        Text("Cancel")
-                                    }
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                }
-                                Button(
-                                    onClick = {
-                                        if (scriptUrl.isNotBlank() && apiKey.isNotBlank()) {
-                                            scope.launch {
-                                                isTestingConnection = true
-                                                val error = GoogleSheetsLogger.testConnection(scriptUrl, apiKey)
-                                                if (error == null) {
-                                                    sharedPrefs.edit()
-                                                        .putString("sheet_url", sheetUrl)
-                                                        .putString("script_url", scriptUrl)
-                                                        .putString("api_key", apiKey)
-                                                        .apply()
-                                                    GoogleSheetsLogger.updateUrl(scriptUrl)
-                                                    GoogleSheetsLogger.updateApiKey(apiKey)
-                                                    isCloudSaved = true
-                                                    isCloudEditing = false
-                                                    isCloudExpanded = false 
-                                                    isTestingConnection = false
-                                                    Toast.makeText(context, "Cloud sync connected successfully", Toast.LENGTH_SHORT).show()
-                                                } else {
-                                                    isTestingConnection = false
-                                                    Toast.makeText(context, error, Toast.LENGTH_LONG).show()
-                                                }
+                            }
+                            Button(
+                                enabled = !isTestingConnection,
+                                onClick = {
+                                    if (scriptUrl.isNotBlank() && apiKey.isNotBlank()) {
+                                        scope.launch {
+                                            isTestingConnection = true
+                                            val error =
+                                                GoogleSheetsLogger.testConnection(scriptUrl, apiKey)
+                                            if (error == null) {
+                                                sharedPrefs.edit().putString("sheet_url", sheetUrl)
+                                                    .putString("script_url", scriptUrl)
+                                                    .putString("api_key", apiKey).apply()
+                                                GoogleSheetsLogger.updateUrl(scriptUrl)
+                                                GoogleSheetsLogger.updateApiKey(apiKey)
+                                                isCloudSaved = true; isCloudEditing =
+                                                    false; isCloudExpanded = false
+                                                Toast.makeText(
+                                                    context,
+                                                    "Connected!",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            } else {
+                                                Toast.makeText(context, error, Toast.LENGTH_LONG)
+                                                    .show()
                                             }
-                                        } else {
-                                            val msg = if (scriptUrl.isBlank()) "Please enter Web App URL" else "Please enter API Security Key"
-                                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                            isTestingConnection = false
                                         }
-                                    },
-                                    shape = RoundedCornerShape(12.dp)
-                                ) {
-                                    if (isTestingConnection) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(18.dp),
-                                            color = MaterialTheme.colorScheme.onPrimary,
-                                            strokeWidth = 2.dp
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text("Checking...")
-                                    } else {
-                                        Text(if (isCloudEditing) "Update" else "Save")
                                     }
                                 }
+                            ) {
+                                if (isTestingConnection) CircularProgressIndicator(
+                                    modifier = Modifier.size(
+                                        18.dp
+                                    ), strokeWidth = 2.dp
+                                )
+                                else Text(if (isCloudEditing) "Update" else "Connect")
                             }
                         }
                     }
@@ -1069,363 +1046,162 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
             }
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
-
-        Text("SMART SYNC", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.5.sp)
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-            shape = RoundedCornerShape(24.dp)
-        ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.tertiaryContainer),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Default.AutoFixHigh, "Lazy Sync", tint = MaterialTheme.colorScheme.onTertiaryContainer, modifier = Modifier.size(20.dp))
-                        }
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column {
-                            Text("Lazy Sync", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                            Text("AI-powered historical SMS scanning", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                    Button(
-                        onClick = { showLazySyncDialog = true },
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
-                    ) {
-                        Text("Configure")
-                    }
+        // --- AUTOMATED TRACKING ---
+        SettingsCategory("AUTOMATED TRACKING") {
+            SettingsItem(
+                title = "Background Monitoring",
+                subtitle = if (backgroundMonitoring) "Active & Listening" else "Disabled",
+                icon = Icons.Default.RadioButtonChecked,
+                iconColor = if (backgroundMonitoring) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant,
+                trailing = {
+                    Switch(checked = backgroundMonitoring, onCheckedChange = {
+                        backgroundMonitoring = it
+                        SmsMonitorService.setEnabled(context, it)
+                    })
                 }
-            }
-        }
+            )
 
-        Spacer(modifier = Modifier.height(32.dp))
-        
-        Text("APPEARANCE & BEHAVIOR", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.5.sp)
-        Spacer(modifier = Modifier.height(12.dp))
-        
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-            shape = RoundedCornerShape(24.dp)
-        ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFF2E7D32).copy(alpha = 0.15f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Default.RadioButtonChecked, "Monitor", tint = Color(0xFF4CAF50), modifier = Modifier.size(20.dp))
-                        }
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column {
-                            Text("Background Monitoring", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                            Text(
-                                if (backgroundMonitoring) "Always listening for transactions" else "App will stop when closed",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = if (backgroundMonitoring) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                    Switch(
-                        checked = backgroundMonitoring,
-                        onCheckedChange = {
-                            backgroundMonitoring = it
-                            SmsMonitorService.setEnabled(context, it)
-                            Toast.makeText(
-                                context,
-                                if (it) "Background monitoring enabled" else "Background monitoring disabled",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
+            if (backgroundMonitoring && !isIgnoringBatteryOptimizations) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                        .clickable {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                context.startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                                    data = Uri.parse("package:${context.packageName}")
+                                })
+                            }
+                        },
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer.copy(
+                            alpha = 0.4f
+                        )
                     )
-                }
-
-                if (backgroundMonitoring && !isIgnoringBatteryOptimizations) {
-                    Spacer(modifier = Modifier.height(16.dp))
+                ) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f))
-                            .clickable {
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                    val intent =
-                                        Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                                            data = Uri.parse("package:${context.packageName}")
-                                        }
-                                    context.startActivity(intent)
-                                }
-                            }
-                            .padding(16.dp),
+                        modifier = Modifier.padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
                             Icons.Default.WarningAmber,
-                            contentDescription = "Warning",
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(24.dp)
+                            null,
+                            tint = MaterialTheme.colorScheme.error
                         )
                         Spacer(modifier = Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                "Battery Optimization Warning",
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onErrorContainer
-                            )
-                            Text(
-                                "Your device may kill the background process. Tap here to disable battery optimization for this app.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
-                            )
-                        }
-                    }
-                }
-
-                // Notification Listener Access Warning (needed for RCS detection)
-                if (!isNotificationListenerEnabled) {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0xFFFFF3E0))
-                            .clickable {
-                                val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
-                                context.startActivity(intent)
-                            }
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.Notifications,
-                            contentDescription = "Notification Access",
-                            tint = Color(0xFFE65100),
-                            modifier = Modifier.size(24.dp)
+                        Text(
+                            "Disable Battery Optimization for reliable tracking.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer
                         )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                "Enable RCS Detection",
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFFE65100)
-                            )
-                            Text(
-                                "Grant notification access to detect RCS bank transactions (YES Bank, etc). Tap here to enable.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xFFBF360C).copy(alpha = 0.8f)
-                            )
-                        }
                     }
                 }
+            }
 
-                Spacer(modifier = Modifier.height(16.dp))
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primaryContainer),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Default.Payment, "Debit", tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(20.dp))
-                        }
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column {
-                            Text("Track Only Debits", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                            Text("Ignore credited/received SMS", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                    Switch(
-                        checked = trackOnlyDebits, 
-                        onCheckedChange = { 
-                            trackOnlyDebits = it
-                            sharedPrefs.edit().putBoolean("track_only_debits", it).apply()
-                        }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+            if (!isNotificationListenerEnabled) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                        .clickable {
+                            context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                        },
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0))
                 ) {
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.secondaryContainer),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Default.CreditCardOff,
-                                "CC Bill",
-                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column {
-                            Text(
-                                "Ignore CC Bills",
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                "Skip credit card statement/due alerts",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                    Switch(
-                        checked = ignoreCcBills,
-                        onCheckedChange = {
-                            ignoreCcBills = it
-                            sharedPrefs.edit().putBoolean("ignore_cc_bills", it).apply()
-                        }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.secondaryContainer),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Default.SettingsSuggest, "System", tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(20.dp))
-                        }
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column {
-                            Text("Follow System", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                            Text("Match device theme settings", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                    Switch(checked = followSystemTheme, onCheckedChange = onFollowSystemThemeChange)
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        modifier = Modifier.graphicsLayer(alpha = if (followSystemTheme) 0.5f else 1.0f),
+                        modifier = Modifier.padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primaryContainer),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Default.NightsStay, "Theme", tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(20.dp))
-                        }
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column {
-                            Text("Premium Dark Mode", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                            Text("Deep blacks and soft accents", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
+                        Icon(Icons.Default.Notifications, null, tint = Color(0xFFE65100))
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            "Enable Notification Access for RCS/WhatsApp tracking.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFFE65100)
+                        )
                     }
+                }
+            }
+
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 8.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            )
+            SettingsItem(
+                title = "Track Only Debits",
+                subtitle = "Skip income/refund alerts",
+                icon = Icons.Default.Payment,
+                trailing = {
+                    Switch(checked = trackOnlyDebits, onCheckedChange = {
+                        trackOnlyDebits = it
+                        sharedPrefs.edit().putBoolean("track_only_debits", it).apply()
+                    })
+                }
+            )
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 8.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            )
+            SettingsItem(
+                title = "Ignore CC Bills",
+                subtitle = "Skip credit card statements",
+                icon = Icons.Default.CreditCardOff,
+                trailing = {
+                    Switch(checked = ignoreCcBills, onCheckedChange = {
+                        ignoreCcBills = it
+                        sharedPrefs.edit().putBoolean("ignore_cc_bills", it).apply()
+                    })
+                }
+            )
+        }
+
+        // --- INTERFACE ---
+        SettingsCategory("INTERFACE") {
+            SettingsItem(
+                title = "Follow System Theme",
+                subtitle = "Match device dark/light mode",
+                icon = Icons.Default.SettingsSuggest,
+                trailing = {
                     Switch(
-                        checked = isDarkTheme, 
+                        checked = followSystemTheme,
+                        onCheckedChange = onFollowSystemThemeChange
+                    )
+                }
+            )
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 8.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            )
+            SettingsItem(
+                title = "Dark Mode",
+                subtitle = "Premium dark theme",
+                icon = Icons.Default.NightsStay,
+                trailing = {
+                    Switch(
+                        checked = isDarkTheme,
                         onCheckedChange = onDarkThemeChange,
                         enabled = !followSystemTheme
                     )
                 }
-            }
+            )
+        }
+
+        // --- DANGER ZONE ---
+        SettingsCategory("DANGER ZONE") {
+            SettingsItem(
+                title = "Clear All Transactions",
+                subtitle = "Reset local database to zero",
+                icon = Icons.Default.DeleteForever,
+                iconColor = MaterialTheme.colorScheme.error,
+                containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f),
+                onClick = { showDeleteDialog = true }
+            )
         }
 
         Spacer(modifier = Modifier.height(32.dp))
-        Text("DATA MANAGEMENT", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.error, letterSpacing = 1.5.sp)
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { showDeleteDialog = true },
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.15f)),
-            shape = RoundedCornerShape(24.dp)
-        ) {
-            Row(
-                modifier = Modifier.padding(20.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.error.copy(alpha = 0.2f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Default.DeleteForever, "Clear Data", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
-                }
-                Spacer(modifier = Modifier.width(16.dp))
-                Column {
-                    Text("Clear All Transactions", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
-                    Text("Reset your database to zero", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error.copy(alpha = 0.7f))
-                }
-            }
-        }
-        
-        Spacer(modifier = Modifier.weight(1f))
-        
         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             Text(
-                "Expense Tracker v2.0 • Premium Edition",
+                "Expense Tracker v2.1",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
             )
