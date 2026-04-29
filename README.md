@@ -44,6 +44,7 @@
   - [Build & Run](#build--run)
   - [Permissions](#permissions)
   - [Setting Up Cloud Sync](#setting-up-cloud-sync)
+- [CI/CD & Automated Releases](#cicd--automated-releases)
 - [Tech Stack](#tech-stack)
 
 ---
@@ -78,6 +79,7 @@ The UI is built entirely with **Jetpack Compose** and **Material 3**, featuring 
 | 🔄 **Intelligent Navigation**     | Refined back-gesture logic: Detail → Previous Page, History/Settings → Home, Home → Exit                            |
 | 🔄 **Offline-First Architecture** | Local Room DB as source of truth (v7); background cloud sync with retry for failed uploads                          |
 | 📤 **Transaction Sharing**        | Screenshot capture + text share of transaction details including Google Maps link                                   |
+| 🚀 **Automated Releases**         | GitHub Actions pipeline automatically builds and signs the APK on tag push and publishes a GitHub Release           |
 
 ---
 
@@ -249,9 +251,11 @@ ExpenseTracker/
 │           └── java/com/myapp/expensetracker/
 │               │
 │               ├── ── Core ──
+│               ├── ExpenseApplication.kt    # Custom Application class initializing Koin DI
 │               ├── MainActivity.kt          # Entry point, lifecycle-aware widget updates, navigation
 │               ├── Transaction.kt           # Room @Entity — added bodyHash for robust dedup
 │               ├── TransactionDao.kt        # Room @Dao — improved duplicate checks
+│               ├── TransactionDedup.kt      # Hash-based cross-layer deduplication logic
 │               ├── AppDatabase.kt           # Room database singleton (version 7)
 │               │
 │               ├── ── SMS Processing & AI ──
@@ -261,6 +265,12 @@ ExpenseTracker/
 │               ├── LazySyncManager.kt       # AI-Powered historical SMS analysis (Gemma 2B)
 │               ├── TransactionExtractor.kt  # ML Kit + Regex + CC Bill detection pipeline
 │               ├── NotificationReceiver.kt  # Handles Accept/Deny/Timeout notification actions
+│               ├── TransactionNotificationListener.kt # Intercepts RCS/Bank notifications natively
+│               │
+│               ├── ── Architecture Components ──
+│               ├── di/AppModule.kt          # Koin dependency injection module
+│               ├── viewmodel/               # ViewModels for Home and Transaction screens
+│               ├── worker/                  # WorkManager workers (SheetsSyncWorker, WidgetUpdateWorker)
 │               │
 │               ├── ── Cloud Sync ──
 │               ├── GoogleSheetsLogger.kt    # Retrofit-based CRUD client for Apps Script
@@ -370,6 +380,28 @@ data class Transaction(
 | Delete single          | `delete(transaction)`                    | —                              |
 | Delete all             | `deleteAllTransactions()`                | —                              |
 | Reset pending → failed | `resetPendingStatus()`                   | —                              |
+
+---
+
+## CI/CD & Automated Releases
+
+This project utilizes **GitHub Actions** to automate the build and release process. When a new tag
+is pushed (e.g., `v1.0.0`), the CI pipeline automatically:
+
+1. Provisions an Ubuntu runner with JDK 17.
+2. Decodes your securely stored Base64 keystore.
+3. Builds and signs a production-ready `app-release.apk` using Gradle.
+4. Publishes a new **GitHub Release** with the signed APK attached and auto-generated release notes.
+
+To trigger a release:
+
+```bash
+git tag v1.0.0
+git push origin main --tags
+```
+
+*(Requires `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, and `KEY_PASSWORD` to be set in
+GitHub repository secrets).*
 
 ---
 <p align="center">
