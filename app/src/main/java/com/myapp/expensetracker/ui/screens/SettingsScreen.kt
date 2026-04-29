@@ -106,6 +106,14 @@ fun SettingsScreen(
     var budgetText by remember { mutableStateOf(sharedPrefs.getFloat("budget", 0f).let { if (it == 0f) "" else it.toString() }) }
     var isBudgetSaved by remember { mutableStateOf(sharedPrefs.contains("budget")) }
     var isBudgetEditing by remember { mutableStateOf(false) }
+    var isMonthlyBudget by remember {
+        mutableStateOf(
+            sharedPrefs.getBoolean(
+                "budget_monthly",
+                true
+            )
+        )
+    }
     
     var sheetUrl by remember { mutableStateOf(sharedPrefs.getString("sheet_url", "") ?: "") }
     var scriptUrl by remember { mutableStateOf(sharedPrefs.getString("script_url", "") ?: "") }
@@ -806,6 +814,34 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
                             Text(if (isBudgetEditing) "Update" else "Save")
                         }
                     }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            "Monthly Tracking",
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            "Calculate spent against current month",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = isMonthlyBudget,
+                        onCheckedChange = {
+                            isMonthlyBudget = it
+                            sharedPrefs.edit().putBoolean("budget_monthly", it).apply()
+                        }
+                    )
                 }
             }
         }

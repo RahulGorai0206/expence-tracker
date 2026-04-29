@@ -51,10 +51,23 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
         )
     }
 
-    val totalSpent = remember(transactions) { transactions.filter { it.amount < 0 }.sumOf { abs(it.amount) } }
-    
     val sharedPrefs = remember { context.getSharedPreferences("prefs", Context.MODE_PRIVATE) }
     val budget = remember { mutableStateOf(sharedPrefs.getFloat("budget", 0f)) }
+    val isMonthlyBudget =
+        remember { mutableStateOf(sharedPrefs.getBoolean("budget_monthly", true)) }
+
+    val totalSpent = remember(transactions, isMonthlyBudget.value) {
+        val currentMonth = java.util.Calendar.getInstance().get(java.util.Calendar.MONTH)
+        val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+
+        transactions.filter { tx ->
+            val inMonth = if (isMonthlyBudget.value) {
+                val cal = java.util.Calendar.getInstance().apply { timeInMillis = tx.date }
+                cal.get(java.util.Calendar.MONTH) == currentMonth && cal.get(java.util.Calendar.YEAR) == currentYear
+            } else true
+            tx.amount < 0 && inMonth
+        }.sumOf { abs(it.amount) }
+    }
     
     val remainingBudget = budget.value - totalSpent
     

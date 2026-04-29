@@ -32,7 +32,31 @@ class ExpenseWidget : GlanceAppWidget() {
         val db = AppDatabase.getDatabase(context)
         val sharedPrefs = context.getSharedPreferences("prefs", Context.MODE_PRIVATE)
 
-        val totalSpent = db.transactionDao().getTotalSpent() ?: 0.0
+        val isMonthlyBudget = sharedPrefs.getBoolean("budget_monthly", true)
+        val totalSpent = if (isMonthlyBudget) {
+            val cal = java.util.Calendar.getInstance()
+            cal.set(java.util.Calendar.DAY_OF_MONTH, 1)
+            cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+            cal.set(java.util.Calendar.MINUTE, 0)
+            cal.set(java.util.Calendar.SECOND, 0)
+            cal.set(java.util.Calendar.MILLISECOND, 0)
+            val startOfMonth = cal.timeInMillis
+
+            cal.set(
+                java.util.Calendar.DAY_OF_MONTH,
+                cal.getActualMaximum(java.util.Calendar.DAY_OF_MONTH)
+            )
+            cal.set(java.util.Calendar.HOUR_OF_DAY, 23)
+            cal.set(java.util.Calendar.MINUTE, 59)
+            cal.set(java.util.Calendar.SECOND, 59)
+            cal.set(java.util.Calendar.MILLISECOND, 999)
+            val endOfMonth = cal.timeInMillis
+
+            db.transactionDao().getTotalSpentBetween(startOfMonth, endOfMonth) ?: 0.0
+        } else {
+            db.transactionDao().getTotalSpent() ?: 0.0
+        }
+        
         val budget = sharedPrefs.getFloat("budget", 0f).toDouble()
         val lastTransaction = db.transactionDao().getLastTransaction()
 

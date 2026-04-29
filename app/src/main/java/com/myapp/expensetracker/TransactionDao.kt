@@ -45,6 +45,9 @@ interface TransactionDao {
     @Query("SELECT SUM(ABS(amount)) FROM transactions WHERE amount < 0")
     suspend fun getTotalSpent(): Double?
 
+    @Query("SELECT SUM(ABS(amount)) FROM transactions WHERE amount < 0 AND date >= :startDate AND date <= :endDate")
+    suspend fun getTotalSpentBetween(startDate: Long, endDate: Long): Double?
+
     @Query("SELECT * FROM transactions ORDER BY date DESC LIMIT 1")
     suspend fun getLastTransaction(): Transaction?
 }
