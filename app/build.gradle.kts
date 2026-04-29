@@ -32,10 +32,19 @@ android {
         }
 
         create("release") {
-            storeFile = file("C:\\Users\\Admin\\Desktop\\workspace\\AdnroidStudioKey\\key.jks")
-            storePassword = localProperties.getProperty("RELEASE_STORE_PASSWORD")
-            keyAlias = localProperties.getProperty("RELEASE_KEY_ALIAS")
-            keyPassword = localProperties.getProperty("RELEASE_KEY_PASSWORD")
+            val envKeystore = System.getenv("KEYSTORE_PATH")
+            val keystoreFile =
+                if (envKeystore != null) file(envKeystore) else file("C:\\Users\\Admin\\Desktop\\workspace\\AdnroidStudioKey\\key.jks")
+
+            if (keystoreFile.exists()) {
+                storeFile = keystoreFile
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                    ?: localProperties.getProperty("RELEASE_STORE_PASSWORD")
+                keyAlias =
+                    System.getenv("KEY_ALIAS") ?: localProperties.getProperty("RELEASE_KEY_ALIAS")
+                keyPassword = System.getenv("KEY_PASSWORD")
+                    ?: localProperties.getProperty("RELEASE_KEY_PASSWORD")
+            }
         }
     }
 
