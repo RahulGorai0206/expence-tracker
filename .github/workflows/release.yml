@@ -1,4 +1,4 @@
-name: Build and Release APK
+name: Build and Upload Release APK
 
 on:
   push:
@@ -8,6 +8,7 @@ on:
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
+    environment: release
     permissions:
       contents: write # Needed for creating a release
 
