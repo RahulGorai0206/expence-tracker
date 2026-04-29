@@ -281,11 +281,20 @@ fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit)
                     onClick = {
                         scope.launch {
                             val toDelete = currentTransaction
+                            // 1. Mark as deleted locally (Instant UI update)
                             AppDatabase.getDatabase(context).transactionDao()
                                 .softDelete(toDelete.id)
                             com.myapp.expensetracker.enqueueWidgetUpdate(context)
-                            com.myapp.expensetracker.GoogleSheetsLogger.delete(toDelete)
+
+                            // 2. Close window immediately
                             onBack()
+
+                            // 3. Trigger cloud sync in background (doesn't block UI)
+                            com.myapp.expensetracker.GoogleSheetsLogger.logAsync(
+                                context,
+                                toDelete,
+                                toDelete.id.toLong()
+                            )
                         }
                     },
                     modifier = Modifier

@@ -137,23 +137,26 @@ object GoogleSheetsLogger {
         }
     }
 
-    suspend fun delete(transaction: Transaction) {
-        val loggerApi = api ?: return
-        val url = currentUrl ?: return
-        val remoteId = transaction.remoteId ?: return
+    suspend fun delete(transaction: Transaction): Boolean {
+        val loggerApi = api ?: return false
+        val url = currentUrl ?: return false
+        val remoteId =
+            transaction.remoteId ?: return true // Already "deleted" locally, no remote to sync
         val key = apiKey
-        if (url.isBlank() || key.isNullOrBlank()) return
+        if (url.isBlank() || key.isNullOrBlank()) return false
 
-        try {
-            loggerApi.postAction(
+        return try {
+            val response = loggerApi.postAction(
                 url = url,
                 action = "delete",
                 id = remoteId,
                 status = "deleted", // Soft delete by default in script
                 apiKey = apiKey
             )
+            response.success
         } catch (e: Exception) {
             e.printStackTrace()
+            false
         }
     }
 
