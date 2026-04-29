@@ -56,6 +56,11 @@ class TransactionNotificationListener : NotificationListenerService() {
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
         if (sbn == null) return
 
+        // Skip group summary notifications to avoid processing concatenated history/summaries
+        if (sbn.notification.flags and android.app.Notification.FLAG_GROUP_SUMMARY != 0) {
+            return
+        }
+
         val packageName = sbn.packageName
         val defaultSmsPackage = Telephony.Sms.getDefaultSmsPackage(this)
 
@@ -65,6 +70,8 @@ class TransactionNotificationListener : NotificationListenerService() {
 
         // Try to extract from MessagingStyle first (modern RCS/Messaging apps)
         var messageBody: String? = null
+        var messageTimestamp: Long? = null
+
         val messages =
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
             extras.getParcelableArray(NotificationCompat.EXTRA_MESSAGES, Parcelable::class.java)
@@ -72,10 +79,14 @@ class TransactionNotificationListener : NotificationListenerService() {
                 @Suppress("DEPRECATION")
                 extras.getParcelableArray(NotificationCompat.EXTRA_MESSAGES)
             }
+
         if (messages != null && messages.isNotEmpty()) {
             val lastMessage = messages.last() as? android.os.Bundle
             if (lastMessage != null) {
                 messageBody = lastMessage.getCharSequence("text")?.toString()
+                // Each message in MessagingStyle has its own timestamp
+                val time = lastMessage.getLong("time")
+                if (time > 0) messageTimestamp = time
             }
         }
 
@@ -114,11 +125,16 @@ class TransactionNotificationListener : NotificationListenerService() {
             // Look up the system SMS database to get the carrier-assigned timestamp.
             // This ensures all detection layers use the same timestamp for dedup.
             val smsTimestamp = lookupSmsTimestamp(messageBody)
-            val timestamp = smsTimestamp ?: System.currentTimeMillis()
+            
+            // Priority: 1. System SMS DB, 2. MessagingStyle 'time', 3. Notification 'when', 4. Current time
+            val timestamp = smsTimestamp ?: messageTimestamp ?: sbn.notification.`when`.takeIf { it > 0 } ?: System.currentTimeMillis()
+            
             if (smsTimestamp != null) {
                 Log.d(TAG, "Found system SMS timestamp: $smsTimestamp")
+            } else if (messageTimestamp != null) {
+                Log.d(TAG, "Using MessagingStyle timestamp: $messageTimestamp")
             } else {
-                Log.d(TAG, "SMS not found in system DB (RCS-only?), using current time")
+                Log.d(TAG, "SMS not found in system DB, using notification/current time: $timestamp")
             }
             processTransactionMessage(messageBody, title, timestamp)
         }

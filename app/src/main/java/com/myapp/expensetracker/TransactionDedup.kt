@@ -16,7 +16,7 @@ import android.util.Log
 object TransactionDedup {
 
     private const val TAG = "TransactionDedup"
-    private const val DEDUP_WINDOW_MS = 120_000L // 2 minutes
+    private const val DEDUP_WINDOW_MS = 3_600_000L // 1 hour
 
     // Maps message body hash → timestamp when it was first processed
     private val recentlyProcessed = LinkedHashMap<Int, Long>(64, 0.75f, true)
