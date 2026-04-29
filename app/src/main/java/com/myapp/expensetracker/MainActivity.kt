@@ -137,10 +137,9 @@ fun MainScreen(
     // Update widget whenever app is minimized or backgrounded
     DisposableEffect(lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
-            if (event == androidx.lifecycle.Lifecycle.Event.ON_STOP) {
-                coroutineScope.launch {
-                    updateExpenseWidget(context)
-                }
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_PAUSE || event == androidx.lifecycle.Lifecycle.Event.ON_STOP) {
+                // Use WorkManager for background reliability
+                enqueueWidgetUpdate(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)

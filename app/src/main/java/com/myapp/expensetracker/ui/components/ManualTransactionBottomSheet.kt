@@ -162,7 +162,7 @@ fun ManualTransactionBottomSheet(
                             Toast.makeText(context, "Transaction saved locally", Toast.LENGTH_SHORT).show()
 
                             // Update widget
-                            com.myapp.expensetracker.updateExpenseWidget(context)
+                            com.myapp.expensetracker.enqueueWidgetUpdate(context)
 
                             // 3. Sync to sheets in background via robust scope
                             com.myapp.expensetracker.GoogleSheetsLogger.logAsync(context, transaction, localId)

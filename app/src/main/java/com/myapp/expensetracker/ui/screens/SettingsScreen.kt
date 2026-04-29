@@ -710,7 +710,7 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
                     onClick = {
                         scope.launch {
                             db.transactionDao().deleteAllTransactions()
-                            com.myapp.expensetracker.updateExpenseWidget(context)
+                            com.myapp.expensetracker.enqueueWidgetUpdate(context)
                             showDeleteDialog = false
                         }
                     }

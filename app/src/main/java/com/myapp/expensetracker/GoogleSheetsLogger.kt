@@ -212,7 +212,7 @@ object GoogleSheetsLogger {
                         onProgress(index + 1, total)
                         kotlinx.coroutines.delay(20) // Give UI time to breathe
                     }
-                    updateExpenseWidget(context)
+                    enqueueWidgetUpdate(context)
                     null // Success
                 } else {
                     "No valid records found to restore"

@@ -51,6 +51,6 @@ interface TransactionDao {
     @Query("SELECT SUM(ABS(amount)) FROM transactions WHERE amount < 0 AND status != 'deleted' AND date >= :startDate AND date <= :endDate")
     suspend fun getTotalSpentBetween(startDate: Long, endDate: Long): Double?
 
-    @Query("SELECT * FROM transactions ORDER BY date DESC LIMIT 1")
+    @Query("SELECT * FROM transactions WHERE status != 'deleted' ORDER BY date DESC LIMIT 1")
     suspend fun getLastTransaction(): Transaction?
 }

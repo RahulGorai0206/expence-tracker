@@ -111,7 +111,7 @@ class LazySyncManager(private val context: Context) {
 
                 onProgress("Sync complete! Added $count transactions.")
                 if (count > 0) {
-                    updateExpenseWidget(context)
+                    enqueueWidgetUpdate(context)
                 }
                 true
             }

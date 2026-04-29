@@ -67,7 +67,7 @@ fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit)
                 scope.launch {
                     val updated = currentTransaction.copy(category = newCategory)
                     AppDatabase.getDatabase(context).transactionDao().insert(updated)
-                    com.myapp.expensetracker.updateExpenseWidget(context)
+                    com.myapp.expensetracker.enqueueWidgetUpdate(context)
                     com.myapp.expensetracker.GoogleSheetsLogger.update(updated)
                 }
                 showCategoryDialog = false
@@ -283,7 +283,7 @@ fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit)
                             val toDelete = currentTransaction
                             AppDatabase.getDatabase(context).transactionDao()
                                 .softDelete(toDelete.id)
-                            com.myapp.expensetracker.updateExpenseWidget(context)
+                            com.myapp.expensetracker.enqueueWidgetUpdate(context)
                             com.myapp.expensetracker.GoogleSheetsLogger.delete(toDelete)
                             onBack()
                         }

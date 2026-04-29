@@ -24,11 +24,16 @@ import androidx.glance.GlanceTheme
 import android.content.Intent
 import android.content.ComponentName
 import androidx.glance.LocalContext
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.ExistingWorkPolicy
+import com.myapp.expensetracker.worker.WidgetUpdateWorker
 import kotlin.math.abs
 
 class ExpenseWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
+        android.util.Log.d("ExpenseWidget", "Providing glance content")
         val db = AppDatabase.getDatabase(context)
         val sharedPrefs = context.getSharedPreferences("prefs", Context.MODE_PRIVATE)
 
@@ -165,5 +170,18 @@ class ExpenseWidgetReceiver : GlanceAppWidgetReceiver() {
 }
 
 suspend fun updateExpenseWidget(context: Context) {
-    ExpenseWidget().updateAll(context)
+    try {
+        ExpenseWidget().updateAll(context)
+    } catch (e: Exception) {
+        e.printStackTrace()
+    }
+}
+
+fun enqueueWidgetUpdate(context: Context) {
+    val workRequest = OneTimeWorkRequestBuilder<WidgetUpdateWorker>().build()
+    WorkManager.getInstance(context).enqueueUniqueWork(
+        "widget_update",
+        ExistingWorkPolicy.REPLACE,
+        workRequest
+    )
 }

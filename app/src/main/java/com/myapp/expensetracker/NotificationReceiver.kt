@@ -88,7 +88,7 @@ class NotificationReceiver : BroadcastReceiver() {
                             )
 
                             // Update widget
-                            updateExpenseWidget(context)
+                            enqueueWidgetUpdate(context)
 
                             scope.launch(Dispatchers.IO) {
                                 try {
