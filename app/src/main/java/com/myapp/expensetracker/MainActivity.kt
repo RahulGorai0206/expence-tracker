@@ -281,15 +281,11 @@ fun MainScreen(
                     animationSpec = tween(500)
                 )
             ) {
-                Box(modifier = Modifier
-                    .fillMaxSize()
-                    .statusBarsPadding()) {
-                    lastSelectedTransaction?.let { transaction ->
-                        TransactionDetailScreen(
-                            initialTransaction = transaction,
-                            onBack = { selectedTransaction = null }
-                        )
-                    }
+                lastSelectedTransaction?.let { transaction ->
+                    TransactionDetailScreen(
+                        initialTransaction = transaction,
+                        onBack = { selectedTransaction = null }
+                    )
                 }
             }
         }

@@ -121,9 +121,8 @@ fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit)
     }
 
     Scaffold(
-        modifier = Modifier
-            .fillMaxSize()
-            .navigationBarsPadding(),
+        modifier = Modifier.fillMaxSize(),
+        contentWindowInsets = WindowInsets.systemBars,
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
