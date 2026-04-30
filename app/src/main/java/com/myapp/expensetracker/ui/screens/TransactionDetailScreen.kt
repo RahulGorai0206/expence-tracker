@@ -39,6 +39,14 @@ import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.abs
 
+data class ShareOptions(
+    val shareScreenshot: Boolean = true,
+    val shareMerchant: Boolean = true,
+    val shareDateTime: Boolean = true,
+    val shareLocation: Boolean = true,
+    val shareMessage: Boolean = true
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit) {
@@ -59,6 +67,7 @@ fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit)
 
     val currentTransaction = transaction!!
     var showCategoryDialog by remember { mutableStateOf(false) }
+    var showShareDialog by remember { mutableStateOf(false) }
 
     if (showCategoryDialog) {
         CategorySelectionDialog(
@@ -76,54 +85,84 @@ fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit)
         )
     }
 
-    fun captureAndShare() {
+    fun captureAndShare(options: ShareOptions) {
         scope.launch {
-            val bitmap = withContext(Dispatchers.Main) {
-                val b = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
-                val canvas = Canvas(b)
-                view.draw(canvas)
-                b
-            }
-
-            val uri = withContext(Dispatchers.IO) {
-                val imagesDir = File(context.cacheDir, "shared_images")
-                if (!imagesDir.exists()) imagesDir.mkdirs()
-                val file = File(imagesDir, "transaction_${currentTransaction.id}.png")
-                FileOutputStream(file).use { 
-                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) 
+            val uri = if (options.shareScreenshot) {
+                val bitmap = withContext(Dispatchers.Main) {
+                    val b = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
+                    val canvas = Canvas(b)
+                    view.draw(canvas)
+                    b
                 }
-                FileProvider.getUriForFile(context, "com.myapp.expensetracker.fileprovider", file)
-            }
 
-            val locationInfo = if (currentTransaction.latitude != null && currentTransaction.longitude != null) {
+                withContext(Dispatchers.IO) {
+                    val imagesDir = File(context.cacheDir, "shared_images")
+                    if (!imagesDir.exists()) imagesDir.mkdirs()
+                    val file = File(imagesDir, "transaction_${currentTransaction.id}.png")
+                    FileOutputStream(file).use {
+                        bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
+                    }
+                    FileProvider.getUriForFile(
+                        context,
+                        "com.myapp.expensetracker.fileprovider",
+                        file
+                    )
+                }
+            } else null
+
+            val locationInfo =
+                if (options.shareLocation && currentTransaction.latitude != null && currentTransaction.longitude != null) {
                 "\n|📍 *Location:* https://www.google.com/maps/search/?api=1&query=${currentTransaction.latitude},${currentTransaction.longitude}"
             } else ""
 
-            val dateStr = SimpleDateFormat("MMMM dd, yyyy • hh:mm a", Locale.getDefault()).format(
-                Date(currentTransaction.date)
-            )
+            val merchantInfo = if (options.shareMerchant) {
+                "\n|🏢 *Merchant:* ${currentTransaction.sender}"
+            } else ""
+
+            val dateTimeInfo = if (options.shareDateTime) {
+                val dateStr =
+                    SimpleDateFormat("MMMM dd, yyyy • hh:mm a", Locale.getDefault()).format(
+                        Date(currentTransaction.date)
+                    )
+                "\n|📅 *Date & Time:* $dateStr"
+            } else ""
+
+            val messageInfo = if (options.shareMessage) {
+                "\n|\n|💬 *Message:*\n|${currentTransaction.body}"
+            } else ""
+
             val shareText = """
                 |💸 *Transaction Receipt*
-                |━━━━━━━━━━━━━━━━━━
-                |🏢 *Merchant:* ${currentTransaction.sender}
-                |💰 *Total Amount:* ₹${"%,.2f".format(abs(currentTransaction.amount))}
-                |📅 *Date & Time:* $dateStr
-                |━━━━━━━━━━━━━━━━━━$locationInfo
-                |
-                |💬 *Message:*
-                |${currentTransaction.body}
+                |━━━━━━━━━━━━━━━━━━$merchantInfo
+                |💰 *Total Amount:* ₹${"%,.2f".format(abs(currentTransaction.amount))}$dateTimeInfo
+                |━━━━━━━━━━━━━━━━━━$locationInfo$messageInfo
                 |
                 |_Shared via Expense Tracker_
             """.trimMargin()
 
             val intent = Intent(Intent.ACTION_SEND).apply {
-                type = "image/png"
-                putExtra(Intent.EXTRA_STREAM, uri)
+                if (uri != null) {
+                    type = "image/png"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                } else {
+                    type = "text/plain"
+                }
                 putExtra(Intent.EXTRA_TEXT, shareText)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
             context.startActivity(Intent.createChooser(intent, "Share Transaction"))
         }
+    }
+
+    if (showShareDialog) {
+        ShareOptionsDialog(
+            onDismiss = { showShareDialog = false },
+            onShare = { options ->
+                showShareDialog = false
+                captureAndShare(options)
+            },
+            hasLocation = currentTransaction.latitude != null && currentTransaction.longitude != null
+        )
     }
 
     Scaffold(
@@ -143,7 +182,7 @@ fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit)
                         modifier = Modifier
                             .clip(CircleShape)
                             .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)),
-                        onClick = { captureAndShare() }
+                        onClick = { showShareDialog = true }
                     ) { Icon(Icons.Default.Share, null, tint = MaterialTheme.colorScheme.primary) }
                     Spacer(modifier = Modifier.width(8.dp))
                 },
@@ -392,4 +431,83 @@ fun CategorySelectionDialog(
         shape = RoundedCornerShape(28.dp),
         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
     )
+}
+
+@Composable
+fun ShareOptionsDialog(
+    onDismiss: () -> Unit,
+    onShare: (ShareOptions) -> Unit,
+    hasLocation: Boolean
+) {
+    var options by remember { mutableStateOf(ShareOptions()) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                "Share Options",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    "Select what you'd like to include:",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                ShareOptionItem("Screenshot", options.shareScreenshot) {
+                    options = options.copy(shareScreenshot = it)
+                }
+                ShareOptionItem("Merchant", options.shareMerchant) {
+                    options = options.copy(shareMerchant = it)
+                }
+                ShareOptionItem("Date & Time", options.shareDateTime) {
+                    options = options.copy(shareDateTime = it)
+                }
+                if (hasLocation) {
+                    ShareOptionItem("Location", options.shareLocation) {
+                        options = options.copy(shareLocation = it)
+                    }
+                }
+                ShareOptionItem("Message", options.shareMessage) {
+                    options = options.copy(shareMessage = it)
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onShare(options) },
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("Share")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        },
+        shape = RoundedCornerShape(28.dp),
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+    )
+}
+
+@Composable
+fun ShareOptionItem(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Checkbox(
+            checked = checked,
+            onCheckedChange = onCheckedChange
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(text = label, style = MaterialTheme.typography.bodyLarge)
+    }
 }
