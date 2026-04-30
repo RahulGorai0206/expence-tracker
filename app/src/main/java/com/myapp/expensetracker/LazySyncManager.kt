@@ -25,8 +25,7 @@ class LazySyncManager(private val context: Context) {
             onProgress("Checking AI model...")
             val modelFile = File(context.filesDir, MODEL_FILE_NAME)
             if (!modelFile.exists()) {
-                onProgress("Downloading AI model (this may take a while)...")
-                downloadModel(modelFile)
+                downloadModel(modelFile, onProgress)
             }
 
             onProgress("Initializing AI...")
@@ -125,7 +124,44 @@ class LazySyncManager(private val context: Context) {
         }
     }
 
-    private fun downloadModel(targetFile: File) {
+    fun isModelDownloaded(): Boolean {
+        return File(context.filesDir, MODEL_FILE_NAME).exists()
+    }
+
+    fun deleteModel(): Boolean {
+        val file = File(context.filesDir, MODEL_FILE_NAME)
+        return if (file.exists()) file.delete() else false
+    }
+
+    suspend fun downloadModelOnly(onProgress: (String) -> Unit): Boolean =
+        withContext(Dispatchers.IO) {
+            try {
+                val modelFile = File(context.filesDir, MODEL_FILE_NAME)
+                if (modelFile.exists()) {
+                    onProgress("Model already downloaded")
+                    return@withContext true
+                }
+                downloadModel(modelFile, onProgress)
+                onProgress("Download complete!")
+                true
+            } catch (e: Exception) {
+                onProgress("Error: ${e.localizedMessage}")
+                false
+            }
+        }
+
+    suspend fun repairModel(onProgress: (String) -> Unit): Boolean = withContext(Dispatchers.IO) {
+        try {
+            onProgress("Deleting old model...")
+            deleteModel()
+            downloadModelOnly(onProgress)
+        } catch (e: Exception) {
+            onProgress("Error: ${e.localizedMessage}")
+            false
+        }
+    }
+
+    private fun downloadModel(targetFile: File, onProgress: (String) -> Unit) {
         val statFs = android.os.StatFs(context.filesDir.absolutePath)
         val availableSpace = statFs.availableBlocksLong * statFs.blockSizeLong
         if (availableSpace < 2L * 1024 * 1024 * 1024) {
@@ -137,9 +173,30 @@ class LazySyncManager(private val context: Context) {
             URL(MODEL_URL).openConnection().apply {
                 connectTimeout = 15000
                 readTimeout = 0 // 0 prevents timeout on large model downloads
-            }.getInputStream().use { input ->
-                tempFile.outputStream().use { output ->
-                    input.copyTo(output)
+            }.let { connection ->
+                val totalBytes = connection.contentLengthLong
+                connection.getInputStream().use { input ->
+                    tempFile.outputStream().use { output ->
+                        val buffer = ByteArray(8 * 1024)
+                        var bytesRead: Int
+                        var totalRead = 0L
+                        var lastProgressUpdate = 0L
+
+                        while (input.read(buffer).also { bytesRead = it } != -1) {
+                            output.write(buffer, 0, bytesRead)
+                            totalRead += bytesRead
+
+                            val currentTime = System.currentTimeMillis()
+                            if (currentTime - lastProgressUpdate > 500) { // Update every 500ms
+                                val percent =
+                                    if (totalBytes > 0) (totalRead * 100 / totalBytes) else -1
+                                val progressMsg =
+                                    if (percent >= 0) "Downloading: $percent%" else "Downloading..."
+                                onProgress(progressMsg)
+                                lastProgressUpdate = currentTime
+                            }
+                        }
+                    }
                 }
             }
             if (!tempFile.renameTo(targetFile)) {

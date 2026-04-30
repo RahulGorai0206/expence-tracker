@@ -196,7 +196,12 @@ fun SettingsScreen(
     var isCloudEditing by remember { mutableStateOf(false) }
     var isCloudExpanded by remember { mutableStateOf(false) }
     var isTestingConnection by remember { mutableStateOf(false) }
-    
+
+    val lazySyncManager = remember { LazySyncManager(context) }
+    var isModelDownloaded by remember { mutableStateOf(lazySyncManager.isModelDownloaded()) }
+    var isDownloadingModel by remember { mutableStateOf(false) }
+    var modelDownloadProgress by remember { mutableStateOf("") }
+
     var showLazySyncDialog by remember { mutableStateOf(false) }
     var isLazySyncing by remember { mutableStateOf(false) }
     var lazySyncStatus by remember { mutableStateOf("") }
@@ -634,7 +639,7 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
                         Spacer(modifier = Modifier.height(8.dp))
                     } else {
                         Text(
-                            "Select a date range to scan for transaction SMS using Gemma AI. The AI model will be downloaded if not present.",
+                            "Select a date range to scan for transaction SMS using Gemma AI.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -766,15 +771,6 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
                         isCloudExpanded = true
                     }
                 }
-            )
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-            SettingsItem(
-                title = "Lazy Sync (AI)",
-                subtitle = "Scan history with Gemma AI",
-                icon = Icons.Default.AutoFixHigh,
-                iconColor = MaterialTheme.colorScheme.tertiary,
-                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                onClick = { showLazySyncDialog = true }
             )
         }
 
@@ -1045,6 +1041,96 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
                         }
                     }
                 }
+            }
+        }
+
+        // --- AI & INTELLIGENCE ---
+        SettingsCategory("AI & INTELLIGENCE") {
+            SettingsItem(
+                title = "Lazy Sync (Historical)",
+                subtitle = "Scan SMS history using AI",
+                icon = Icons.Default.AutoFixHigh,
+                iconColor = if (isModelDownloaded) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                    alpha = 0.5f
+                ),
+                onClick = {
+                    if (isModelDownloaded) {
+                        showLazySyncDialog = true
+                    } else {
+                        Toast.makeText(context, "Download AI model first", Toast.LENGTH_SHORT)
+                            .show()
+                    }
+                }
+            )
+
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 16.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            )
+
+            SettingsItem(
+                title = "Download AI Model",
+                subtitle = when {
+                    isDownloadingModel -> modelDownloadProgress
+                    isModelDownloaded -> "Gemma 2B Model • 1.2 GB (Downloaded)"
+                    else -> "Download Gemma 2B (approx. 1.2 GB)"
+                },
+                icon = if (isModelDownloaded) Icons.Default.CheckCircle else Icons.Default.FileDownload,
+                iconColor = if (isModelDownloaded) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary,
+                onClick = {
+                    if (!isModelDownloaded && !isDownloadingModel) {
+                        isDownloadingModel = true
+                        scope.launch {
+                            val success = lazySyncManager.downloadModelOnly { progress ->
+                                modelDownloadProgress = progress
+                            }
+                            isModelDownloaded = lazySyncManager.isModelDownloaded()
+                            isDownloadingModel = false
+                            if (!success) {
+                                Toast.makeText(context, "Download failed", Toast.LENGTH_SHORT)
+                                    .show()
+                            }
+                        }
+                    }
+                }
+            )
+
+            if (isModelDownloaded && !isDownloadingModel) {
+                SettingsItem(
+                    title = "Repair AI Model",
+                    subtitle = "Delete and redownload model",
+                    icon = Icons.Default.Build,
+                    iconColor = MaterialTheme.colorScheme.secondary,
+                    onClick = {
+                        isDownloadingModel = true
+                        scope.launch {
+                            val success = lazySyncManager.repairModel { progress ->
+                                modelDownloadProgress = progress
+                            }
+                            isModelDownloaded = lazySyncManager.isModelDownloaded()
+                            isDownloadingModel = false
+                            if (success) {
+                                Toast.makeText(context, "Repair complete", Toast.LENGTH_SHORT)
+                                    .show()
+                            } else {
+                                Toast.makeText(context, "Repair failed", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                )
+
+                SettingsItem(
+                    title = "Delete AI Model",
+                    subtitle = "Free up 1.2 GB of storage",
+                    icon = Icons.Default.Delete,
+                    iconColor = MaterialTheme.colorScheme.error,
+                    onClick = {
+                        if (lazySyncManager.deleteModel()) {
+                            isModelDownloaded = false
+                            Toast.makeText(context, "AI Model deleted", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                )
             }
         }
 
