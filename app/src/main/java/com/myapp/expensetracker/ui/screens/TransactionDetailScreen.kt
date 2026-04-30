@@ -37,6 +37,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -95,19 +96,24 @@ fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit)
             }
 
             val locationInfo = if (currentTransaction.latitude != null && currentTransaction.longitude != null) {
-                "\nLocation: https://www.google.com/maps/search/?api=1&query=${currentTransaction.latitude},${currentTransaction.longitude}"
+                "\n📍 *Location:* https://www.google.com/maps/search/?api=1&query=${currentTransaction.latitude},${currentTransaction.longitude}"
             } else ""
 
+            val dateStr = SimpleDateFormat("MMMM dd, yyyy • hh:mm a", Locale.getDefault()).format(
+                Date(currentTransaction.date)
+            )
             val shareText = """
-                Expense Tracker Transaction
-                --------------------------
-                Merchant: ${currentTransaction.sender}
-                Amount: ₹${"%,.2f".format(currentTransaction.amount)}
-                Date: ${SimpleDateFormat("MMMM dd, yyyy HH:mm", Locale.getDefault()).format(Date(currentTransaction.date))}
-                Category: ${currentTransaction.category}
-                Status: ${currentTransaction.status}$locationInfo
-                
-                Message: ${currentTransaction.body}
+                💸 *Transaction Receipt*
+                ━━━━━━━━━━━━━━━━━━
+                🏢 *Merchant:* ${currentTransaction.sender}
+                💰 *Total Amount:* ₹${"%,.2f".format(abs(currentTransaction.amount))}
+                📅 *Date & Time:* $dateStr
+                ━━━━━━━━━━━━━━━━━━$locationInfo
+
+                💬 *Message:*
+                ${currentTransaction.body}
+
+                _Shared via Expense Tracker_
             """.trimIndent()
 
             val intent = Intent(Intent.ACTION_SEND).apply {
