@@ -53,4 +53,7 @@ interface TransactionDao {
 
     @Query("SELECT * FROM transactions WHERE status != 'deleted' ORDER BY date DESC LIMIT 1")
     suspend fun getLastTransaction(): Transaction?
+
+    @Query("SELECT * FROM transactions WHERE status != 'deleted' AND date >= :startDate AND date <= :endDate ORDER BY date DESC LIMIT 1")
+    suspend fun getLastTransactionBetween(startDate: Long, endDate: Long): Transaction?
 }

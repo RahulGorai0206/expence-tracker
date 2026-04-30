@@ -38,14 +38,15 @@ class ExpenseWidget : GlanceAppWidget() {
         val sharedPrefs = context.getSharedPreferences("prefs", Context.MODE_PRIVATE)
 
         val isMonthlyBudget = sharedPrefs.getBoolean("budget_monthly", true)
-        val totalSpent = if (isMonthlyBudget) {
+
+        val (startOfMonth, endOfMonth) = if (isMonthlyBudget) {
             val cal = java.util.Calendar.getInstance()
             cal.set(java.util.Calendar.DAY_OF_MONTH, 1)
             cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
             cal.set(java.util.Calendar.MINUTE, 0)
             cal.set(java.util.Calendar.SECOND, 0)
             cal.set(java.util.Calendar.MILLISECOND, 0)
-            val startOfMonth = cal.timeInMillis
+            val start = cal.timeInMillis
 
             cal.set(
                 java.util.Calendar.DAY_OF_MONTH,
@@ -55,25 +56,39 @@ class ExpenseWidget : GlanceAppWidget() {
             cal.set(java.util.Calendar.MINUTE, 59)
             cal.set(java.util.Calendar.SECOND, 59)
             cal.set(java.util.Calendar.MILLISECOND, 999)
-            val endOfMonth = cal.timeInMillis
+            val end = cal.timeInMillis
+            Pair(start, end)
+        } else {
+            Pair(0L, Long.MAX_VALUE)
+        }
 
+        val totalSpent = if (isMonthlyBudget) {
             db.transactionDao().getTotalSpentBetween(startOfMonth, endOfMonth) ?: 0.0
         } else {
             db.transactionDao().getTotalSpent() ?: 0.0
         }
         
         val budget = sharedPrefs.getFloat("budget", 0f).toDouble()
-        val lastTransaction = db.transactionDao().getLastTransaction()
+        val lastTransaction = if (isMonthlyBudget) {
+            db.transactionDao().getLastTransactionBetween(startOfMonth, endOfMonth)
+        } else {
+            db.transactionDao().getLastTransaction()
+        }
 
         provideContent {
             GlanceTheme {
-                WidgetContent(totalSpent, budget, lastTransaction)
+                WidgetContent(totalSpent, budget, lastTransaction, isMonthlyBudget)
             }
         }
     }
 
     @Composable
-    private fun WidgetContent(totalSpent: Double, budget: Double, lastTransaction: Transaction?) {
+    private fun WidgetContent(
+        totalSpent: Double,
+        budget: Double,
+        lastTransaction: Transaction?,
+        isMonthlyBudget: Boolean
+    ) {
         val context = LocalContext.current
         Column(
             modifier = GlanceModifier
@@ -121,9 +136,11 @@ class ExpenseWidget : GlanceAppWidget() {
                 if (isExpense) GlanceTheme.colors.onErrorContainer else GlanceTheme.colors.onSecondaryContainer
 
             val trendLabel =
-                if (lastTransaction != null) "Last transaction amount" else "Monthly Budget"
+                if (lastTransaction != null || isMonthlyBudget) "Last transaction amount" else "Monthly Budget"
             val trendText = if (lastTransaction != null) {
                 "${if (isExpense) "↘" else "↗"}\u00A0₹${"%,.0f".format(abs(lastTransaction.amount))}"
+            } else if (isMonthlyBudget) {
+                "₹0"
             } else {
                 "₹${"%,.0f".format(budget)}"
             }
