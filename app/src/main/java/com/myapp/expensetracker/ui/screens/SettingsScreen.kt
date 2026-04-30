@@ -808,6 +808,7 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
                         isBudgetSaved = false
                         budgetText = ""
                         sharedPrefs.edit().remove("budget").apply()
+                        com.myapp.expensetracker.enqueueWidgetUpdate(context)
                     }) {
                         Text("Reset", color = MaterialTheme.colorScheme.error)
                     }
@@ -828,6 +829,7 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
                             sharedPrefs.edit().putFloat("budget", budget).apply()
                             isBudgetSaved = true
                             isBudgetEditing = false
+                            com.myapp.expensetracker.enqueueWidgetUpdate(context)
                             Toast.makeText(context, "Budget saved", Toast.LENGTH_SHORT).show()
                         },
                         shape = RoundedCornerShape(12.dp)
@@ -848,6 +850,7 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
                     Switch(checked = isMonthlyBudget, onCheckedChange = {
                         isMonthlyBudget = it
                         sharedPrefs.edit().putBoolean("budget_monthly", it).apply()
+                        com.myapp.expensetracker.enqueueWidgetUpdate(context)
                     })
                 }
             )

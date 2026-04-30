@@ -96,25 +96,25 @@ fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit)
             }
 
             val locationInfo = if (currentTransaction.latitude != null && currentTransaction.longitude != null) {
-                "\n📍 *Location:* https://www.google.com/maps/search/?api=1&query=${currentTransaction.latitude},${currentTransaction.longitude}"
+                "\n|📍 *Location:* https://www.google.com/maps/search/?api=1&query=${currentTransaction.latitude},${currentTransaction.longitude}"
             } else ""
 
             val dateStr = SimpleDateFormat("MMMM dd, yyyy • hh:mm a", Locale.getDefault()).format(
                 Date(currentTransaction.date)
             )
             val shareText = """
-                💸 *Transaction Receipt*
-                ━━━━━━━━━━━━━━━━━━
-                🏢 *Merchant:* ${currentTransaction.sender}
-                💰 *Total Amount:* ₹${"%,.2f".format(abs(currentTransaction.amount))}
-                📅 *Date & Time:* $dateStr
-                ━━━━━━━━━━━━━━━━━━$locationInfo
-
-                💬 *Message:*
-                ${currentTransaction.body}
-
-                _Shared via Expense Tracker_
-            """.trimIndent()
+                |💸 *Transaction Receipt*
+                |━━━━━━━━━━━━━━━━━━
+                |🏢 *Merchant:* ${currentTransaction.sender}
+                |💰 *Total Amount:* ₹${"%,.2f".format(abs(currentTransaction.amount))}
+                |📅 *Date & Time:* $dateStr
+                |━━━━━━━━━━━━━━━━━━$locationInfo
+                |
+                |💬 *Message:*
+                |${currentTransaction.body}
+                |
+                |_Shared via Expense Tracker_
+            """.trimMargin()
 
             val intent = Intent(Intent.ACTION_SEND).apply {
                 type = "image/png"
