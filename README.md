@@ -61,25 +61,26 @@ The UI is built entirely with **Jetpack Compose** and **Material 3**, featuring 
 
 ## Key Features
 
-| Feature                           | Description                                                                                                         |
-|-----------------------------------|---------------------------------------------------------------------------------------------------------------------|
-| 📱 **Automatic SMS Detection**    | BroadcastReceiver intercepts incoming SMS and extracts transactions in real-time                                    |
-| 💬 **RCS Bank Intercept**         | NotificationListenerService captures modern RCS bank transactions directly from system notifications                |
-| 🤖 **ML Kit Extraction**          | Google ML Kit Entity Extraction identifies monetary amounts; regex fallback                                         |
-| 🧩 **Glance App Widget**          | Material 3 widget with real-time updates; auto-refreshes whenever app is backgrounded or minimized                  |
-| 🛡️ **Robust Deduplication**      | Hash-based matching with 60s time-windows prevents duplicates even after phone reboots or database rebuilds         |
-| 💳 **Ignore CC Bills**            | Smart filter and settings toggle to automatically skip credit card statement and due-date alerts                    |
-| 🏷️ **AI Chip Tags**              | Clear visual labeling (MANUAL, AUTOMATED, or AI) to identify the source of each transaction                         |
-| 📍 **Geo-Tagged Transactions**    | Captures precise GPS coordinates at time of transaction using Fused Location Provider                               |
-| 🔔 **30-Second Accept/Deny**      | Rich notification with Accept/Deny actions; auto-accepts on timeout                                                 |
-| ☁️ **Google Sheets Cloud Sync**   | Full CRUD sync via Google Apps Script with debit-normalization during restore and API key auth                      |
-| 🧠 **AI Smart Sync (Lazy Sync)**  | On-device AI (Gemma 2B) with few-shot prompting to scan historical SMS for missed transactions while filtering OTPs |
-| 💰 **Budget Tracking**            | Monthly budget target with remaining balance displayed on home card                                                 |
-| 🌙 **Premium Theme System**       | Follow system theme or manually toggle Premium Dark Mode (deep blacks)                                              |
-| 🔄 **Intelligent Navigation**     | Refined back-gesture logic: Detail → Previous Page, History/Settings → Home, Home → Exit                            |
-| 🔄 **Offline-First Architecture** | Local Room DB as source of truth (v7); background cloud sync with retry for failed uploads                          |
-| 📤 **Transaction Sharing**        | Screenshot capture + text share of transaction details including Google Maps link                                   |
-| 🚀 **Automated Releases**         | GitHub Actions pipeline automatically builds and signs the APK on tag push and publishes a GitHub Release           |
+| Feature                           | Description                                                                                                                             |
+|-----------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------|
+| 📱 **Automatic SMS Detection**    | BroadcastReceiver intercepts incoming SMS and extracts transactions in real-time                                                        |
+| 💬 **RCS Bank Intercept**         | NotificationListenerService captures modern RCS bank transactions directly from system notifications                                    |
+| 🤖 **ML Kit Extraction**          | Google ML Kit Entity Extraction identifies monetary amounts; regex fallback                                                             |
+| 🧩 **Glance App Widget**          | Material 3 widget with real-time updates; auto-refreshes whenever app is backgrounded or minimized; supports monthly budget reset logic |
+| 🛡️ **Robust Deduplication**      | Hash-based matching with 60s time-windows prevents duplicates even after phone reboots or database rebuilds                             |
+| 💳 **Ignore CC Bills**            | Smart filter and settings toggle to automatically skip credit card statement and due-date alerts                                        |
+| 🏷️ **AI Chip Tags**              | Clear visual labeling (MANUAL, AUTOMATED, or AI) to identify the source of each transaction                                             |
+| 📍 **Geo-Tagged Transactions**    | Captures precise GPS coordinates at time of transaction using Fused Location Provider                                                   |
+| 🔔 **30-Second Accept/Deny**      | Rich notification with Accept/Deny actions; auto-accepts on timeout                                                                     |
+| ☁️ **Google Sheets Cloud Sync**   | Full CRUD sync via Google Apps Script with debit-normalization during restore and API key auth                                          |
+| 🧠 **AI Smart Sync (Lazy Sync)**  | On-device AI (Gemma 2B) with few-shot prompting to scan historical SMS for missed transactions while filtering OTPs                     |
+| 🛠️ **AI Model Management**       | Dedicated section to download, repair, or delete the 1.2GB Gemma model with real-time percentage-based progress tracking                |
+| 💰 **Budget Tracking**            | Monthly budget target with remaining balance displayed on home card; auto-reset for monthly mode                                        |
+| 🌙 **Premium Theme System**       | Follow system theme or manually toggle Premium Dark Mode (deep blacks)                                                                  |
+| 🔄 **Intelligent Navigation**     | Refined back-gesture logic: Detail → Previous Page, History/Settings → Home, Home → Exit                                                |
+| 🔄 **Offline-First Architecture** | Local Room DB as source of truth (v7); background cloud sync with retry for failed uploads                                              |
+| 📤 **Smart Transaction Sharing**  | Premium receipt format with customization options: Toggle Screenshot, Merchant, Date, Location, and Message                             |
+| 🚀 **Automated Releases**         | GitHub Actions pipeline automatically builds and signs the APK on tag push and publishes a GitHub Release                               |
 
 ---
 
@@ -334,13 +335,13 @@ graph LR
     style SETTINGS fill:#01579B,color:#fff
 ```
 
-| Screen                      | Description                                                                                                                                                                                  |
-|-----------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **SetupScreen**             | 3-step onboarding: Welcome → Set monthly budget → Feature highlights                                                                                                                         |
-| **HomeScreen**              | Premium gradient balance card, monthly budget tracker, recent activity feed, FAB for manual logging, cloud sync status indicator                                                             |
-| **TransactionScreen**       | Full transaction history grouped by date (Today, Yesterday, dated headers) with animated list items                                                                                          |
-| **TransactionDetailScreen** | Detailed view with category icon, amount display, date, merchant source, original SMS body, GPS coordinates, Google Maps link, re-categorize, delete, and share actions                      |
-| **SettingsScreen**          | Budget planning, Google Sheets cloud sync configuration (with embedded Apps Script code), appearance toggles (dark mode, system theme, debit-only tracking, CC bill filter), data management |
+| Screen                      | Description                                                                                                                                                                                              |
+|-----------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **SetupScreen**             | 3-step onboarding: Welcome → Set monthly budget → Feature highlights                                                                                                                                     |
+| **HomeScreen**              | Premium gradient balance card, monthly budget tracker, recent activity feed, FAB for manual logging, cloud sync status indicator                                                                         |
+| **TransactionScreen**       | Full transaction history grouped by date (Today, Yesterday, dated headers) with animated list items                                                                                                      |
+| **TransactionDetailScreen** | Detailed view with category icon, amount display, date, merchant source, original SMS body, GPS coordinates, Google Maps link, re-categorize, delete, and share actions (with selective content toggles) |
+| **SettingsScreen**          | Budget planning, AI & Intelligence (model management, lazy sync), Google Sheets cloud sync configuration (with embedded Apps Script code), appearance toggles, data management                           |
 
 ---
 
