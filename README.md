@@ -61,26 +61,27 @@ The UI is built entirely with **Jetpack Compose** and **Material 3**, featuring 
 
 ## Key Features
 
-| Feature                           | Description                                                                                                                             |
-|-----------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------|
-| 📱 **Automatic SMS Detection**    | BroadcastReceiver intercepts incoming SMS and extracts transactions in real-time                                                        |
-| 💬 **RCS Bank Intercept**         | NotificationListenerService captures modern RCS bank transactions directly from system notifications                                    |
-| 🤖 **ML Kit Extraction**          | Google ML Kit Entity Extraction identifies monetary amounts; regex fallback                                                             |
-| 🧩 **Glance App Widget**          | Material 3 widget with real-time updates; auto-refreshes whenever app is backgrounded or minimized; supports monthly budget reset logic |
-| 🛡️ **Robust Deduplication**      | Hash-based matching with 60s time-windows prevents duplicates even after phone reboots or database rebuilds                             |
-| 💳 **Ignore CC Bills**            | Smart filter and settings toggle to automatically skip credit card statement and due-date alerts                                        |
-| 🏷️ **AI Chip Tags**              | Clear visual labeling (MANUAL, AUTOMATED, or AI) to identify the source of each transaction                                             |
-| 📍 **Geo-Tagged Transactions**    | Captures precise GPS coordinates at time of transaction using Fused Location Provider                                                   |
-| 🔔 **30-Second Accept/Deny**      | Rich notification with Accept/Deny actions; auto-accepts on timeout                                                                     |
-| ☁️ **Google Sheets Cloud Sync**   | Full CRUD sync via Google Apps Script with debit-normalization during restore and API key auth                                          |
-| 🧠 **AI Smart Sync (Lazy Sync)**  | On-device AI (Gemma 2B) with few-shot prompting to scan historical SMS for missed transactions while filtering OTPs                     |
-| 🛠️ **AI Model Management**       | Dedicated section to download, repair, or delete the 1.2GB Gemma model with real-time percentage-based progress tracking                |
-| 💰 **Budget Tracking**            | Monthly budget target with remaining balance displayed on home card; auto-reset for monthly mode                                        |
-| 🌙 **Premium Theme System**       | Follow system theme or manually toggle Premium Dark Mode (deep blacks)                                                                  |
-| 🔄 **Intelligent Navigation**     | Refined back-gesture logic: Detail → Previous Page, History/Settings → Home, Home → Exit                                                |
-| 🔄 **Offline-First Architecture** | Local Room DB as source of truth (v7); background cloud sync with retry for failed uploads                                              |
-| 📤 **Smart Transaction Sharing**  | Premium receipt format with customization options: Toggle Screenshot, Merchant, Date, Location, and Message                             |
-| 🚀 **Automated Releases**         | GitHub Actions pipeline automatically builds and signs the APK on tag push and publishes a GitHub Release                               |
+| Feature                           | Description                                                                                                                                                                                       |
+|-----------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 📱 **Automatic SMS Detection**    | BroadcastReceiver intercepts incoming SMS and extracts transactions in real-time                                                                                                                  |
+| 💬 **RCS Bank Intercept**         | NotificationListenerService captures modern RCS bank transactions directly from system notifications                                                                                              |
+| 🤖 **ML Kit Extraction**          | Google ML Kit Entity Extraction identifies monetary amounts; regex fallback                                                                                                                       |
+| 🧩 **Glance App Widget**          | Material 3 widget with real-time updates; auto-refreshes whenever app is backgrounded or minimized; supports monthly budget reset logic                                                           |
+| 🛡️ **Robust Deduplication**      | Hash-based matching with 60s time-windows prevents duplicates even after phone reboots or database rebuilds                                                                                       |
+| 💳 **Ignore CC Bills**            | Smart filter and settings toggle to automatically skip credit card statement and due-date alerts                                                                                                  |
+| 🏷️ **AI Chip Tags**              | Clear visual labeling (MANUAL, AUTOMATED, or AI) to identify the source of each transaction                                                                                                       |
+| 📍 **Geo-Tagged Transactions**    | Captures precise GPS coordinates at time of transaction using Fused Location Provider                                                                                                             |
+| 🔔 **30-Second Accept/Deny**      | Rich notification with Accept/Deny actions; auto-accepts on timeout                                                                                                                               |
+| ☁️ **Google Sheets Cloud Sync**   | Full CRUD sync via Google Apps Script with debit-normalization during restore and API key auth                                                                                                    |
+| 🧠 **AI Smart Sync (Lazy Sync)**  | On-device AI (Gemma 2B) with few-shot prompting to scan historical SMS for missed transactions while filtering OTPs                                                                               |
+| 🛠️ **AI Model Management**       | Dedicated section to download, repair, or delete the 1.2GB Gemma model with real-time percentage-based progress tracking                                                                          |
+| 💰 **Budget Tracking**            | Monthly budget target with remaining balance displayed on home card; auto-reset for monthly mode                                                                                                  |
+| 🌙 **Premium Theme System**       | Follow system theme or manually toggle Premium Dark Mode (deep blacks)                                                                                                                            |
+| 🔄 **Intelligent Navigation**     | Refined back-gesture logic: Detail → Previous Page, History/Settings → Home, Home → Exit                                                                                                          |
+| 🔄 **Offline-First Architecture** | Local Room DB as source of truth (v7); background cloud sync with retry for failed uploads                                                                                                        |
+| 📤 **Smart Transaction Sharing**  | Premium receipt format with customization options: Toggle Screenshot, Merchant, Date, Location, and Message                                                                                       |
+| 🔁 **Automatic Update Checker**   | Checks GitHub Releases daily at 6 PM IST; detects new tags *and* same-tag re-releases via commit-hash comparison; notifies user and surfaces a one-tap download link in Settings                  |
+| 🚀 **Automated Releases**         | GitHub Actions pipeline builds, signs, and publishes split APKs (`arm64-v8a` + `armeabi-v7a`) automatically on tag push; version is derived directly from the tag — no manual code changes needed |
 
 ---
 
@@ -271,11 +272,15 @@ ExpenseTracker/
 │               ├── ── Architecture Components ──
 │               ├── di/AppModule.kt          # Koin dependency injection module
 │               ├── viewmodel/               # ViewModels for Home and Transaction screens
-│               ├── worker/                  # WorkManager workers (SheetsSyncWorker, WidgetUpdateWorker)
+│               ├── worker/
+│               │   ├── SheetsSyncWorker.kt  # Background cloud sync
+│               │   ├── WidgetUpdateWorker.kt# Triggers homescreen widget refresh
+│               │   └── UpdateCheckWorker.kt # Daily 6 PM IST GitHub release checker
 │               │
-│               ├── ── Cloud Sync ──
+│               ├── ── Cloud Sync & Updates ──
 │               ├── GoogleSheetsLogger.kt    # Retrofit-based CRUD client for Apps Script
 │               ├── GoogleSheetsApi.kt       # Retrofit API interface + response models
+│               ├── GitHubApi.kt             # Retrofit interface for GitHub Releases & Git refs API
 │               │
 │               └── ui/
 │                   ├── ── Theme ──
@@ -335,13 +340,13 @@ graph LR
     style SETTINGS fill:#01579B,color:#fff
 ```
 
-| Screen                      | Description                                                                                                                                                                                              |
-|-----------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **SetupScreen**             | 3-step onboarding: Welcome → Set monthly budget → Feature highlights                                                                                                                                     |
-| **HomeScreen**              | Premium gradient balance card, monthly budget tracker, recent activity feed, FAB for manual logging, cloud sync status indicator                                                                         |
-| **TransactionScreen**       | Full transaction history grouped by date (Today, Yesterday, dated headers) with animated list items                                                                                                      |
-| **TransactionDetailScreen** | Detailed view with category icon, amount display, date, merchant source, original SMS body, GPS coordinates, Google Maps link, re-categorize, delete, and share actions (with selective content toggles) |
-| **SettingsScreen**          | Budget planning, AI & Intelligence (model management, lazy sync), Google Sheets cloud sync configuration (with embedded Apps Script code), appearance toggles, data management                           |
+| Screen                      | Description                                                                                                                                                                                                                                             |
+|-----------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **SetupScreen**             | 3-step onboarding: Welcome → Set monthly budget → Feature highlights                                                                                                                                                                                    |
+| **HomeScreen**              | Premium gradient balance card, monthly budget tracker, recent activity feed, FAB for manual logging, cloud sync status indicator                                                                                                                        |
+| **TransactionScreen**       | Full transaction history grouped by date (Today, Yesterday, dated headers) with animated list items                                                                                                                                                     |
+| **TransactionDetailScreen** | Detailed view with category icon, amount display, date, merchant source, original SMS body, GPS coordinates, Google Maps link, re-categorize, delete, and share actions (with selective content toggles)                                                |
+| **SettingsScreen**          | Budget planning, AI & Intelligence (model management, lazy sync), Google Sheets cloud sync configuration (with embedded Apps Script code), appearance toggles, data management, **Updates section** (check now button, update status, one-tap download) |
 
 ---
 
@@ -386,23 +391,97 @@ data class Transaction(
 
 ## CI/CD & Automated Releases
 
-This project utilizes **GitHub Actions** to automate the build and release process. When a new tag
-is pushed (e.g., `v1.0.0`), the CI pipeline automatically:
+This project uses **GitHub Actions** (`.github/workflows/release.yml`) to automate the entire build
+and release process.
+
+### How it works
+
+When a tag is pushed (e.g., `v2.3.0`), the pipeline:
 
 1. Provisions an Ubuntu runner with JDK 17.
-2. Decodes your securely stored Base64 keystore.
-3. Builds and signs a production-ready `app-release.apk` using Gradle.
-4. Publishes a new **GitHub Release** with the signed APK attached and auto-generated release notes.
+2. Decodes your securely stored Base64 keystore from GitHub Secrets.
+3. **Extracts the version automatically from the tag** — no manual version bumps in code ever
+   needed.
+4. Builds and signs split APKs (`arm64-v8a` and `armeabi-v7a`) via Gradle.
+5. Publishes a new **GitHub Release** with both APKs attached and auto-generated release notes.
 
-To trigger a release:
+### Automatic version injection
+
+The tag name is stripped of its `v` prefix and passed to Gradle as the `APP_VERSION` environment
+variable:
 
 ```bash
-git tag v1.0.0
-git push origin main --tags
+# In the workflow:
+VERSION="${GITHUB_REF#refs/tags/v}"   # "v2.3.0" → "2.3.0"
 ```
 
-*(Requires `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, and `KEY_PASSWORD` to be set in
-GitHub repository secrets).*
+Gradle picks this up in `app/build.gradle.kts`:
+
+```kotlin
+// CI: uses APP_VERSION env var from the tag
+// Local: falls back to libs.versions.toml — Studio builds are unaffected
+val resolvedVersionName = System.getenv("APP_VERSION")?.takeIf { it.isNotBlank() }
+    ?: libs.versions.appVersion.get()
+
+// versionCode auto-derived from semver: "2.3.1" → 20301
+val resolvedVersionCode = major * 10000 + minor * 100 + patch
+```
+
+| Context                | `VERSION_NAME` source             | `VERSION_CODE` source     |
+|------------------------|-----------------------------------|---------------------------|
+| CI (tag push)          | Git tag via `APP_VERSION` env var | Auto-computed from semver |
+| Local (Android Studio) | `libs.versions.toml`              | `libs.versions.toml`      |
+
+### Triggering a release
+
+```bash
+# New version
+git tag v2.3.0
+git push origin v2.3.0
+
+# Re-release same version with a different commit (patch)
+git tag -f v2.3.0
+git push origin v2.3.0 --force
+```
+
+> **Required GitHub Secrets:** `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`
+
+---
+
+## Automatic Update Checker
+
+The app silently checks for updates in the background and notifies users when a new release is
+available.
+
+### How it detects updates
+
+1. **New tag** — if the latest GitHub release tag differs from `BuildConfig.VERSION_NAME`, it's an
+   update.
+2. **Same tag, new commit** — if the tag is identical but the underlying commit hash differs (i.e.,
+   a forced re-release), it's still an update. This uses a two-step GitHub Git refs API call to
+   correctly resolve both lightweight *and* annotated tags:
+    - `GET /repos/.../git/ref/tags/{tag}` → get ref object
+    - If `object.type == "tag"` (annotated) → `GET /repos/.../git/tags/{sha}` to peel to the commit
+      SHA
+    - Compare peeled commit SHA against the `GIT_COMMIT_HASH` baked into the APK at build time
+
+### Schedule & behavior
+
+| Trigger                          | Behavior                                                                          |
+|----------------------------------|-----------------------------------------------------------------------------------|
+| **Daily at 6 PM IST**            | Automatic background check via WorkManager `OneTimeWorkRequest` chained to itself |
+| **Settings → Updates → Refresh** | On-demand manual check                                                            |
+| **Update found**                 | System notification + "Download Update" button enabled in Settings                |
+| **No update**                    | Notification suppressed, "Download Update" button remains grayed out              |
+| **Download Update**              | Opens the GitHub Releases page in the browser                                     |
+
+### Key implementation files
+
+| File                          | Role                                                                                                            |
+|-------------------------------|-----------------------------------------------------------------------------------------------------------------|
+| `worker/UpdateCheckWorker.kt` | WorkManager worker — fetches release info, resolves commit SHA, writes to SharedPreferences, fires notification |
+| `GitHubApi.kt`                | Retrofit interface for `GET /releases/latest`, `GET /git/ref/tags/{tag}`, `GET /git/tags/{sha}`                 |
+| `SettingsScreen.kt`           | Reads `update_available` from SharedPreferences via a live listener; enables/disables the Download button       |
 
 ---
 <p align="center">
