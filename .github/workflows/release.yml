@@ -33,9 +33,19 @@ jobs:
           fileName: 'keystore.jks'
           encodedString: ${{ secrets.KEYSTORE_BASE64 }}
 
+      # Extract the version string from the git tag: "refs/tags/v2.3.1" → "2.3.1"
+      - name: Extract version from tag
+        id: version
+        run: |
+          RAW_TAG="${GITHUB_REF#refs/tags/}"   # strip "refs/tags/" → "v2.3.1"
+          VERSION="${RAW_TAG#v}"               # strip leading "v"  → "2.3.1"
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building version: $VERSION (tag: $RAW_TAG)"
+
       - name: Build Release APK
         run: ./gradlew assembleRelease
         env:
+          APP_VERSION: ${{ steps.version.outputs.VERSION }}
           KEYSTORE_PATH: ${{ steps.decode_keystore.outputs.filePath }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}

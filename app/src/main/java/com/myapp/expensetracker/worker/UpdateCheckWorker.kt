@@ -43,52 +43,105 @@ class UpdateCheckWorker(
             val currentVersion = BuildConfig.VERSION_NAME
             val currentCommitHash = BuildConfig.GIT_COMMIT_HASH
 
+            Log.d("UpdateCheckWorker", "Local: version=$currentVersion, commit=$currentCommitHash")
+            Log.d("UpdateCheckWorker", "Remote: tag=$latestTagName")
+
             var updateAvailable = false
-            var latestSha = ""
+            var latestCommitSha = ""
 
             if (latestTagName != currentVersion) {
+                // A new tag exists — always an update
                 updateAvailable = true
+                Log.d(
+                    "UpdateCheckWorker",
+                    "Update available: new tag $latestTagName vs local $currentVersion"
+                )
             } else {
-                // Same tag, check commit hash
+                // Same tag – resolve the *commit* SHA via the Git refs API.
+                // We must handle both:
+                //   - Lightweight tags: /git/ref/tags/{tag}.object.type == "commit"
+                //     → .object.sha IS the commit SHA
+                //   - Annotated tags:   /git/ref/tags/{tag}.object.type == "tag"
+                //     → .object.sha is the tag *object* SHA, need one more call to peel it
                 try {
-                    // Fetch the commit SHA directly using the tag name
-                    // This is more reliable as it dereferences the tag (annotated or not) to the commit it points to.
-                    val commit = githubApi.getCommit(latestTagName)
-                    latestSha = commit.sha
-                    
-                    if (latestSha != currentCommitHash && currentCommitHash != "unknown") {
-                        updateAvailable = true
+                    val tagRef = githubApi.getTagRef(latestTagName)
+                    val tagObject = tagRef.`object`
+
+                    latestCommitSha = if (tagObject.type == "tag") {
+                        // Annotated tag → peel to the underlying commit
+                        val annotatedTag = githubApi.getAnnotatedTagObject(tagObject.sha)
                         Log.d(
                             "UpdateCheckWorker",
-                            "Update available via SHA mismatch: remote=$latestSha, local=$currentCommitHash"
+                            "Annotated tag peeled: tag_sha=${tagObject.sha} → commit_sha=${annotatedTag.`object`.sha}"
                         )
+                        annotatedTag.`object`.sha
                     } else {
-                        Log.d(
-                            "UpdateCheckWorker",
-                            "SHAs match or unknown: remote=$latestSha, local=$currentCommitHash"
-                        )
+                        // Lightweight tag → SHA is already the commit SHA
+                        Log.d("UpdateCheckWorker", "Lightweight tag: commit_sha=${tagObject.sha}")
+                        tagObject.sha
+                    }
+
+                    when {
+                        currentCommitHash == "unknown" -> {
+                            // Build was done outside git – can't compare, skip
+                            Log.d(
+                                "UpdateCheckWorker",
+                                "Local commit hash is 'unknown' – skipping SHA comparison"
+                            )
+                        }
+
+                        latestCommitSha.equals(currentCommitHash, ignoreCase = true) -> {
+                            // Exact match
+                            Log.d(
+                                "UpdateCheckWorker",
+                                "SHAs match – no update: remote=$latestCommitSha, local=$currentCommitHash"
+                            )
+                        }
+                        // Handles the case where one is a short-SHA prefix of the other (shouldn't happen,
+                        // but safe to guard against if build system ever uses abbreviated hashes)
+                        latestCommitSha.startsWith(currentCommitHash, ignoreCase = true) ||
+                                currentCommitHash.startsWith(
+                                    latestCommitSha,
+                                    ignoreCase = true
+                                ) -> {
+                            Log.d(
+                                "UpdateCheckWorker",
+                                "SHAs are prefix-match – treating as same commit"
+                            )
+                        }
+
+                        else -> {
+                            updateAvailable = true
+                            Log.d(
+                                "UpdateCheckWorker",
+                                "SHA mismatch – update available: remote=$latestCommitSha, local=$currentCommitHash"
+                            )
+                        }
                     }
                 } catch (e: Exception) {
-                    Log.e("UpdateCheckWorker", "Error fetching commit for tag: ${e.message}")
-                    // Fallback to the previous method if needed, but getCommit should be fine
+                    Log.e("UpdateCheckWorker", "Error resolving tag ref SHA: ${e.message}")
+                    // Don't flip updateAvailable on network/parse error – fail silently
                 }
             }
 
             if (updateAvailable) {
-                Log.d("UpdateCheckWorker", "Update available: $latestTagName (SHA: $latestSha)")
+                Log.d(
+                    "UpdateCheckWorker",
+                    "Flagging update: $latestTagName (commit: $latestCommitSha)"
+                )
                 sharedPrefs.edit().apply {
                     putBoolean("update_available", true)
                     putString("latest_version", latestTagName)
-                    putString("latest_version_sha", latestSha)
+                    putString("latest_version_sha", latestCommitSha)
                     putString("latest_release_url", latestRelease.html_url)
                     apply()
                 }
                 showUpdateNotification(latestTagName, latestRelease.html_url)
             } else {
-                Log.d("UpdateCheckWorker", "No update available. SHAs match.")
+                Log.d("UpdateCheckWorker", "No update available.")
                 sharedPrefs.edit().apply {
                     putBoolean("update_available", false)
-                    putString("latest_version_sha", latestSha)
+                    putString("latest_version_sha", latestCommitSha)
                     apply()
                 }
             }

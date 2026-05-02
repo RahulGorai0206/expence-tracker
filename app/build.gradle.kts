@@ -18,12 +18,37 @@ android {
         "unknown"
     }
 
+    // ---------------------------------------------------------------------------
+    // Version resolution
+    //   CI:    APP_VERSION env var is set by the workflow to the git tag (e.g. "2.2.1").
+    //          versionCode is auto-computed from semver so you never touch it manually.
+    //   Local: falls back to libs.versions.toml values — Studio builds are unaffected.
+    // ---------------------------------------------------------------------------
+    val resolvedVersionName: String = System.getenv("APP_VERSION")
+        ?.takeIf { it.isNotBlank() }
+        ?: libs.versions.appVersion.get()
+
+    // Auto-compute versionCode from semver: major*10000 + minor*100 + patch
+    // e.g. "2.3.1" → 20301. Falls back to TOML value if parsing fails.
+    val resolvedVersionCode: Int = run {
+        val parts = resolvedVersionName.split(".")
+        if (parts.size == 3) {
+            try {
+                parts[0].toInt() * 10000 + parts[1].toInt() * 100 + parts[2].toInt()
+            } catch (_: NumberFormatException) {
+                libs.versions.appVersionCode.get().toInt()
+            }
+        } else {
+            libs.versions.appVersionCode.get().toInt()
+        }
+    }
+
     defaultConfig {
         applicationId = "com.myapp.expensetracker"
         minSdk = 31
         targetSdk = 36
-        versionCode = libs.versions.appVersionCode.get().toInt()
-        versionName = libs.versions.appVersion.get().toString()
+        versionCode = resolvedVersionCode
+        versionName = resolvedVersionName
 
         buildConfigField("String", "GIT_COMMIT_HASH", "\"$gitCommitHash\"")
 
