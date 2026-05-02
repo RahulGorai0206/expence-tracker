@@ -10,6 +10,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.net.URL
 import java.util.*
+import kotlin.math.abs
 
 class LazySyncManager(private val context: Context) {
     private val database = AppDatabase.getDatabase(context)
@@ -315,7 +316,24 @@ class LazySyncManager(private val context: Context) {
         return messages
     }
 
-    private fun extractWithAI(llmInference: LlmInference, body: String, sender: String, timestamp: Long): Transaction? {
+    private suspend fun extractWithAI(
+        llmInference: LlmInference,
+        body: String,
+        sender: String,
+        timestamp: Long
+    ): Transaction? {
+        // 1. Try reliable extraction first (ML Kit / Regex)
+        val reliableTxn = extractor.extractTransaction(body, sender, timestamp)
+
+        // 2. Prepare prompt with reliable info if available to ground the AI
+        val groundingPrompt = if (reliableTxn != null) {
+            "GIVEN: This is a ${if (reliableTxn.amount < 0) "DEBIT" else "CREDIT"} of ${
+                abs(
+                    reliableTxn.amount
+                )
+            }."
+        } else ""
+
         val prompt = """
             <start_of_turn>user
             Extract transaction details from this SMS. If it is NOT a bank transaction or if it's an OTP, answer INVALID.
@@ -323,6 +341,8 @@ class LazySyncManager(private val context: Context) {
             AMOUNT: (number only, use dot for decimals)
             TYPE: (DEBIT or CREDIT)
             CATEGORY: (Dining, Transport, Groceries, Shopping, Bills, Entertainment, Health, or Other)
+
+            $groundingPrompt
 
             Examples:
             SMS: "Your A/c XX123 debited by Rs 500.00 for txn at Amazon"
@@ -336,7 +356,7 @@ class LazySyncManager(private val context: Context) {
         """.trimIndent()
         
         val response = llmInference.generateResponse(prompt).trim()
-        Log.d("LazySync", "LLM Extraction for SMS: $response")
+        Log.d("LazySync", "LLM Response: $response")
         
         if (response.contains("INVALID", ignoreCase = true) && !response.contains("AMOUNT", ignoreCase = true)) {
             return null
@@ -351,44 +371,59 @@ class LazySyncManager(private val context: Context) {
             val categoryMatch =
                 Regex("""CATEGORY:\s*([a-zA-Z]+)""", RegexOption.IGNORE_CASE).find(response)
 
-            // Handle commas as thousand separators by removing them, but keep the dot
+            // Parse AI's amount fallback
             val rawAmountStr = amountMatch?.groupValues?.get(1)
             val amountStr = rawAmountStr?.replace(",", "")
-            val amount = amountStr?.toDoubleOrNull() ?: return null
+            val aiAmount = amountStr?.toDoubleOrNull() ?: 0.0
 
             val rawCategory = categoryMatch?.groupValues?.get(1)?.lowercase() ?: "other"
             val categoryStr =
                 rawCategory.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
 
-            Log.d("LazySync", "Parsed amount: $amount from raw string: $rawAmountStr")
-            
-            // Keyword-based debit/credit verification — more reliable than AI for Indian SMS
-            val lower = body.lowercase()
-            val isDebitByKeyword = lower.contains("debited") || lower.contains("spent") ||
-                lower.contains("payment of") || lower.contains("paid") || lower.contains("withdrawn") ||
-                lower.contains("deducted") || lower.contains("transferred to")
-            val isCreditByKeyword = lower.contains("credited") || lower.contains("received") ||
-                lower.contains("deposited") || lower.contains("refund") || lower.contains("cashback")
-            
-            val isDebit = when {
-                isDebitByKeyword && !isCreditByKeyword -> true   // Clear debit keyword
-                isCreditByKeyword && !isDebitByKeyword -> false  // Clear credit keyword
-                else -> typeMatch?.groupValues?.get(1)?.equals("DEBIT", ignoreCase = true) ?: true // Fallback to AI
+            // Priority Logic: Use reliable extraction for Amount and Type, AI for Category
+            return if (reliableTxn != null) {
+                Log.d("LazySync", "Using reliable extraction grounded by AI category: $categoryStr")
+                reliableTxn.copy(
+                    category = categoryStr,
+                    type = "AI",
+                    syncStatus = "pending"
+                )
+            } else if (aiAmount > 0) {
+                // Fallback to full AI if reliable extraction failed but AI found something
+                Log.d(
+                    "LazySync",
+                    "Reliable extraction failed, falling back to AI parsed amount: $aiAmount"
+                )
+
+                val lower = body.lowercase()
+                val isDebitByKeyword = lower.contains("debited") || lower.contains("spent") ||
+                        lower.contains("payment of") || lower.contains("paid") || lower.contains("withdrawn") ||
+                        lower.contains("deducted") || lower.contains("transferred to")
+                val isCreditByKeyword = lower.contains("credited") || lower.contains("received") ||
+                        lower.contains("deposited") || lower.contains("refund") || lower.contains("cashback")
+
+                val isDebit = when {
+                    isDebitByKeyword && !isCreditByKeyword -> true
+                    isCreditByKeyword && !isDebitByKeyword -> false
+                    else -> typeMatch?.groupValues?.get(1)?.equals("DEBIT", ignoreCase = true)
+                        ?: true
+                }
+
+                Transaction(
+                    sender = sender,
+                    amount = if (isDebit) -aiAmount else aiAmount,
+                    date = timestamp,
+                    body = body,
+                    category = categoryStr,
+                    status = "Cleared",
+                    type = "AI",
+                    syncStatus = "pending"
+                )
+            } else {
+                null
             }
-            
-            val finalAmount = if (isDebit) -amount else amount
-            
-            return Transaction(
-                sender = sender,
-                amount = finalAmount,
-                date = timestamp,
-                body = body,
-                category = categoryStr,
-                status = "Cleared",
-                type = "AI",
-                syncStatus = "pending"  // will be uploaded to Google Sheets
-            )
         } catch (e: Exception) {
+            Log.e("LazySync", "Error parsing AI response", e)
             return null
         }
     }
