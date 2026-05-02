@@ -75,17 +75,22 @@ class UpdateCheckWorker(
             }
 
             if (updateAvailable) {
-                Log.d("UpdateCheckWorker", "Update available: $latestTagName")
+                Log.d("UpdateCheckWorker", "Update available: $latestTagName (SHA: $latestSha)")
                 sharedPrefs.edit().apply {
                     putBoolean("update_available", true)
                     putString("latest_version", latestTagName)
+                    putString("latest_version_sha", latestSha)
                     putString("latest_release_url", latestRelease.html_url)
                     apply()
                 }
                 showUpdateNotification(latestTagName, latestRelease.html_url)
             } else {
-                Log.d("UpdateCheckWorker", "No update available.")
-                sharedPrefs.edit().putBoolean("update_available", false).apply()
+                Log.d("UpdateCheckWorker", "No update available. SHAs match.")
+                sharedPrefs.edit().apply {
+                    putBoolean("update_available", false)
+                    putString("latest_version_sha", latestSha)
+                    apply()
+                }
             }
 
             // Schedule for next day at 6 PM IST

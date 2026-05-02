@@ -17,5 +17,12 @@ class ExpenseApplication : Application() {
 
         // Schedule daily update check at 6 PM IST
         UpdateCheckWorker.scheduleNextCheck(this)
+
+        // Clear update status if current version matches stored version
+        val sharedPrefs = getSharedPreferences("prefs", android.content.Context.MODE_PRIVATE)
+        val latestSha = sharedPrefs.getString("latest_version_sha", "")
+        if (latestSha == BuildConfig.GIT_COMMIT_HASH) {
+            sharedPrefs.edit().putBoolean("update_available", false).apply()
+        }
     }
 }
