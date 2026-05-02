@@ -46,6 +46,7 @@ import com.myapp.expensetracker.SmsMonitorService
 import androidx.core.app.NotificationManagerCompat
 import android.content.ComponentName
 import com.myapp.expensetracker.TransactionNotificationListener
+import com.myapp.expensetracker.worker.UpdateCheckWorker
 import kotlinx.coroutines.launch
 import java.util.Calendar
 import java.util.Date
@@ -217,6 +218,36 @@ fun SettingsScreen(
         )
     }
     var backgroundMonitoring by remember { mutableStateOf(SmsMonitorService.isEnabled(context)) }
+
+    var updateAvailable by remember {
+        mutableStateOf(
+            sharedPrefs.getBoolean(
+                "update_available",
+                false
+            )
+        )
+    }
+    var latestVersion by remember {
+        mutableStateOf(
+            sharedPrefs.getString("latest_version", "v2.2.0") ?: "v2.2.0"
+        )
+    }
+    var isCheckingUpdates by remember { mutableStateOf(false) }
+
+    // Listen for update changes
+    DisposableEffect(sharedPrefs) {
+        val listener =
+            android.content.SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
+                if (key == "update_available") {
+                    updateAvailable = prefs.getBoolean("update_available", false)
+                }
+                if (key == "latest_version") {
+                    latestVersion = prefs.getString("latest_version", "v2.2.0") ?: "v2.2.0"
+                }
+            }
+        sharedPrefs.registerOnSharedPreferenceChangeListener(listener)
+        onDispose { sharedPrefs.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
 
     val extractedSheetId = remember(sheetUrl) {
         val pattern = "/spreadsheets/d/([a-zA-Z0-9-_]+)".toRegex()
@@ -1274,6 +1305,63 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
             )
         }
 
+        // --- UPDATES ---
+        SettingsCategory("UPDATES") {
+            SettingsItem(
+                title = "Check for Updates",
+                subtitle = if (updateAvailable) "New version $latestVersion available!" else "You are on the latest version",
+                icon = Icons.Default.Update,
+                iconColor = if (updateAvailable) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary,
+                trailing = {
+                    if (isCheckingUpdates) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        IconButton(onClick = {
+                            isCheckingUpdates = true
+                            UpdateCheckWorker.checkNow(context)
+                            // We don't have a callback from WorkManager here easily, 
+                            // but the listener above will update the UI when prefs change.
+                            // Let's add a small delay to show it's working
+                            scope.launch {
+                                kotlinx.coroutines.delay(2000)
+                                isCheckingUpdates = false
+                            }
+                        }) {
+                            Icon(Icons.Default.Refresh, null)
+                        }
+                    }
+                }
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Button(
+                onClick = {
+                    val url = sharedPrefs.getString(
+                        "latest_release_url",
+                        "https://github.com/RahulGorai0206/expense-tracker/releases"
+                    )
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = updateAvailable,
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (updateAvailable) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = if (updateAvailable) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                        alpha = 0.38f
+                    )
+                )
+            ) {
+                Icon(Icons.Default.Download, null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Download Update")
+            }
+        }
+
         // --- DANGER ZONE ---
         SettingsCategory("DANGER ZONE") {
             SettingsItem(
@@ -1289,7 +1377,7 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
         Spacer(modifier = Modifier.height(32.dp))
         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             Text(
-                "Expense Tracker v2.2",
+                "Expense Tracker v2.2.0",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
             )
