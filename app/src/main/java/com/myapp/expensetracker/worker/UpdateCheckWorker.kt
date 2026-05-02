@@ -51,13 +51,26 @@ class UpdateCheckWorker(
             } else {
                 // Same tag, check commit hash
                 try {
-                    val tagRef = githubApi.getTagRef(latestTagName)
-                    latestSha = tagRef.`object`.sha
+                    // Fetch the commit SHA directly using the tag name
+                    // This is more reliable as it dereferences the tag (annotated or not) to the commit it points to.
+                    val commit = githubApi.getCommit(latestTagName)
+                    latestSha = commit.sha
+                    
                     if (latestSha != currentCommitHash && currentCommitHash != "unknown") {
                         updateAvailable = true
+                        Log.d(
+                            "UpdateCheckWorker",
+                            "Update available via SHA mismatch: remote=$latestSha, local=$currentCommitHash"
+                        )
+                    } else {
+                        Log.d(
+                            "UpdateCheckWorker",
+                            "SHAs match or unknown: remote=$latestSha, local=$currentCommitHash"
+                        )
                     }
                 } catch (e: Exception) {
-                    Log.e("UpdateCheckWorker", "Error fetching tag ref: ${e.message}")
+                    Log.e("UpdateCheckWorker", "Error fetching commit for tag: ${e.message}")
+                    // Fallback to the previous method if needed, but getCommit should be fine
                 }
             }
 

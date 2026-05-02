@@ -10,6 +10,9 @@ interface GitHubApi {
 
     @GET("repos/RahulGorai0206/expense-tracker/git/ref/tags/{tag}")
     suspend fun getTagRef(@Path("tag") tag: String): GitHubTagRef
+
+    @GET("repos/RahulGorai0206/expense-tracker/commits/{ref}")
+    suspend fun getCommit(@Path("ref") ref: String): GitHubCommit
 }
 
 data class GitHubRelease(
@@ -28,4 +31,8 @@ data class GitHubObject(
     val sha: String,
     val type: String,
     val url: String
+)
+
+data class GitHubCommit(
+    val sha: String
 )

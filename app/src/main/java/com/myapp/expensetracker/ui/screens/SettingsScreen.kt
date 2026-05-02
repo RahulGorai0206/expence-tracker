@@ -229,7 +229,10 @@ fun SettingsScreen(
     }
     var latestVersion by remember {
         mutableStateOf(
-            sharedPrefs.getString("latest_version", "v2.2.0") ?: "v2.2.0"
+            sharedPrefs.getString(
+                "latest_version",
+                "v${com.myapp.expensetracker.BuildConfig.VERSION_NAME}"
+            ) ?: "v${com.myapp.expensetracker.BuildConfig.VERSION_NAME}"
         )
     }
     var isCheckingUpdates by remember { mutableStateOf(false) }
@@ -242,7 +245,10 @@ fun SettingsScreen(
                     updateAvailable = prefs.getBoolean("update_available", false)
                 }
                 if (key == "latest_version") {
-                    latestVersion = prefs.getString("latest_version", "v2.2.0") ?: "v2.2.0"
+                    latestVersion = prefs.getString(
+                        "latest_version",
+                        "v${com.myapp.expensetracker.BuildConfig.VERSION_NAME}"
+                    ) ?: "v${com.myapp.expensetracker.BuildConfig.VERSION_NAME}"
                 }
             }
         sharedPrefs.registerOnSharedPreferenceChangeListener(listener)
@@ -1377,7 +1383,7 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
         Spacer(modifier = Modifier.height(32.dp))
         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             Text(
-                "Expense Tracker v2.2.0",
+                "Expense Tracker v${com.myapp.expensetracker.BuildConfig.VERSION_NAME}",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
             )

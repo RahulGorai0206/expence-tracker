@@ -11,7 +11,8 @@ android {
     compileSdk = 36
 
     val gitCommitHash = try {
-        val process = Runtime.getRuntime().exec("git rev-parse HEAD")
+        // Use rev-list -n 1 HEAD to ensure we get the commit hash even if HEAD is a tag
+        val process = Runtime.getRuntime().exec("git rev-list -n 1 HEAD")
         process.inputStream.bufferedReader().readText().trim()
     } catch (e: Exception) {
         "unknown"
@@ -21,8 +22,8 @@ android {
         applicationId = "com.myapp.expensetracker"
         minSdk = 31
         targetSdk = 36
-        versionCode = 2
-        versionName = "2.2.0"
+        versionCode = libs.versions.appVersionCode.get().toInt()
+        versionName = libs.versions.appVersion.get().toString()
 
         buildConfigField("String", "GIT_COMMIT_HASH", "\"$gitCommitHash\"")
 
