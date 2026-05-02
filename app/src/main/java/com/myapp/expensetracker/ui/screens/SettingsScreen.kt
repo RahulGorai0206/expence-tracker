@@ -1289,7 +1289,7 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
         Spacer(modifier = Modifier.height(32.dp))
         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             Text(
-                "Expense Tracker v2.1",
+                "Expense Tracker v2.2",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
             )
