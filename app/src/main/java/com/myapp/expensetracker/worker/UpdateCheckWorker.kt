@@ -39,22 +39,25 @@ class UpdateCheckWorker(
             val latestRelease = githubApi.getLatestRelease()
             val latestTagName = latestRelease.tag_name
 
-            // Check for new tag or different commit hash for same tag
-            val currentVersion = BuildConfig.VERSION_NAME
+            // Normalize both sides by stripping a leading "v" so that the GitHub tag
+            // "v2.2.0" compares equal to the BuildConfig value "2.2.0" (which the CI
+            // workflow strips before baking into the APK).
+            val remoteVersion = latestTagName.trimStart('v')
+            val currentVersion = BuildConfig.VERSION_NAME.trimStart('v')
             val currentCommitHash = BuildConfig.GIT_COMMIT_HASH
 
-            Log.d("UpdateCheckWorker", "Local: version=$currentVersion, commit=$currentCommitHash")
-            Log.d("UpdateCheckWorker", "Remote: tag=$latestTagName")
+            Log.d("UpdateCheckWorker", "Local:  version=$currentVersion  commit=$currentCommitHash")
+            Log.d("UpdateCheckWorker", "Remote: version=$remoteVersion   tag=$latestTagName")
 
             var updateAvailable = false
             var latestCommitSha = ""
 
-            if (latestTagName != currentVersion) {
+            if (remoteVersion != currentVersion) {
                 // A new tag exists — always an update
                 updateAvailable = true
                 Log.d(
                     "UpdateCheckWorker",
-                    "Update available: new tag $latestTagName vs local $currentVersion"
+                    "Update available: new tag $remoteVersion vs local $currentVersion"
                 )
             } else {
                 // Same tag – resolve the *commit* SHA via the Git refs API.
