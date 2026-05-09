@@ -40,6 +40,7 @@ fun ManualTransactionBottomSheet(
     var body by remember { mutableStateOf("") }
     var location by remember { mutableStateOf<Location?>(null) }
     var isCapturingLocation by remember { mutableStateOf(false) }
+    var isDebit by remember { mutableStateOf(true) }
 
     val categories = listOf("Dining", "Shopping", "Transport", "Groceries", "Bills", "Other")
 
@@ -88,6 +89,39 @@ fun ManualTransactionBottomSheet(
                 minLines = 2,
                 leadingIcon = { Icon(Icons.AutoMirrored.Filled.Notes, null) }
             )
+
+            Text("Type", style = MaterialTheme.typography.labelLarge)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                FilterChip(
+                    selected = isDebit,
+                    onClick = { isDebit = true },
+                    label = { Text("Debit") },
+                    leadingIcon = if (isDebit) {
+                        { Icon(Icons.Default.Remove, null, modifier = Modifier.size(16.dp)) }
+                    } else null,
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.errorContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.onErrorContainer,
+                        selectedLeadingIconColor = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                )
+                FilterChip(
+                    selected = !isDebit,
+                    onClick = { isDebit = false },
+                    label = { Text("Credit") },
+                    leadingIcon = if (!isDebit) {
+                        { Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp)) }
+                    } else null,
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = androidx.compose.ui.graphics.Color(0xFFE8F5E9),
+                        selectedLabelColor = androidx.compose.ui.graphics.Color(0xFF2E7D32),
+                        selectedLeadingIconColor = androidx.compose.ui.graphics.Color(0xFF2E7D32)
+                    )
+                )
+            }
 
             Text("Category", style = MaterialTheme.typography.labelLarge)
             androidx.compose.foundation.lazy.LazyRow(
@@ -140,8 +174,9 @@ fun ManualTransactionBottomSheet(
                 onClick = {
                     if (amount.isNotEmpty() && merchant.isNotEmpty()) {
                         scope.launch {
+                            val doubleAmount = amount.toDouble()
                             val transaction = Transaction(
-                                amount = -amount.toDouble(),
+                                amount = if (isDebit) -doubleAmount else doubleAmount,
                                 sender = merchant,
                                 body = body,
                                 date = System.currentTimeMillis(),
