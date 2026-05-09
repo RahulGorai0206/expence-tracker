@@ -8,7 +8,7 @@ plugins {
 
 android {
     namespace = "com.myapp.expensetracker"
-    compileSdk = 36
+    compileSdk = 37
 
     val gitCommitHash = try {
         // Use rev-list -n 1 HEAD to ensure we get the commit hash even if HEAD is a tag
