@@ -10,15 +10,22 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Notes
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -66,21 +73,25 @@ fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit)
     }
 
     val currentTransaction = transaction!!
-    var showCategoryDialog by remember { mutableStateOf(false) }
+    var showEditDialog by remember { mutableStateOf(false) }
     var showShareDialog by remember { mutableStateOf(false) }
 
-    if (showCategoryDialog) {
-        CategorySelectionDialog(
-            currentCategory = currentTransaction.category,
-            onDismiss = { showCategoryDialog = false },
-            onCategorySelected = { newCategory ->
+    if (showEditDialog) {
+        EditTransactionDialog(
+            transaction = currentTransaction,
+            onDismiss = { showEditDialog = false },
+            onSave = { updatedTransaction ->
                 scope.launch {
-                    val updated = currentTransaction.copy(category = newCategory)
-                    AppDatabase.getDatabase(context).transactionDao().insert(updated)
+                    val toUpdate = updatedTransaction.copy(syncStatus = "pending")
+                    AppDatabase.getDatabase(context).transactionDao().insert(toUpdate)
                     com.myapp.expensetracker.enqueueWidgetUpdate(context)
-                    com.myapp.expensetracker.GoogleSheetsLogger.update(updated)
+                    com.myapp.expensetracker.GoogleSheetsLogger.logAsync(
+                        context,
+                        toUpdate,
+                        toUpdate.id.toLong()
+                    )
                 }
-                showCategoryDialog = false
+                showEditDialog = false
             }
         )
     }
@@ -313,7 +324,7 @@ fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit)
             
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Button(
-                    onClick = { showCategoryDialog = true },
+                    onClick = { showEditDialog = true },
                     modifier = Modifier
                         .weight(1f)
                         .height(60.dp),
@@ -322,7 +333,7 @@ fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit)
                 ) {
                     Icon(Icons.Default.Edit, null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Re-categorize")
+                    Text("Edit Transaction")
                 }
                 
                 IconButton(
@@ -395,42 +406,152 @@ fun DetailCard(label: String, value: String, icon: ImageVector? = null, subValue
 }
 
 @Composable
-fun CategorySelectionDialog(
-    currentCategory: String,
+fun EditTransactionDialog(
+    transaction: Transaction,
     onDismiss: () -> Unit,
-    onCategorySelected: (String) -> Unit
+    onSave: (Transaction) -> Unit
 ) {
+    val isManual = transaction.type == "manual"
+    var amountText by remember { mutableStateOf(abs(transaction.amount).toString()) }
+    var senderText by remember { mutableStateOf(transaction.sender) }
+    var bodyText by remember { mutableStateOf(transaction.body) }
+    var category by remember { mutableStateOf(transaction.category) }
+    var isDebit by remember { mutableStateOf(transaction.amount < 0) }
+
     val categories = listOf("Dining", "Shopping", "Transport", "Groceries", "Bills", "Other")
-    
-    AlertDialog(
+
+    Dialog(
         onDismissRequest = onDismiss,
-        title = { Text("Select Category", style = MaterialTheme.typography.headlineSmall) },
-        text = {
-            Column {
-                categories.forEach { category ->
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth(0.9f)
+                .wrapContentHeight()
+                .padding(vertical = 24.dp),
+            shape = RoundedCornerShape(28.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(24.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    "Edit Transaction",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+
+                OutlinedTextField(
+                    value = amountText,
+                    onValueChange = {
+                        if (it.isEmpty() || it.toDoubleOrNull() != null) amountText = it
+                    },
+                    label = { Text("Amount (₹)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    leadingIcon = { Icon(Icons.Default.CurrencyRupee, null) }
+                )
+
+                if (isManual) {
+                    OutlinedTextField(
+                        value = senderText,
+                        onValueChange = { senderText = it },
+                        label = { Text("Merchant / Description") },
+                        modifier = Modifier.fillMaxWidth(),
+                        leadingIcon = { Icon(Icons.Default.Store, null) }
+                    )
+
+                    OutlinedTextField(
+                        value = bodyText,
+                        onValueChange = { bodyText = it },
+                        label = { Text("Source Message / Notes") },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 2,
+                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.Notes, null) }
+                    )
+
+                    Text("Type", style = MaterialTheme.typography.labelLarge)
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onCategorySelected(category) }
-                            .padding(vertical = 12.dp, horizontal = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        RadioButton(
-                            selected = (category == currentCategory),
-                            onClick = { onCategorySelected(category) }
+                        FilterChip(
+                            selected = isDebit,
+                            onClick = { isDebit = true },
+                            label = { Text("Debit") },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.errorContainer,
+                                selectedLabelColor = MaterialTheme.colorScheme.onErrorContainer
+                            )
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = category, style = MaterialTheme.typography.bodyLarge)
+                        FilterChip(
+                            selected = !isDebit,
+                            onClick = { isDebit = false },
+                            label = { Text("Credit") },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0xFFE8F5E9),
+                                selectedLabelColor = Color(0xFF2E7D32)
+                            )
+                        )
+                    }
+                } else {
+                    // Show read-only merchant for automated/AI
+                    Text(
+                        "Source: ${transaction.sender}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Text("Category", style = MaterialTheme.typography.labelLarge)
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(categories.size) { index ->
+                        val cat = categories[index]
+                        FilterChip(
+                            selected = category == cat,
+                            onClick = { category = cat },
+                            label = { Text(cat) }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Cancel")
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            val newAmount = amountText.toDoubleOrNull() ?: 0.0
+                            val updated = transaction.copy(
+                                amount = if (isDebit) -abs(newAmount) else abs(newAmount),
+                                sender = if (isManual) senderText else transaction.sender,
+                                body = if (isManual) bodyText else transaction.body,
+                                category = category
+                            )
+                            onSave(updated)
+                        },
+                        enabled = amountText.isNotEmpty() && (if (isManual) senderText.isNotEmpty() else true),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Save")
                     }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
-        },
-        shape = RoundedCornerShape(28.dp),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-    )
+        }
+    }
 }
 
 @Composable

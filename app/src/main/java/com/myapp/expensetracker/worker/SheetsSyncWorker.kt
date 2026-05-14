@@ -28,7 +28,7 @@ class SheetsSyncWorker(
             return Result.success()
         }
 
-        // Check if it's a deletion or creation
+        // Check if it's a deletion, update, or creation
         return if (transaction.status == "deleted") {
             // It's a deletion sync
             try {
@@ -43,8 +43,18 @@ class SheetsSyncWorker(
                 dao.updateSyncStatus(localId.toInt(), transaction.remoteId, "failed")
                 Result.retry()
             }
+        } else if (!transaction.remoteId.isNullOrBlank()) {
+            // It's an update sync
+            try {
+                GoogleSheetsLogger.update(transaction)
+                dao.updateSyncStatus(localId.toInt(), transaction.remoteId, "synced")
+                Result.success()
+            } catch (e: Exception) {
+                dao.updateSyncStatus(localId.toInt(), transaction.remoteId, "failed")
+                Result.retry()
+            }
         } else {
-            // It's a creation/update sync
+            // It's a creation sync
             try {
                 val remoteId = GoogleSheetsLogger.log(transaction)
                 if (remoteId != null) {
