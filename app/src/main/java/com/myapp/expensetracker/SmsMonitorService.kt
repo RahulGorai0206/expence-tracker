@@ -98,6 +98,11 @@ class SmsMonitorService : Service() {
     // ── ContentObserver for RCS + SMS ──────────────────────────────────
 
     private fun registerSmsObserver() {
+        // IMPORTANT: Seed the watermark BEFORE registering ContentObservers.
+        // If observers fire before the watermark is set, processNewMessages()
+        // would see lastId=0 and reprocess the entire SMS history.
+        initLastProcessedId()
+
         val handler = Handler(Looper.getMainLooper())
         smsObserver = SmsContentObserver(handler)
         mmsSmsObserver = SmsContentObserver(handler)
@@ -115,9 +120,6 @@ class SmsMonitorService : Service() {
             mmsSmsObserver!!
         )
         Log.d(TAG, "SMS + MMS-SMS ContentObservers registered")
-
-        // Initialize last-seen ID so we don't reprocess old messages on first run
-        initLastProcessedId()
     }
 
     private fun unregisterSmsObserver() {
@@ -134,11 +136,22 @@ class SmsMonitorService : Service() {
 
     private fun initLastProcessedId() {
         val prefs = getSharedPreferences("prefs", Context.MODE_PRIVATE)
-        if (!prefs.contains(PREF_LAST_SMS_ID)) {
-            // Seed with the current highest SMS ID so we only process new messages going forward
+        val existingId = prefs.getLong(PREF_LAST_SMS_ID, -1L)
+
+        if (existingId < 0L) {
+            // First-ever run: seed with the current highest SMS ID so we
+            // only process messages arriving AFTER this point.
             val highestId = getHighestSmsId()
             prefs.edit { putLong(PREF_LAST_SMS_ID, highestId) }
             Log.d(TAG, "Seeded last processed SMS ID: $highestId")
+        } else if (existingId == 0L) {
+            // Watermark is 0 — this means the previous seed ran before SMS
+            // permission was granted (query returned 0). Re-seed now.
+            val highestId = getHighestSmsId()
+            if (highestId > 0L) {
+                prefs.edit { putLong(PREF_LAST_SMS_ID, highestId) }
+                Log.d(TAG, "Re-seeded last processed SMS ID (was 0): $highestId")
+            }
         }
     }
 
@@ -196,7 +209,27 @@ class SmsMonitorService : Service() {
         try {
             val prefs = getSharedPreferences("prefs", Context.MODE_PRIVATE)
             lastId = prefs.getLong(PREF_LAST_SMS_ID, 0L)
+
+            // Safety net: if watermark is 0 (permission wasn't available during seed),
+            // re-seed now to avoid processing the entire SMS history.
+            if (lastId == 0L) {
+                val highestId = getHighestSmsId()
+                if (highestId > 0L) {
+                    prefs.edit { putLong(PREF_LAST_SMS_ID, highestId) }
+                    Log.w(
+                        TAG,
+                        "Watermark was 0 — re-seeded to $highestId to prevent old message flood"
+                    )
+                    return@withLock
+                }
+            }
+
             newHighestId = lastId
+
+            // Only process messages that arrived in the last 2 minutes.
+            // This is a safety net to prevent flooding if the watermark
+            // somehow falls behind (e.g. app data restore, permission timing).
+            val ageLimit = System.currentTimeMillis() - 2 * 60 * 1000
 
             // Query inbox for messages newer than our last processed ID
             val cursor = contentResolver.query(
@@ -207,8 +240,8 @@ class SmsMonitorService : Service() {
                     Telephony.Sms.ADDRESS,
                     Telephony.Sms.DATE
                 ),
-                "${Telephony.Sms._ID} > ?",
-                arrayOf(lastId.toString()),
+                "${Telephony.Sms._ID} > ? AND ${Telephony.Sms.DATE} > ?",
+                arrayOf(lastId.toString(), ageLimit.toString()),
                 "${Telephony.Sms._ID} ASC"
             )
 

@@ -52,6 +52,13 @@ class MainActivity : ComponentActivity() {
             // Foreground location granted, request background location separately for Android 11+
             backgroundPermissionLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
         }
+
+        // Start SMS monitoring AFTER permissions are granted so the watermark
+        // can correctly query the SMS database and skip old messages.
+        val smsGranted = results[Manifest.permission.READ_SMS] ?: false
+        if (smsGranted && SmsMonitorService.isEnabled(this)) {
+            SmsMonitorService.start(this)
+        }
     }
 
     private val backgroundPermissionLauncher = registerForActivityResult(
@@ -74,11 +81,6 @@ class MainActivity : ComponentActivity() {
         )
         
         GoogleSheetsLogger.init(this)
-
-        // Start persistent background service for SMS monitoring
-        if (SmsMonitorService.isEnabled(this)) {
-            SmsMonitorService.start(this)
-        }
 
         setContent {
             val context = LocalContext.current
@@ -173,7 +175,8 @@ fun MainScreen(
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0, 0, 0, 0) // Force drawing behind bars
-    ) { _ ->
+    ) {
+        @Suppress("UNUSED_PARAMETER") contentPadding ->
         Box(modifier = Modifier.fillMaxSize()) {
             // === Layer 1: Main content — ALWAYS in composition tree ===
             // This ensures scroll position, data state, etc. are never lost
