@@ -1,5 +1,7 @@
 package com.myapp.expensetracker.ui.screens
 
+import android.app.PendingIntent
+import android.appwidget.AppWidgetManager
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -46,6 +48,7 @@ import com.myapp.expensetracker.SmsMonitorService
 import androidx.core.app.NotificationManagerCompat
 import android.content.ComponentName
 import com.myapp.expensetracker.TransactionNotificationListener
+import com.myapp.expensetracker.ExpenseWidgetReceiver
 import com.myapp.expensetracker.worker.UpdateCheckWorker
 import kotlinx.coroutines.launch
 import java.util.Calendar
@@ -1276,6 +1279,45 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
                         ignoreCcBills = it
                         sharedPrefs.edit().putBoolean("ignore_cc_bills", it).apply()
                     })
+                }
+            )
+        }
+
+        // --- HOME SCREEN WIDGET ---
+        SettingsCategory("HOME SCREEN WIDGET") {
+            SettingsItem(
+                title = "Add Widget to Home Screen",
+                subtitle = "Pin the expense tracker to your home screen",
+                icon = Icons.Default.Widgets,
+                onClick = {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        val appWidgetManager =
+                            context.getSystemService(AppWidgetManager::class.java)
+                        val myProvider = ComponentName(context, ExpenseWidgetReceiver::class.java)
+
+                        if (appWidgetManager != null && appWidgetManager.isRequestPinAppWidgetSupported) {
+                            val successCallback = PendingIntent.getBroadcast(
+                                context,
+                                0,
+                                Intent(context, ExpenseWidgetReceiver::class.java),
+                                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                            )
+
+                            appWidgetManager.requestPinAppWidget(myProvider, null, successCallback)
+                        } else {
+                            Toast.makeText(
+                                context,
+                                "Pinning widgets is not supported by your launcher",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    } else {
+                        Toast.makeText(
+                            context,
+                            "Pinning widgets requires Android 8.0+",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
                 }
             )
         }
