@@ -175,8 +175,7 @@ fun MainScreen(
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0, 0, 0, 0) // Force drawing behind bars
-    ) {
-        @Suppress("UNUSED_PARAMETER") contentPadding ->
+    ) { _ ->
         Box(modifier = Modifier.fillMaxSize()) {
             // === Layer 1: Main content — ALWAYS in composition tree ===
             // This ensures scroll position, data state, etc. are never lost
