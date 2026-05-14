@@ -63,6 +63,11 @@
             android:exported="false" />
 
         <receiver
+            android:name=".PinnedWidgetReceiver"
+            android:enabled="true"
+            android:exported="false" />
+
+        <receiver
             android:name=".ExpenseWidgetReceiver"
             android:enabled="true"
             android:exported="false">

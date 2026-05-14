@@ -49,6 +49,7 @@ import androidx.core.app.NotificationManagerCompat
 import android.content.ComponentName
 import com.myapp.expensetracker.TransactionNotificationListener
 import com.myapp.expensetracker.ExpenseWidgetReceiver
+import com.myapp.expensetracker.PinnedWidgetReceiver
 import com.myapp.expensetracker.worker.UpdateCheckWorker
 import kotlinx.coroutines.launch
 import java.util.Calendar
@@ -1299,7 +1300,7 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
                             val successCallback = PendingIntent.getBroadcast(
                                 context,
                                 0,
-                                Intent(context, ExpenseWidgetReceiver::class.java),
+                                Intent(context, PinnedWidgetReceiver::class.java),
                                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                             )
 
