@@ -349,11 +349,23 @@ fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit)
                             onBack()
 
                             // 3. Trigger cloud sync in background (doesn't block UI)
-                            com.myapp.expensetracker.GoogleSheetsLogger.logAsync(
-                                context,
-                                toDelete,
-                                toDelete.id.toLong()
+                            val deletedTransaction = toDelete.copy(
+                                status = "deleted",
+                                syncStatus = "pending"
                             )
+                            if (com.myapp.expensetracker.GoogleSheetsLogger.isConfigured()) {
+                                com.myapp.expensetracker.GoogleSheetsLogger.logAsync(
+                                    context,
+                                    deletedTransaction,
+                                    deletedTransaction.id.toLong()
+                                )
+                            } else {
+                                AppDatabase.getDatabase(context).transactionDao().updateSyncStatus(
+                                    deletedTransaction.id,
+                                    deletedTransaction.remoteId,
+                                    "synced"
+                                )
+                            }
                         }
                     },
                     modifier = Modifier

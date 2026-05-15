@@ -1,6 +1,8 @@
 package com.myapp.expensetracker.ui.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -24,20 +26,35 @@ import com.myapp.expensetracker.Transaction
 import java.text.SimpleDateFormat
 import java.util.*
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun TransactionListItem(transaction: Transaction, onClick: () -> Unit) {
+fun TransactionListItem(
+    transaction: Transaction,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    selected: Boolean = false,
+    selectionMode: Boolean = false,
+    onLongClick: (() -> Unit)? = null
+) {
     Surface(
-        onClick = onClick,
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        color = if (selected) {
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.62f)
+        } else {
+            MaterialTheme.colorScheme.surfaceContainerLow
+        },
         shape = RoundedCornerShape(16.dp),
         tonalElevation = 1.dp,
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .graphicsLayer {
                 shadowElevation = 1f
                 shape = RoundedCornerShape(16.dp)
                 clip = true
             }
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
     ) {
         Row(
             modifier = Modifier
@@ -47,6 +64,14 @@ fun TransactionListItem(transaction: Transaction, onClick: () -> Unit) {
             val categoryInfo = getCategoryInfo(transaction.category)
             val icon = categoryInfo.icon
             val color = categoryInfo.color
+
+            if (selectionMode) {
+                Checkbox(
+                    checked = selected,
+                    onCheckedChange = { onClick() },
+                    modifier = Modifier.padding(end = 8.dp)
+                )
+            }
             
             Box(
                 modifier = Modifier

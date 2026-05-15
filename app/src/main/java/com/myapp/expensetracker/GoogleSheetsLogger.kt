@@ -54,6 +54,10 @@ object GoogleSheetsLogger {
         apiKey = key
     }
 
+    fun isConfigured(): Boolean {
+        return !currentUrl.isNullOrBlank() && !apiKey.isNullOrBlank()
+    }
+
     suspend fun testConnection(url: String, key: String): String? {
         if (api == null) {
             api = Retrofit.Builder()

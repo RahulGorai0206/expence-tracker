@@ -19,6 +19,7 @@ class SheetsSyncWorker(
 
         val db = AppDatabase.getDatabase(applicationContext)
         val dao = db.transactionDao()
+        GoogleSheetsLogger.init(applicationContext)
 
         val transaction = dao.getTransactionSync(localId.toInt())
             ?: return Result.failure()
@@ -30,6 +31,11 @@ class SheetsSyncWorker(
 
         // Check if it's a deletion, update, or creation
         return if (transaction.status == "deleted") {
+            if (!GoogleSheetsLogger.isConfigured()) {
+                dao.updateSyncStatus(localId.toInt(), transaction.remoteId, "synced")
+                return Result.success()
+            }
+
             // It's a deletion sync
             try {
                 if (GoogleSheetsLogger.delete(transaction)) {
