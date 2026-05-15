@@ -66,7 +66,7 @@ interface TransactionDao {
     fun getTransactionsInRange(startDate: Long, endDate: Long): Flow<List<Transaction>>
 
     @Query("SELECT SUM(ABS(amount)) FROM transactions WHERE amount < 0 AND status != 'deleted' AND date >= :startDate AND date <= :endDate")
-    suspend fun getTotalSpentInRange(startDate: Long, endDate: Long): Double?
+    fun getTotalSpentInRange(startDate: Long, endDate: Long): Flow<Double?>
 
     @Query(
         """
@@ -78,7 +78,7 @@ interface TransactionDao {
         ORDER BY monthLabel ASC
     """
     )
-    suspend fun getMonthlySpending(startDate: Long, endDate: Long): List<MonthlySpending>
+    fun getMonthlySpending(startDate: Long, endDate: Long): Flow<List<MonthlySpending>>
 
     @Query(
         """
@@ -90,7 +90,7 @@ interface TransactionDao {
         ORDER BY total DESC
     """
     )
-    suspend fun getCategorySpending(startDate: Long, endDate: Long): List<CategorySpending>
+    fun getCategorySpending(startDate: Long, endDate: Long): Flow<List<CategorySpending>>
 
     @Query(
         """
@@ -102,7 +102,7 @@ interface TransactionDao {
         ORDER BY dayLabel ASC
     """
     )
-    suspend fun getDailySpending(startDate: Long, endDate: Long): List<DailySpending>
+    fun getDailySpending(startDate: Long, endDate: Long): Flow<List<DailySpending>>
 }
 
 data class MonthlySpending(val monthLabel: String, val total: Double)

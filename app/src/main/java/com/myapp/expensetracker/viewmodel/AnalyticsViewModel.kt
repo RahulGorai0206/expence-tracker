@@ -6,9 +6,11 @@ import com.myapp.expensetracker.CategorySpending
 import com.myapp.expensetracker.DailySpending
 import com.myapp.expensetracker.MonthlySpending
 import com.myapp.expensetracker.TransactionDao
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import java.util.Calendar
 
@@ -41,6 +43,8 @@ class AnalyticsViewModel(private val dao: TransactionDao) : ViewModel() {
 
     private val _state = MutableStateFlow(AnalyticsState())
     val state: StateFlow<AnalyticsState> = _state.asStateFlow()
+
+    private var dataCollectionJob: Job? = null
 
     init {
         setPreset(DateRangePreset.SIX_MONTHS)
@@ -98,46 +102,46 @@ class AnalyticsViewModel(private val dao: TransactionDao) : ViewModel() {
     }
 
     private fun loadData(startDate: Long, endDate: Long) {
-        viewModelScope.launch {
+        dataCollectionJob?.cancel()
+        dataCollectionJob = viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
 
-            val totalSpent = dao.getTotalSpentInRange(startDate, endDate) ?: 0.0
-            val monthly = dao.getMonthlySpending(startDate, endDate)
-            val categories = dao.getCategorySpending(startDate, endDate)
-            val daily = dao.getDailySpending(startDate, endDate)
+            combine(
+                dao.getTotalSpentInRange(startDate, endDate),
+                dao.getMonthlySpending(startDate, endDate),
+                dao.getCategorySpending(startDate, endDate),
+                dao.getDailySpending(startDate, endDate)
+            ) { totalSpent, monthly, categories, daily ->
+                val spent = totalSpent ?: 0.0
+                val daysInRange =
+                    ((endDate - startDate) / (1000L * 60 * 60 * 24)).coerceAtLeast(1)
+                val dailyAverage = if (daysInRange > 0) spent / daysInRange else 0.0
 
-            val transactionCount = daily.sumOf { 1 } // approximate; use actual count
-            val txCount = categories.sumOf { it.total }.let { if (it > 0) daily.size else 0 }
+                val topDay = daily.maxByOrNull { it.total }
+                val topCat = categories.maxByOrNull { it.total }
 
-            val daysInRange = ((endDate - startDate) / (1000L * 60 * 60 * 24)).coerceAtLeast(1)
-            val dailyAverage = if (daysInRange > 0) totalSpent / daysInRange else 0.0
+                // Month-over-month change
+                val momChange = if (monthly.size >= 2) {
+                    val current = monthly.last().total
+                    val previous = monthly[monthly.size - 2].total
+                    if (previous > 0) ((current - previous) / previous) * 100 else null
+                } else null
 
-            val topDay = daily.maxByOrNull { it.total }
-            val topCat = categories.maxByOrNull { it.total }
-
-            // Month-over-month change
-            val momChange = if (monthly.size >= 2) {
-                val current = monthly.last().total
-                val previous = monthly[monthly.size - 2].total
-                if (previous > 0) ((current - previous) / previous) * 100 else null
-            } else null
-
-            // Actual transaction count
-            val allTxInRange = dao.getTotalSpentInRange(startDate, endDate)
-            val actualTxCount = daily.size  // number of unique spending days
-
-            _state.value = _state.value.copy(
-                totalSpent = totalSpent,
-                transactionCount = daily.size,
-                dailyAverage = dailyAverage,
-                monthlySpending = monthly,
-                categorySpending = categories,
-                dailySpending = daily,
-                topSpendingDay = topDay,
-                topCategory = topCat,
-                monthOverMonthChange = momChange,
-                isLoading = false
-            )
+                _state.value.copy(
+                    totalSpent = spent,
+                    transactionCount = daily.size,
+                    dailyAverage = dailyAverage,
+                    monthlySpending = monthly,
+                    categorySpending = categories,
+                    dailySpending = daily,
+                    topSpendingDay = topDay,
+                    topCategory = topCat,
+                    monthOverMonthChange = momChange,
+                    isLoading = false
+                )
+            }.collect { newState ->
+                _state.value = newState
+            }
         }
     }
 }
