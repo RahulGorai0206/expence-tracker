@@ -32,6 +32,7 @@ import com.myapp.expensetracker.GoogleSheetsLogger
 import com.myapp.expensetracker.viewmodel.HomeViewModel
 import org.koin.androidx.compose.koinViewModel
 import com.myapp.expensetracker.Transaction
+import com.myapp.expensetracker.ui.components.BudgetEditSheet
 import com.myapp.expensetracker.ui.components.EmptyState
 import com.myapp.expensetracker.ui.components.ManualTransactionBottomSheet
 import com.myapp.expensetracker.ui.components.TransactionListItem
@@ -44,7 +45,10 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
     val context = LocalContext.current
     val viewModel: HomeViewModel = koinViewModel()
     val transactions by viewModel.transactions.collectAsState()
+    val budget by viewModel.currentBudget.collectAsState()
+    val smartSuggestions by viewModel.smartSuggestions.collectAsState()
     var showManualLog by remember { mutableStateOf(false) }
+    var showBudgetEdit by remember { mutableStateOf(false) }
 
     if (showManualLog) {
         ManualTransactionBottomSheet(
@@ -53,8 +57,16 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
         )
     }
 
+    if (showBudgetEdit) {
+        BudgetEditSheet(
+            currentBudget = budget,
+            smartSuggestions = smartSuggestions,
+            onSave = { amount -> viewModel.saveBudget(amount) },
+            onDismiss = { showBudgetEdit = false }
+        )
+    }
+
     val sharedPrefs = remember { context.getSharedPreferences("prefs", Context.MODE_PRIVATE) }
-    val budget = remember { mutableStateOf(sharedPrefs.getFloat("budget", 0f)) }
     val isMonthlyBudget =
         remember { mutableStateOf(sharedPrefs.getBoolean("budget_monthly", true)) }
 
@@ -71,8 +83,16 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
             tx.amount < 0 && inMonth
         }.sumOf { abs(it.amount) }
     }
-    
-    val remainingBudget = budget.value - totalSpent
+
+    val remainingBudget = budget - totalSpent
+    val budgetProgress = if (budget > 0) (totalSpent / budget).toFloat().coerceIn(0f, 1.5f) else 0f
+    val budgetStatusColor = when {
+        budget <= 0 -> Color.White
+        budgetProgress < 0.5f -> Color(0xFF4CAF50)   // Green — safe
+        budgetProgress < 0.75f -> Color(0xFFFFA726)  // Amber — caution
+        budgetProgress <= 1.0f -> Color(0xFFFF5722)   // Red-orange — danger
+        else -> Color(0xFFFF1744)                     // Bright red — exceeded
+    }
     
     val totalBalance = remember(transactions) { transactions.sumOf { it.amount } }
     val wholePart = remember(totalSpent) { totalSpent.toInt().toString() }
@@ -247,9 +267,41 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
                             )
                         }
                     }
+
+                    // Budget progress bar
+                    if (budget > 0) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(6.dp)
+                                .clip(RoundedCornerShape(3.dp))
+                                .background(Color.White.copy(alpha = 0.15f))
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .fillMaxWidth(budgetProgress.coerceAtMost(1f))
+                                    .clip(RoundedCornerShape(3.dp))
+                                    .background(
+                                        Brush.horizontalGradient(
+                                            listOf(
+                                                budgetStatusColor.copy(alpha = 0.7f),
+                                                budgetStatusColor
+                                            )
+                                        )
+                                    )
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
                     
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { showBudgetEdit = true }
+                            .padding(vertical = 4.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -260,12 +312,28 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
                                 color = Color.White.copy(alpha = 0.5f),
                                 fontWeight = FontWeight.Bold
                             )
-                            Text(
-                                "₹ ${"%,.0f".format(remainingBudget)} left",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = Color.White,
-                                fontWeight = FontWeight.ExtraBold
-                            )
+                            if (budget <= 0) {
+                                Text(
+                                    "Tap to set budget",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = Color.White.copy(alpha = 0.7f),
+                                    fontWeight = FontWeight.ExtraBold
+                                )
+                            } else if (remainingBudget >= 0) {
+                                Text(
+                                    "₹ ${"%,.0f".format(remainingBudget)} left",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = budgetStatusColor,
+                                    fontWeight = FontWeight.ExtraBold
+                                )
+                            } else {
+                                Text(
+                                    "₹ ${"%,.0f".format(abs(remainingBudget))} over!",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = budgetStatusColor,
+                                    fontWeight = FontWeight.ExtraBold
+                                )
+                            }
                         }
                         
                         Box(
@@ -276,9 +344,10 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                Icons.AutoMirrored.Filled.TrendingUp,
+                                Icons.Default.Edit,
                                 null,
-                                tint = Color.White
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }

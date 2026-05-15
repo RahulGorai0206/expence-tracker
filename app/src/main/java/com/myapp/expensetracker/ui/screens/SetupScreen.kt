@@ -43,6 +43,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import com.myapp.expensetracker.AppDatabase
 import com.myapp.expensetracker.GoogleSheetsLogger
+import com.myapp.expensetracker.MonthlyBudget
 import com.myapp.expensetracker.R
 import com.myapp.expensetracker.SmsMonitorService
 import kotlinx.coroutines.launch
@@ -55,6 +56,9 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.UUID
 
 @Composable
@@ -381,8 +385,23 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
                                         val error =
                                             GoogleSheetsLogger.testConnection(scriptUrl, apiKey)
                                         if (error == null) {
+                                            val budgetAmount = budgetText.toFloatOrNull() ?: 0f
+
+                                            // Save to Room
+                                            val db = AppDatabase.getDatabase(context)
+                                            val monthKey = SimpleDateFormat(
+                                                "yyyy-MM",
+                                                Locale.getDefault()
+                                            ).format(Date())
+                                            db.monthlyBudgetDao().upsert(
+                                                MonthlyBudget(
+                                                    monthKey,
+                                                    budgetAmount.toDouble()
+                                                )
+                                            )
+                                            
                                             sharedPrefs.edit().apply {
-                                                putFloat("budget", budgetText.toFloatOrNull() ?: 0f)
+                                                putFloat("budget", budgetAmount)
                                                 putBoolean("cloud_sync", true)
                                                 putString("sheet_url", sheetUrl)
                                                 putString("script_url", scriptUrl)
@@ -407,8 +426,25 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
                                         }
                                     }
                                 } else {
+                                    val budgetAmount = budgetText.toFloatOrNull() ?: 0f
+
+                                    scope.launch {
+                                        // Save to Room
+                                        val db = AppDatabase.getDatabase(context)
+                                        val monthKey =
+                                            SimpleDateFormat("yyyy-MM", Locale.getDefault()).format(
+                                                Date()
+                                            )
+                                        db.monthlyBudgetDao().upsert(
+                                            MonthlyBudget(
+                                                monthKey,
+                                                budgetAmount.toDouble()
+                                            )
+                                        )
+                                    }
+                                    
                                     sharedPrefs.edit().apply {
-                                        putFloat("budget", budgetText.toFloatOrNull() ?: 0f)
+                                        putFloat("budget", budgetAmount)
                                         putBoolean("cloud_sync", false)
                                         remove("sheet_url")
                                         remove("script_url")

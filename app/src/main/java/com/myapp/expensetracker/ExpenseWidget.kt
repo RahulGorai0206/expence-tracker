@@ -23,6 +23,9 @@ import androidx.glance.text.TextStyle
 import androidx.glance.GlanceTheme
 import android.content.Intent
 import android.content.ComponentName
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import androidx.glance.LocalContext
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
@@ -67,8 +70,10 @@ class ExpenseWidget : GlanceAppWidget() {
         } else {
             db.transactionDao().getTotalSpent() ?: 0.0
         }
+
+        val currentMonthKey = SimpleDateFormat("yyyy-MM", Locale.getDefault()).format(Date())
+        val budget = db.monthlyBudgetDao().getEffectiveBudget(currentMonthKey)?.amount ?: 0.0
         
-        val budget = sharedPrefs.getFloat("budget", 0f).toDouble()
         val lastTransaction = if (isMonthlyBudget) {
             db.transactionDao().getLastTransactionBetween(startOfMonth, endOfMonth)
         } else {

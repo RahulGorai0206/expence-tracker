@@ -11,8 +11,9 @@ import org.koin.dsl.module
 val appModule = module {
     single { AppDatabase.getDatabase(androidContext()) }
     single { get<AppDatabase>().transactionDao() }
+    single { get<AppDatabase>().monthlyBudgetDao() }
 
-    viewModel { HomeViewModel(get()) }
+    viewModel { HomeViewModel(get(), get()) }
     viewModel { TransactionViewModel(get()) }
     viewModel { AnalyticsViewModel(get()) }
 }

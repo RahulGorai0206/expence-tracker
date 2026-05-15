@@ -63,6 +63,9 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.myapp.expensetracker.ui.components.BudgetEditSheet
+import com.myapp.expensetracker.viewmodel.HomeViewModel
+import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun SettingsItem(
@@ -147,8 +150,25 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val viewModel: HomeViewModel = koinViewModel()
+    val budget by viewModel.currentBudget.collectAsState()
+    val smartSuggestions by viewModel.smartSuggestions.collectAsState()
+
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showPrivacyDialog by remember { mutableStateOf(false) }
+    var showBudgetEdit by remember { mutableStateOf(false) }
+
+    if (showBudgetEdit) {
+        BudgetEditSheet(
+            currentBudget = budget,
+            smartSuggestions = smartSuggestions,
+            onSave = { amount ->
+                viewModel.saveBudget(amount)
+                com.myapp.expensetracker.enqueueWidgetUpdate(context)
+            },
+            onDismiss = { showBudgetEdit = false }
+        )
+    }
 
     val powerManager = remember { context.getSystemService(Context.POWER_SERVICE) as? PowerManager }
     var isIgnoringBatteryOptimizations by remember {
@@ -199,9 +219,6 @@ fun SettingsScreen(
     
     val sharedPrefs = remember { context.getSharedPreferences("prefs", Context.MODE_PRIVATE) }
     
-    var budgetText by remember { mutableStateOf(sharedPrefs.getFloat("budget", 0f).let { if (it == 0f) "" else it.toString() }) }
-    var isBudgetSaved by remember { mutableStateOf(sharedPrefs.contains("budget")) }
-    var isBudgetEditing by remember { mutableStateOf(false) }
     var isMonthlyBudget by remember {
         mutableStateOf(
             sharedPrefs.getBoolean(
@@ -867,64 +884,20 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
 
         // --- BUDGETING ---
         SettingsCategory("BUDGETING") {
-            Text(
-                "Monthly Target Budget",
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            OutlinedTextField(
-                value = budgetText,
-                onValueChange = { budgetText = it },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Budget Amount (₹)") },
-                enabled = !isBudgetSaved || isBudgetEditing,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                shape = RoundedCornerShape(16.dp)
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                if (isBudgetSaved && !isBudgetEditing) {
-                    TextButton(onClick = { isBudgetEditing = true }) {
-                        Icon(Icons.Default.Edit, null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Edit")
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    TextButton(onClick = {
-                        isBudgetSaved = false
-                        budgetText = ""
-                        sharedPrefs.edit().remove("budget").apply()
-                        com.myapp.expensetracker.enqueueWidgetUpdate(context)
-                    }) {
-                        Text("Reset", color = MaterialTheme.colorScheme.error)
-                    }
-                } else {
-                    if (isBudgetEditing) {
-                        TextButton(onClick = {
-                            isBudgetEditing = false
-                            budgetText = sharedPrefs.getFloat("budget", 0f)
-                                .let { if (it == 0f) "" else it.toString() }
-                        }) {
-                            Text("Cancel")
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                    }
-                    Button(
-                        onClick = {
-                            val budget = budgetText.toFloatOrNull() ?: 0f
-                            sharedPrefs.edit().putFloat("budget", budget).apply()
-                            isBudgetSaved = true
-                            isBudgetEditing = false
-                            com.myapp.expensetracker.enqueueWidgetUpdate(context)
-                            Toast.makeText(context, "Budget saved", Toast.LENGTH_SHORT).show()
-                        },
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text(if (isBudgetEditing) "Update" else "Save")
-                    }
+            SettingsItem(
+                title = "Monthly Target Budget",
+                subtitle = if (budget > 0) "₹ ${"%,.0f".format(budget)}" else "Not set",
+                icon = Icons.Default.AccountBalanceWallet,
+                onClick = { showBudgetEdit = true },
+                trailing = {
+                    Icon(
+                        Icons.Default.Edit,
+                        contentDescription = "Edit Budget",
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                 }
-            }
+            )
             HorizontalDivider(
                 modifier = Modifier.padding(vertical = 16.dp),
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
