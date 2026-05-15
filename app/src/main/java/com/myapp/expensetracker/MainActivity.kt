@@ -151,13 +151,34 @@ fun MainScreen(
     val navBarHeightPx = with(LocalDensity.current) { 100.dp.toPx() }
     var navBarOffsetPx by remember { mutableFloatStateOf(0f) }
 
+    // Reset nav bar when switching tabs
+    LaunchedEffect(pagerState.currentPage) {
+        navBarOffsetPx = 0f
+    }
+
     val nestedScrollConnection = remember {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                val delta = available.y
-                val newOffset = navBarOffsetPx - delta
-                navBarOffsetPx = newOffset.coerceIn(0f, navBarHeightPx * 2)
-                return Offset.Zero // don't consume — let children scroll
+                // When scrolling UP, show the bar immediately
+                if (available.y > 0) {
+                    val newOffset = navBarOffsetPx - available.y
+                    navBarOffsetPx = newOffset.coerceIn(0f, navBarHeightPx * 2)
+                }
+                return Offset.Zero
+            }
+
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource
+            ): Offset {
+                // When scrolling DOWN, hide the bar ONLY if the child consumed some scroll
+                // (meaning there was actual scrollable content)
+                if (consumed.y < 0) {
+                    val newOffset = navBarOffsetPx - consumed.y
+                    navBarOffsetPx = newOffset.coerceIn(0f, navBarHeightPx * 2)
+                }
+                return Offset.Zero
             }
         }
     }
