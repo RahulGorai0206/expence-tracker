@@ -56,6 +56,8 @@ import java.util.Calendar
 import java.util.Date
 import java.util.UUID
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.fromHtml
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.Lifecycle
@@ -146,6 +148,7 @@ fun SettingsScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showPrivacyDialog by remember { mutableStateOf(false) }
 
     val powerManager = remember { context.getSystemService(Context.POWER_SERVICE) as? PowerManager }
     var isIgnoringBatteryOptimizations by remember {
@@ -781,6 +784,39 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) {
                     Text("Cancel")
+                }
+            },
+            shape = RoundedCornerShape(28.dp),
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        )
+    }
+
+    if (showPrivacyDialog) {
+        AlertDialog(
+            onDismissRequest = { showPrivacyDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.Security,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text("Privacy Policy", fontWeight = FontWeight.Black)
+                }
+            },
+            text = {
+                val detailedPrivacy = stringResource(R.string.privacy_policy_detailed_description)
+                Text(
+                    text = AnnotatedString.fromHtml(detailedPrivacy),
+                    style = MaterialTheme.typography.bodyMedium,
+                    lineHeight = 22.sp
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { showPrivacyDialog = false }) {
+                    Text("Close")
                 }
             },
             shape = RoundedCornerShape(28.dp),
@@ -1438,6 +1474,28 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
             }
         }
 
+        // --- ABOUT ---
+        SettingsCategory(stringResource(R.string.settings_category_about)) {
+            SettingsItem(
+                title = stringResource(R.string.settings_privacy_policy),
+                subtitle = stringResource(R.string.settings_privacy_policy_desc),
+                icon = Icons.Default.PrivacyTip,
+                onClick = { showPrivacyDialog = true }
+            )
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 8.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            )
+            SettingsItem(
+                title = stringResource(R.string.settings_app_version),
+                subtitle = stringResource(
+                    R.string.settings_app_version_desc,
+                    com.myapp.expensetracker.BuildConfig.VERSION_NAME
+                ),
+                icon = Icons.Default.Info
+            )
+        }
+
         // --- DANGER ZONE ---
         SettingsCategory("DANGER ZONE") {
             SettingsItem(
@@ -1451,13 +1509,6 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
         }
 
         Spacer(modifier = Modifier.height(32.dp))
-        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            Text(
-                "Expense Tracker v${com.myapp.expensetracker.BuildConfig.VERSION_NAME}",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-            )
-        }
         Spacer(modifier = Modifier.height(100.dp))
     }
 }

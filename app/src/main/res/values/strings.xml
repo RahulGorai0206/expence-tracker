@@ -9,6 +9,8 @@
     <string name="setup_privacy_title">Your Privacy Matters</string>
     <string name="setup_privacy_description">Expense Tracker is designed to be a safe and private app. All your financial data is stored locally on your phone.\n\nNo data is sent outside of your phone unless you explicitly enable Cloud Sync. Even then, your data is stored only on your own private Google Sheet — there are no intermediate servers.</string>
 
+    <string name="privacy_policy_detailed_description"><b>1. Local Storage First</b>\nEverything you record in Expense Tracker—your income, expenses, and categories—is stored securely on your device\'s internal database. We do not have access to this data.\n\n<b>2. Zero Server Policy</b>\nWe do not operate any backend servers. Your financial profile is not uploaded to any cloud service by us. Your data belongs to you and remains under your exclusive control.\n\n<b>3. Secure Cloud Sync</b>\nIf you choose to enable Google Sheets Sync, your data is sent directly from your phone to your personal Google Sheet using the URL and API key you provide. This process is fully transparent, and no third-party (including the app developers) can intercept or view your records.\n\n<b>4. Automated Tracking</b>\nThe app requests permission to read SMS and Notifications only to detect transaction alerts. This processing happens locally on your device. We do not read personal chats, contact names, or any non-financial information.\n\n<b>5. No Data Monetization</b>\nWe do not sell, trade, or share your data with advertisers or any third-party companies. Since we don\'t collect your data, there is nothing for us to monetize.</string>
+
     <string name="setup_welcome_title">Welcome to Expense Tracker</string>
     <string name="setup_welcome_description">Your personal financial companion. Track expenses, manage budgets, and stay on top of your money.</string>
 
@@ -75,5 +77,11 @@
     <string name="setup_step_10">10. Description: \"Expense Tracker\", Execute as: Me, Who has access: Anyone -> Deploy.</string>
     <string name="setup_step_11">11. Copy the \"Web App URL\" and paste it into the Script URL box below.</string>
     <string name="setup_copy_code">Copy Code</string>
+    <string name="settings_category_about">ABOUT</string>
+    <string name="settings_privacy_policy">Privacy Policy</string>
+    <string name="settings_privacy_policy_desc">Your data stays on your device</string>
+    <string name="settings_app_version">App Version</string>
+    <string name="settings_app_version_desc">Version %1$s</string>
+
     <string name="widget_description">Shows your total expenses and last transaction at a glance</string>
 </resources>
