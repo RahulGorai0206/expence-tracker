@@ -1,93 +1,72 @@
 package com.myapp.expensetracker.ui.theme
 
-import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.view.WindowCompat
 
 /**
  * Dark color scheme for the application.
  */
 private val DarkColorScheme = darkColorScheme(
-    primary = Color(0xFF8FB6FF),
-    onPrimary = Color(0xFF061A36),
-    primaryContainer = Color(0xFF173861),
-    onPrimaryContainer = Color(0xFFD9E6FF),
-    secondary = Color(0xFF72D5BF),
-    onSecondary = Color(0xFF04231E),
-    secondaryContainer = Color(0xFF164D43),
-    onSecondaryContainer = Color(0xFFD1F4EA),
-    tertiary = Color(0xFFFFC06D),
-    onTertiary = Color(0xFF2C1700),
-    tertiaryContainer = Color(0xFF5B3A10),
-    onTertiaryContainer = Color(0xFFFFE0B2),
-    surface = Color(0xFF111417),
-    onSurface = Color(0xFFE6E8EC),
-    surfaceVariant = Color(0xFF3F4650),
-    onSurfaceVariant = Color(0xFFC1C7D0),
-    surfaceContainerLowest = Color(0xFF0C0E11),
-    surfaceContainerLow = Color(0xFF171A1E),
-    surfaceContainer = Color(0xFF1D2227),
-    surfaceContainerHigh = Color(0xFF272C33),
-    surfaceContainerHighest = Color(0xFF323942),
-    background = Color(0xFF0C0E11),
-    onBackground = Color(0xFFE6E8EC),
-    outline = Color(0xFF8C939E),
-    outlineVariant = Color(0xFF424952),
+    primary = Color(0xFFC4D7FF),
+    onPrimary = Color(0xFF002F68),
+    primaryContainer = Color(0xFF004494),
+    onPrimaryContainer = Color(0xFFD9E2FF),
+    secondary = Color(0xFF90F7E0),
+    onSecondary = Color(0xFF00382E),
+    secondaryContainer = Color(0xFF005144),
+    onSecondaryContainer = Color(0xFFADFCE9),
+    tertiary = Color(0xFFFFB4AB),
+    onTertiary = Color(0xFF690005),
+    surface = Color(0xFF101317),
+    onSurface = Color(0xFFE2E2E6),
+    surfaceContainer = Color(0xFF1C1F24),
+    surfaceContainerLow = Color(0xFF14171B),
+    surfaceContainerHigh = Color(0xFF272A2F),
+    background = Color(0xFF0B0D10),
+    onBackground = Color(0xFFE2E2E6),
+    outline = Color(0xFF8E9099),
+    outlineVariant = Color(0xFF44474E),
     error = Color(0xFFFFB4AB),
-    errorContainer = Color(0xFF6E2320),
-    onErrorContainer = Color(0xFFFFDAD6)
+    errorContainer = Color(0xFF93000A)
 )
 
 /**
  * Light color scheme for the application.
  */
 private val LightColorScheme = lightColorScheme(
-    primary = Color(0xFF2E5F9F),
+    primary = Color(0xFF005AC1),
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFD7E6FF),
-    onPrimaryContainer = Color(0xFF102A4D),
-    secondary = Color(0xFF197160),
+    primaryContainer = Color(0xFFD9E2FF),
+    onPrimaryContainer = Color(0xFF001945),
+    secondary = Color(0xFF006B5B),
     onSecondary = Color.White,
-    secondaryContainer = Color(0xFFCFEFE6),
-    onSecondaryContainer = Color(0xFF06342D),
-    tertiary = Color(0xFF9A5B00),
+    secondaryContainer = Color(0xFF90F7E0),
+    onSecondaryContainer = Color(0xFF00201A),
+    tertiary = Color(0xFF9C4141),
     onTertiary = Color.White,
-    tertiaryContainer = Color(0xFFFFDFB0),
-    onTertiaryContainer = Color(0xFF3A2100),
-    surface = Color(0xFFFBFCFE),
-    onSurface = Color(0xFF171B20),
-    surfaceVariant = Color(0xFFE0E5EC),
-    onSurfaceVariant = Color(0xFF4C5662),
-    surfaceContainerLowest = Color.White,
-    surfaceContainerLow = Color(0xFFF5F7FA),
-    surfaceContainer = Color(0xFFEEF2F6),
-    surfaceContainerHigh = Color(0xFFE7ECF2),
-    surfaceContainerHighest = Color(0xFFDDE4EC),
-    background = Color(0xFFF7F9FC),
-    onBackground = Color(0xFF171B20),
-    outline = Color(0xFF737D89),
-    outlineVariant = Color(0xFFC7D0DA),
+    surface = Color(0xFFF8F9FF),
+    onSurface = Color(0xFF191C20),
+    surfaceContainer = Color(0xFFEBEDF4),
+    surfaceContainerLow = Color(0xFFF1F3F9),
+    surfaceContainerHigh = Color(0xFFE1E2E9),
+    background = Color(0xFFF5F7FA),
+    onBackground = Color(0xFF191C20),
+    outline = Color(0xFF74777F),
+    outlineVariant = Color(0xFFC4C6D0),
     error = Color(0xFFBA1A1A),
-    errorContainer = Color(0xFFFFDAD6),
-    onErrorContainer = Color(0xFF410002)
+    errorContainer = Color(0xFFFFDAD6)
 )
 
 /**
@@ -95,10 +74,10 @@ private val LightColorScheme = lightColorScheme(
  */
 private val AppTypography = Typography(
     displayLarge = TextStyle(
-        fontWeight = FontWeight.ExtraBold,
+        fontWeight = FontWeight.Black,
         fontSize = 57.sp,
         lineHeight = 64.sp,
-        letterSpacing = 0.sp
+        letterSpacing = (-0.25).sp
     ),
     displayMedium = TextStyle(fontWeight = FontWeight.Bold, fontSize = 45.sp, lineHeight = 52.sp, letterSpacing = 0.sp),
     displaySmall = TextStyle(fontWeight = FontWeight.Bold, fontSize = 36.sp, lineHeight = 44.sp, letterSpacing = 0.sp),
@@ -109,14 +88,6 @@ private val AppTypography = Typography(
     bodyLarge = TextStyle(fontWeight = FontWeight.Normal, fontSize = 16.sp, lineHeight = 24.sp, letterSpacing = 0.5.sp),
     labelLarge = TextStyle(fontWeight = FontWeight.Bold, fontSize = 14.sp, lineHeight = 20.sp, letterSpacing = 0.1.sp),
     labelMedium = TextStyle(fontWeight = FontWeight.Medium, fontSize = 12.sp, lineHeight = 16.sp, letterSpacing = 0.5.sp)
-)
-
-private val AppShapes = Shapes(
-    extraSmall = androidx.compose.foundation.shape.RoundedCornerShape(6.dp),
-    small = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-    medium = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
-    large = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
-    extraLarge = androidx.compose.foundation.shape.RoundedCornerShape(20.dp)
 )
 
 /**
@@ -130,7 +101,7 @@ private val AppShapes = Shapes(
 fun LedgerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = false,
+    dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
@@ -142,22 +113,9 @@ fun LedgerTheme(
         else -> LightColorScheme
     }
 
-    val view = LocalView.current
-    if (!view.isInEditMode) {
-        SideEffect {
-            val window = (view.context as Activity).window
-            window.statusBarColor = Color.Transparent.toArgb()
-            window.navigationBarColor = colorScheme.background.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
-            WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars =
-                !darkTheme
-        }
-    }
-
     MaterialTheme(
         colorScheme = colorScheme,
         typography = AppTypography,
-        shapes = AppShapes,
         content = content
     )
 }

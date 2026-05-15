@@ -87,7 +87,7 @@ fun TransactionScreen(onTransactionClick: (Transaction) -> Unit) {
                     Text("Cancel")
                 }
             },
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(28.dp),
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
         )
     }
@@ -96,7 +96,6 @@ fun TransactionScreen(onTransactionClick: (Transaction) -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 20.dp)
-            .padding(top = 12.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -241,7 +240,7 @@ private fun DeletedSyncStatusCard(
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(24.dp),
         color = if (isFailed) {
             MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.55f)
         } else {

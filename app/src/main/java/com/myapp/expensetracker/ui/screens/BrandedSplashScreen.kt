@@ -1,6 +1,7 @@
 package com.myapp.expensetracker.ui.screens
 
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -32,9 +33,9 @@ fun BrandedSplashScreen() {
     )
 
     val backgroundColors = listOf(
-        Color(0xFF173861),
-        Color(0xFF197160),
-        Color(0xFF9A5B00)
+        Color(0xFF5E35B1), // Deep Purple 600
+        Color(0xFF4527A0), // Deep Purple 800
+        Color(0xFF311B92)  // Deep Purple 900
     )
 
     Box(
@@ -43,6 +44,15 @@ fun BrandedSplashScreen() {
             .background(Brush.verticalGradient(backgroundColors)),
         contentAlignment = Alignment.Center
     ) {
+        // Decorative background glow
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            drawCircle(
+                color = Color.White.copy(alpha = 0.05f),
+                radius = size.minDimension * 0.8f,
+                center = center.copy(y = center.y - 100f)
+            )
+        }
+
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
@@ -54,16 +64,16 @@ fun BrandedSplashScreen() {
                         scaleX = scale
                         scaleY = scale
                     },
-                shape = RoundedCornerShape(22.dp),
+                shape = RoundedCornerShape(28.dp),
                 color = Color.White,
-                shadowElevation = 16.dp
+                shadowElevation = 20.dp
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         Icons.Default.AccountBalanceWallet,
                         contentDescription = null,
                         modifier = Modifier.size(64.dp),
-                        tint = Color(0xFF173861)
+                        tint = Color(0xFF5E35B1)
                     )
                 }
             }
@@ -74,7 +84,7 @@ fun BrandedSplashScreen() {
                 text = "Expense Tracker",
                 style = MaterialTheme.typography.headlineLarge.copy(
                     fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = 0.sp,
+                    letterSpacing = (-0.5).sp,
                     fontSize = 34.sp
                 ),
                 color = Color.White,

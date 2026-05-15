@@ -100,7 +100,7 @@ fun AnalyticsScreen() {
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 20.dp),
-        contentPadding = PaddingValues(top = 12.dp, bottom = 120.dp),
+        contentPadding = PaddingValues(bottom = 120.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
         // ── Header ─────────────────────────────────────────────────────
@@ -230,18 +230,31 @@ private fun SpendingSummaryCard(
         modifier = Modifier
             .fillMaxWidth()
             .graphicsLayer {
-                shadowElevation = 12f
-                shape = RoundedCornerShape(20.dp)
+                shadowElevation = 24f
+                shape = RoundedCornerShape(28.dp)
                 clip = true
             }
             .background(
                 Brush.linearGradient(
-                    0.0f to Color(0xFF173861),
-                    0.58f to Color(0xFF197160),
-                    1.0f to Color(0xFF9A5B00)
+                    0.0f to Color(0xFF1A237E),
+                    0.5f to Color(0xFF0D47A1),
+                    1.0f to Color(0xFF01579B)
                 )
             )
     ) {
+        // Subtle decorative radial
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.radialGradient(
+                        listOf(Color.White.copy(alpha = 0.1f), Color.Transparent),
+                        center = Offset(0f, 0f),
+                        radius = 600f
+                    )
+                )
+        )
+
         Column(modifier = Modifier.padding(24.dp)) {
             Text(
                 "TOTAL SPENT",
@@ -264,7 +277,7 @@ private fun SpendingSummaryCard(
                     style = MaterialTheme.typography.displaySmall.copy(
                         fontSize = 38.sp,
                         fontWeight = FontWeight.Black,
-                        letterSpacing = 0.sp
+                        letterSpacing = (-1).sp
                     ),
                     color = Color.White
                 )
@@ -338,8 +351,8 @@ private fun MonthlyBarChart(data: List<MonthlySpending>) {
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
         tonalElevation = 2.dp
     ) {
         Canvas(
@@ -454,8 +467,8 @@ private fun CategoryDonutChart(categories: List<CategorySpending>) {
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
         tonalElevation = 2.dp
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
@@ -627,8 +640,8 @@ private fun InsightCard(
 ) {
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
         tonalElevation = 2.dp
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -696,8 +709,8 @@ private fun EmptyChartPlaceholder(message: String) {
         modifier = Modifier
             .fillMaxWidth()
             .height(160.dp),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
         tonalElevation = 2.dp
     ) {
         Box(contentAlignment = Alignment.Center) {

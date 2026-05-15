@@ -48,12 +48,7 @@ fun ManualTransactionBottomSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(
-            topStart = 20.dp,
-            topEnd = 20.dp
-        )
+        sheetState = sheetState
     ) {
         Column(
             modifier = Modifier

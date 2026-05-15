@@ -40,15 +40,15 @@ fun TransactionListItem(
         color = if (selected) {
             MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.62f)
         } else {
-            MaterialTheme.colorScheme.surfaceContainerLow
+            MaterialTheme.colorScheme.surfaceContainer
         },
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(24.dp),
         tonalElevation = 1.dp,
         modifier = modifier
             .fillMaxWidth()
             .graphicsLayer {
-                shadowElevation = 1f
-                shape = RoundedCornerShape(16.dp)
+                shadowElevation = 2f
+                shape = RoundedCornerShape(24.dp)
                 clip = true
             }
             .combinedClickable(
@@ -75,8 +75,8 @@ fun TransactionListItem(
             
             Box(
                 modifier = Modifier
-                    .size(50.dp)
-                    .clip(RoundedCornerShape(14.dp))
+                    .size(52.dp)
+                    .clip(RoundedCornerShape(16.dp))
                     .background(color.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
@@ -99,10 +99,10 @@ fun TransactionListItem(
                     maxLines = 1
                 )
                 Text(
-                    transaction.category,
-                    style = MaterialTheme.typography.bodySmall,
+                    transaction.category.uppercase(),
+                    style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                    maxLines = 1
+                    letterSpacing = 1.sp
                 )
                 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -137,7 +137,7 @@ fun TransactionListItem(
                         )
                     }",
                     fontWeight = FontWeight.Black,
-                    color = if (transaction.amount > 0) Color(0xFF2E7D32) else MaterialTheme.colorScheme.error,
+                    color = if (transaction.amount > 0) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.titleLarge.copy(fontSize = 18.sp)
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
