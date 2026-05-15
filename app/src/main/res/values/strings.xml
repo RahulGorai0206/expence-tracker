@@ -43,4 +43,5 @@
     <string name="setup_step_10">10. Description: \"Expense Tracker\", Execute as: Me, Who has access: Anyone -> Deploy.</string>
     <string name="setup_step_11">11. Copy the \"Web App URL\" and paste it into the Script URL box below.</string>
     <string name="setup_copy_code">Copy Code</string>
+    <string name="widget_description">Shows your total expenses and last transaction at a glance</string>
 </resources>

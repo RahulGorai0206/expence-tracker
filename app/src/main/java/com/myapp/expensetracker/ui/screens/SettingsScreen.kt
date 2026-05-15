@@ -1304,19 +1304,32 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
                                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                             )
 
-                            appWidgetManager.requestPinAppWidget(myProvider, null, successCallback)
+                            val pinned = appWidgetManager.requestPinAppWidget(
+                                myProvider,
+                                null,
+                                successCallback
+                            )
+                            if (!pinned) {
+                                // Some launchers (OnePlus, Realme) silently reject.
+                                // Fallback: guide user to the manual widget picker.
+                                Toast.makeText(
+                                    context,
+                                    "Long-press your home screen → Widgets → Expense Tracker",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
                         } else {
                             Toast.makeText(
                                 context,
-                                "Pinning widgets is not supported by your launcher",
-                                Toast.LENGTH_SHORT
+                                "Long-press your home screen → Widgets → Expense Tracker",
+                                Toast.LENGTH_LONG
                             ).show()
                         }
                     } else {
                         Toast.makeText(
                             context,
-                            "Pinning widgets requires Android 8.0+",
-                            Toast.LENGTH_SHORT
+                            "Long-press your home screen → Widgets → Expense Tracker",
+                            Toast.LENGTH_LONG
                         ).show()
                     }
                 }
