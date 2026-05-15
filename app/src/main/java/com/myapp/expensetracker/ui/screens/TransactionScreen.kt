@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,6 +19,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.myapp.expensetracker.Transaction
 import com.myapp.expensetracker.viewmodel.TransactionViewModel
 import org.koin.androidx.compose.koinViewModel
+import com.myapp.expensetracker.ui.components.EmptyState
 import com.myapp.expensetracker.ui.components.TransactionListItem
 import java.text.SimpleDateFormat
 import java.util.*
@@ -45,54 +48,68 @@ fun TransactionScreen(onTransactionClick: (Transaction) -> Unit) {
         
         Spacer(modifier = Modifier.height(24.dp))
 
-        val grouped = remember(transactions) {
-            transactions.groupBy { 
-                val date = Date(it.date)
-                val now = Calendar.getInstance()
-                val target = Calendar.getInstance().apply { time = date }
-                
-                if (now.get(Calendar.YEAR) == target.get(Calendar.YEAR) &&
-                    now.get(Calendar.DAY_OF_YEAR) == target.get(Calendar.DAY_OF_YEAR)) {
-                    "TODAY"
-                } else if (now.get(Calendar.YEAR) == target.get(Calendar.YEAR) &&
-                    now.get(Calendar.DAY_OF_YEAR) - target.get(Calendar.DAY_OF_YEAR) == 1) {
-                    "YESTERDAY"
-                } else {
-                    SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault()).format(date).uppercase()
-                }
-            }
-        }
+        if (transactions.isEmpty()) {
+            EmptyState(
+                icon = Icons.AutoMirrored.Filled.ReceiptLong,
+                title = "No Transactions Yet",
+                description = "Your entire spending history will be listed here. Start by adding a transaction manually or letting the app track your SMS.",
+                modifier = Modifier.weight(1f)
+            )
+        } else {
+            val grouped = remember(transactions) {
+                transactions.groupBy {
+                    val date = Date(it.date)
+                    val now = Calendar.getInstance()
+                    val target = Calendar.getInstance().apply { time = date }
 
-        LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.fillMaxSize()
-        ) {
-            grouped.forEach { (date, items) ->
-                item {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            date,
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        HorizontalDivider(
-                            modifier = Modifier.weight(1f),
-                            thickness = 1.dp,
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                        )
-                    }
-                }
-                items(items, key = { it.id }) { transaction ->
-                    Box(modifier = Modifier.animateItem()) {
-                        TransactionListItem(transaction, onClick = { onTransactionClick(transaction) })
+                    if (now.get(Calendar.YEAR) == target.get(Calendar.YEAR) &&
+                        now.get(Calendar.DAY_OF_YEAR) == target.get(Calendar.DAY_OF_YEAR)
+                    ) {
+                        "TODAY"
+                    } else if (now.get(Calendar.YEAR) == target.get(Calendar.YEAR) &&
+                        now.get(Calendar.DAY_OF_YEAR) - target.get(Calendar.DAY_OF_YEAR) == 1
+                    ) {
+                        "YESTERDAY"
+                    } else {
+                        SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault()).format(date)
+                            .uppercase()
                     }
                 }
             }
-            item { Spacer(modifier = Modifier.height(100.dp)) }
+
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                grouped.forEach { (date, items) ->
+                    item {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                date,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.sp
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            HorizontalDivider(
+                                modifier = Modifier.weight(1f),
+                                thickness = 1.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                            )
+                        }
+                    }
+                    items(items, key = { it.id }) { transaction ->
+                        Box(modifier = Modifier.animateItem()) {
+                            TransactionListItem(
+                                transaction,
+                                onClick = { onTransactionClick(transaction) })
+                        }
+                    }
+                }
+                item { Spacer(modifier = Modifier.height(100.dp)) }
+            }
         }
     }
 }

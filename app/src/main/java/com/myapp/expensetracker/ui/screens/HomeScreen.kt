@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Wallet
 import androidx.compose.material3.*
@@ -31,6 +32,7 @@ import com.myapp.expensetracker.GoogleSheetsLogger
 import com.myapp.expensetracker.viewmodel.HomeViewModel
 import org.koin.androidx.compose.koinViewModel
 import com.myapp.expensetracker.Transaction
+import com.myapp.expensetracker.ui.components.EmptyState
 import com.myapp.expensetracker.ui.components.ManualTransactionBottomSheet
 import com.myapp.expensetracker.ui.components.TransactionListItem
 import kotlinx.coroutines.launch
@@ -301,15 +303,26 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
             }
             
             Spacer(modifier = Modifier.height(12.dp))
-            
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 100.dp)
-            ) {
-                items(transactions.take(10), key = { it.id }) { transaction ->
-                    Box(modifier = Modifier.animateItem()) {
-                        TransactionListItem(transaction, onClick = { onTransactionClick(transaction) })
+
+            if (transactions.isEmpty()) {
+                EmptyState(
+                    icon = Icons.AutoMirrored.Filled.ReceiptLong,
+                    title = "No Recent Activity",
+                    description = "Your recent transactions will appear here as you spend or log them manually.",
+                    modifier = Modifier.padding(top = 40.dp)
+                )
+            } else {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 100.dp)
+                ) {
+                    items(transactions.take(10), key = { it.id }) { transaction ->
+                        Box(modifier = Modifier.animateItem()) {
+                            TransactionListItem(
+                                transaction,
+                                onClick = { onTransactionClick(transaction) })
+                        }
                     }
                 }
             }
