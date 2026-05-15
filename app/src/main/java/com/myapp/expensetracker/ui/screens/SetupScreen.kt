@@ -11,10 +11,12 @@ import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -23,6 +25,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.*
@@ -30,7 +33,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -45,6 +51,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import java.util.UUID
 
 @Composable
@@ -65,41 +74,67 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
     // Total steps: Welcome(0), Privacy(1), SMS(2), Location(3), Notifications(4), Background(5), Budget(6), Cloud(7)
     val totalSteps = 8
 
-    val smsPermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { results ->
-        if (results[Manifest.permission.READ_SMS] == true) {
-            currentStep++
-        } else {
-            Toast.makeText(
+    // Permission States
+    var hasSmsPermission by remember { mutableStateOf(false) }
+    var hasLocationPermission by remember { mutableStateOf(false) }
+    var hasNotificationPermission by remember { mutableStateOf(false) }
+    var isIgnoringBatteryOptimizations by remember { mutableStateOf(false) }
+
+    fun checkPermissions() {
+        hasSmsPermission = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.READ_SMS
+        ) == PackageManager.PERMISSION_GRANTED
+        hasLocationPermission = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+        hasNotificationPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.checkSelfPermission(
                 context,
-                "SMS permission is required for auto-tracking",
-                Toast.LENGTH_SHORT
-            ).show()
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+        } else true
+
+        val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+        isIgnoringBatteryOptimizations = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            powerManager.isIgnoringBatteryOptimizations(context.packageName)
+        } else true
+    }
+
+    // Initial check
+    LaunchedEffect(Unit) {
+        checkPermissions()
+    }
+
+    // Re-check when returning to app
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                checkPermissions()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
+
+    val smsPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { _ -> checkPermissions() }
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) { results ->
-        if (results[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
-            results[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-        ) {
-            currentStep++
-        } else {
-            Toast.makeText(
-                context,
-                "Location permission helps tag your expenses",
-                Toast.LENGTH_SHORT
-            ).show()
-            currentStep++ // Optional
-        }
-    }
+    ) { _ -> checkPermissions() }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        currentStep++
+    ) { _ -> checkPermissions() }
+
+    BackHandler(enabled = currentStep > 0) {
+        currentStep--
     }
 
     Box(
@@ -134,7 +169,10 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
                         title = stringResource(R.string.setup_sms_title),
                         description = stringResource(R.string.setup_sms_description),
                         reasoning = stringResource(R.string.setup_sms_reasoning),
-                        buttonText = stringResource(R.string.setup_grant),
+                        buttonText = if (hasSmsPermission) stringResource(R.string.setup_permission_granted) else stringResource(
+                            R.string.setup_grant
+                        ),
+                        isGranted = hasSmsPermission,
                         onButtonClick = {
                             smsPermissionLauncher.launch(
                                 arrayOf(
@@ -144,13 +182,15 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
                             )
                         }
                     )
-
                     3 -> PermissionStep(
                         icon = Icons.Default.LocationOn,
                         title = stringResource(R.string.setup_location_title),
                         description = stringResource(R.string.setup_location_description),
                         reasoning = stringResource(R.string.setup_location_reasoning),
-                        buttonText = stringResource(R.string.setup_grant),
+                        buttonText = if (hasLocationPermission) stringResource(R.string.setup_permission_granted) else stringResource(
+                            R.string.setup_grant
+                        ),
+                        isGranted = hasLocationPermission,
                         onButtonClick = {
                             locationPermissionLauncher.launch(
                                 arrayOf(
@@ -160,33 +200,33 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
                             )
                         }
                     )
-
                     4 -> PermissionStep(
                         icon = Icons.Default.Notifications,
                         title = stringResource(R.string.setup_notification_title),
                         description = stringResource(R.string.setup_notification_description),
                         reasoning = stringResource(R.string.setup_notification_reasoning),
-                        buttonText = stringResource(R.string.setup_grant),
+                        buttonText = if (hasNotificationPermission) stringResource(R.string.setup_permission_granted) else stringResource(
+                            R.string.setup_grant
+                        ),
+                        isGranted = hasNotificationPermission,
                         onButtonClick = {
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                 notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                            } else {
-                                currentStep++
                             }
                         }
                     )
-
                     5 -> PermissionStep(
                         icon = Icons.Default.RunningWithErrors,
                         title = stringResource(R.string.setup_background_title),
                         description = stringResource(R.string.setup_background_description),
                         reasoning = stringResource(R.string.setup_background_reasoning),
-                        buttonText = stringResource(R.string.setup_open_settings),
+                        buttonText = if (isIgnoringBatteryOptimizations) stringResource(R.string.setup_permission_granted) else stringResource(
+                            R.string.setup_open_settings
+                        ),
+                        isGranted = isIgnoringBatteryOptimizations,
                         onButtonClick = {
-                            val powerManager =
-                                context.getSystemService(Context.POWER_SERVICE) as PowerManager
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                if (!powerManager.isIgnoringBatteryOptimizations(context.packageName)) {
+                                if (!isIgnoringBatteryOptimizations) {
                                     val intent =
                                         Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
                                             data = Uri.parse("package:${context.packageName}")
@@ -195,21 +235,13 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
                                 } else {
                                     val intent =
                                         Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                            data =
-                                                Uri.fromParts("package", context.packageName, null)
-                                        }
-                                    context.startActivity(intent)
-                                }
-                            } else {
-                                val intent =
-                                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
                                         data = Uri.fromParts("package", context.packageName, null)
                                     }
-                                context.startActivity(intent)
+                                    context.startActivity(intent)
+                                }
                             }
                         }
                     )
-
                     6 -> BudgetStep(
                         value = budgetText,
                         isError = showError && budgetText.isEmpty(),
@@ -218,7 +250,6 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
                             if (it.isNotEmpty()) showError = false
                         }
                     )
-
                     7 -> CloudSyncStep(
                         isEnabled = isCloudSyncEnabled,
                         onToggle = { isCloudSyncEnabled = it },
@@ -258,130 +289,261 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
                 }
             }
 
-            Button(
-                onClick = {
-                    if (isTestingConnection) return@Button
-                    when (currentStep) {
-                        0 -> currentStep = 1
-                        1 -> currentStep = 2
-                        2, 3, 4, 5 -> currentStep++
-                        6 -> {
-                            if (budgetText.isEmpty()) {
-                                showError = true
-                            } else {
-                                showError = false
-                                currentStep = 7
-                            }
-                        }
-
-                        7 -> {
-                            if (isCloudSyncEnabled) {
-                                if (scriptUrl.isBlank() || apiKey.isBlank()) {
-                                    Toast.makeText(context, "Please fill all cloud fields", Toast.LENGTH_SHORT).show()
-                                    return@Button
-                                }
-                                
-                                scope.launch {
-                                    isTestingConnection = true
-                                    val error = GoogleSheetsLogger.testConnection(scriptUrl, apiKey)
-                                    if (error == null) {
-                                        sharedPrefs.edit().apply {
-                                            putFloat("budget", budgetText.toFloatOrNull() ?: 0f)
-                                            putBoolean("cloud_sync", true)
-                                            putString("sheet_url", sheetUrl)
-                                            putString("script_url", scriptUrl)
-                                            putString("api_key", apiKey)
-                                            putBoolean("is_setup_complete", true)
-                                            apply()
-                                        }
-                                        GoogleSheetsLogger.updateUrl(scriptUrl)
-                                        GoogleSheetsLogger.updateApiKey(apiKey)
-
-                                        if (ContextCompat.checkSelfPermission(
-                                                context,
-                                                Manifest.permission.READ_SMS
-                                            ) == PackageManager.PERMISSION_GRANTED
-                                        ) {
-                                            SmsMonitorService.start(context)
-                                        }
-                                        onSetupComplete()
-                                    } else {
-                                        isTestingConnection = false
-                                        Toast.makeText(context, error, Toast.LENGTH_LONG).show()
-                                    }
-                                }
-                            } else {
-                                sharedPrefs.edit().apply {
-                                    putFloat("budget", budgetText.toFloatOrNull() ?: 0f)
-                                    putBoolean("cloud_sync", false)
-                                    remove("sheet_url")
-                                    remove("script_url")
-                                    remove("api_key")
-                                    putBoolean("is_setup_complete", true)
-                                    apply()
-                                }
-                                if (ContextCompat.checkSelfPermission(
-                                        context,
-                                        Manifest.permission.READ_SMS
-                                    ) == PackageManager.PERMISSION_GRANTED
-                                ) {
-                                    SmsMonitorService.start(context)
-                                }
-                                onSetupComplete()
-                            }
-                        }
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
-                )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                AnimatedContent(
-                    targetState = isTestingConnection,
-                    transitionSpec = {
-                        fadeIn() togetherWith fadeOut()
-                    },
-                    label = "ButtonContent"
-                ) { testing ->
-                    if (testing) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                strokeWidth = 2.dp
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = "Checking connection...",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 18.sp
-                            )
+                if (currentStep > 0) {
+                    OutlinedButton(
+                        onClick = { currentStep-- },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(stringResource(R.string.setup_back), fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                Button(
+                    onClick = {
+                        if (isTestingConnection) return@Button
+                        when (currentStep) {
+                            0 -> currentStep = 1
+                            1 -> currentStep = 2
+                            2, 3, 4, 5 -> currentStep++
+                            6 -> {
+                                if (budgetText.isEmpty()) {
+                                    showError = true
+                                } else {
+                                    showError = false
+                                    currentStep = 7
+                                }
+                            }
+
+                            7 -> {
+                                if (isCloudSyncEnabled) {
+                                    if (scriptUrl.isBlank() || apiKey.isBlank()) {
+                                        Toast.makeText(
+                                            context,
+                                            "Please fill all cloud fields",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                        return@Button
+                                    }
+
+                                    scope.launch {
+                                        isTestingConnection = true
+                                        val error =
+                                            GoogleSheetsLogger.testConnection(scriptUrl, apiKey)
+                                        if (error == null) {
+                                            sharedPrefs.edit().apply {
+                                                putFloat("budget", budgetText.toFloatOrNull() ?: 0f)
+                                                putBoolean("cloud_sync", true)
+                                                putString("sheet_url", sheetUrl)
+                                                putString("script_url", scriptUrl)
+                                                putString("api_key", apiKey)
+                                                putBoolean("is_setup_complete", true)
+                                                apply()
+                                            }
+                                            GoogleSheetsLogger.updateUrl(scriptUrl)
+                                            GoogleSheetsLogger.updateApiKey(apiKey)
+
+                                            if (ContextCompat.checkSelfPermission(
+                                                    context,
+                                                    Manifest.permission.READ_SMS
+                                                ) == PackageManager.PERMISSION_GRANTED
+                                            ) {
+                                                SmsMonitorService.start(context)
+                                            }
+                                            onSetupComplete()
+                                        } else {
+                                            isTestingConnection = false
+                                            Toast.makeText(context, error, Toast.LENGTH_LONG).show()
+                                        }
+                                    }
+                                } else {
+                                    sharedPrefs.edit().apply {
+                                        putFloat("budget", budgetText.toFloatOrNull() ?: 0f)
+                                        putBoolean("cloud_sync", false)
+                                        remove("sheet_url")
+                                        remove("script_url")
+                                        remove("api_key")
+                                        putBoolean("is_setup_complete", true)
+                                        apply()
+                                    }
+                                    if (ContextCompat.checkSelfPermission(
+                                            context,
+                                            Manifest.permission.READ_SMS
+                                        ) == PackageManager.PERMISSION_GRANTED
+                                    ) {
+                                        SmsMonitorService.start(context)
+                                    }
+                                    onSetupComplete()
+                                }
+                            }
                         }
-                    } else {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Text(
-                                text = when (currentStep) {
-                                    0 -> stringResource(R.string.setup_get_started)
-                                    totalSteps - 1 -> stringResource(R.string.setup_finish)
-                                    else -> stringResource(R.string.setup_continue)
-                                },
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 18.sp
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
+                    },
+                    modifier = Modifier
+                        .weight(if (currentStep > 0) 1.5f else 1f)
+                        .height(56.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    AnimatedContent(
+                        targetState = isTestingConnection,
+                        transitionSpec = {
+                            fadeIn() togetherWith fadeOut()
+                        },
+                        label = "ButtonContent"
+                    ) { testing ->
+                        if (testing) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = "Checking connection...",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 18.sp
+                                )
+                            }
+                        } else {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    text = when (currentStep) {
+                                        0 -> stringResource(R.string.setup_get_started)
+                                        totalSteps - 1 -> stringResource(R.string.setup_finish)
+                                        else -> stringResource(R.string.setup_continue)
+                                    },
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 18.sp
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Icon(
+                                    Icons.AutoMirrored.Filled.ArrowForward,
+                                    contentDescription = null
+                                )
+                            }
                         }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+fun WelcomeStep() {
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val secondaryColor = MaterialTheme.colorScheme.secondary
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Box(
+            modifier = Modifier.size(240.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            // Animated Background Glow
+            val infiniteTransition = rememberInfiniteTransition(label = "Glow")
+            val scale by infiniteTransition.animateFloat(
+                initialValue = 0.8f,
+                targetValue = 1.2f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(2000, easing = FastOutSlowInEasing),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "Scale"
+            )
+
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            primaryColor.copy(alpha = 0.15f * scale),
+                            Color.Transparent
+                        ),
+                        center = center,
+                        radius = size.minDimension / 1.2f
+                    )
+                )
+            }
+
+            Surface(
+                modifier = Modifier.size(140.dp),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primaryContainer,
+                tonalElevation = 4.dp,
+                shadowElevation = 8.dp
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        Icons.Default.AccountBalanceWallet,
+                        contentDescription = null,
+                        modifier = Modifier.size(80.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            // Decorative elements
+            Icon(
+                Icons.Default.Add,
+                contentDescription = null,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = (-20).dp, y = 40.dp)
+                    .size(24.dp)
+                    .alpha(0.6f),
+                tint = secondaryColor
+            )
+            Icon(
+                Icons.AutoMirrored.Filled.TrendingUp,
+                contentDescription = null,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .offset(x = 20.dp, y = (-40).dp)
+                    .size(28.dp)
+                    .alpha(0.6f),
+                tint = primaryColor
+            )
+        }
+
+        Spacer(modifier = Modifier.height(40.dp))
+
+        Text(
+            text = stringResource(R.string.setup_welcome_title),
+            style = MaterialTheme.typography.displaySmall.copy(
+                fontWeight = FontWeight.Black,
+                letterSpacing = (-1).sp
+            ),
+            color = MaterialTheme.colorScheme.onBackground,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = stringResource(R.string.setup_welcome_description),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+            textAlign = TextAlign.Center,
+            lineHeight = 26.sp,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
     }
 }
 
@@ -432,6 +594,7 @@ fun PermissionStep(
     description: String,
     reasoning: String,
     buttonText: String,
+    isGranted: Boolean,
     onButtonClick: () -> Unit
 ) {
     Column(
@@ -442,14 +605,14 @@ fun PermissionStep(
         Surface(
             modifier = Modifier.size(100.dp),
             shape = CircleShape,
-            color = MaterialTheme.colorScheme.primaryContainer
+            color = if (isGranted) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.primaryContainer
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
-                    icon,
+                    if (isGranted) Icons.Default.CheckCircle else icon,
                     contentDescription = null,
                     modifier = Modifier.size(56.dp),
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = if (isGranted) Color(0xFF2E7D32) else MaterialTheme.colorScheme.primary
                 )
             }
         }
@@ -491,50 +654,19 @@ fun PermissionStep(
         Button(
             onClick = onButtonClick,
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(12.dp),
+            colors = if (isGranted) ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)) else ButtonDefaults.buttonColors()
         ) {
+            if (isGranted) {
+                Icon(
+                    Icons.Default.Check,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+            }
             Text(buttonText)
         }
-    }
-}
-
-@Composable
-fun WelcomeStep() {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-        modifier = Modifier.verticalScroll(rememberScrollState())
-    ) {
-        Surface(
-            modifier = Modifier.size(120.dp),
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.primaryContainer
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    Icons.Default.AccountBalanceWallet,
-                    contentDescription = null,
-                    modifier = Modifier.size(64.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
-        }
-        Spacer(modifier = Modifier.height(32.dp))
-        Text(
-            text = stringResource(R.string.setup_welcome_title),
-            style = MaterialTheme.typography.displaySmall,
-            fontWeight = FontWeight.Black,
-            color = MaterialTheme.colorScheme.primary,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = stringResource(R.string.setup_welcome_description),
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Center,
-            lineHeight = 24.sp
-        )
     }
 }
 
