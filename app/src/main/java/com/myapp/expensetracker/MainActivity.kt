@@ -49,6 +49,10 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
+    companion object {
+        private var splashShownThisSession = false
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
@@ -70,11 +74,14 @@ class MainActivity : ComponentActivity() {
             
             val currentTheme = if (followSystemTheme) systemInDarkTheme else darkTheme
 
-            var showBrandedSplash by remember { mutableStateOf(true) }
+            var showBrandedSplash by remember { mutableStateOf(!splashShownThisSession) }
 
             LaunchedEffect(Unit) {
-                delay(2000) // Show splash for 2 seconds
-                showBrandedSplash = false
+                if (showBrandedSplash) {
+                    delay(2000) // Show splash for 2 seconds
+                    showBrandedSplash = false
+                    splashShownThisSession = true
+                }
             }
             
             LedgerTheme(darkTheme = currentTheme) {
