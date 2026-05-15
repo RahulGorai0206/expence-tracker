@@ -230,17 +230,33 @@ object GoogleSheetsLogger {
     }
 
     fun logAsync(context: Context, transaction: Transaction, localId: Long) {
+        val constraints = androidx.work.Constraints.Builder()
+            .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
+            .build()
+
         scope.launch {
             val db = AppDatabase.getDatabase(context)
             val dao = db.transactionDao()
             
             // Mark as pending immediately to show loading UI
             dao.updateSyncStatus(localId.toInt(), transaction.remoteId, "pending")
-        }
 
-        val constraints = androidx.work.Constraints.Builder()
-            .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
-            .build()
+            val pendingAndFailed = dao.getPendingOrFailedTransactions(localId.toInt())
+            val workManager = androidx.work.WorkManager.getInstance(context)
+
+            pendingAndFailed.forEach { pendingTx ->
+                val pendingWorkRequest =
+                    androidx.work.OneTimeWorkRequestBuilder<com.myapp.expensetracker.worker.SheetsSyncWorker>()
+                        .setConstraints(constraints)
+                        .setInputData(androidx.work.workDataOf("TRANSACTION_ID" to pendingTx.id.toLong()))
+                        .build()
+                workManager.enqueueUniqueWork(
+                    "sync_${pendingTx.id}",
+                    androidx.work.ExistingWorkPolicy.KEEP,
+                    pendingWorkRequest
+                )
+            }
+        }
 
         val workRequest =
             androidx.work.OneTimeWorkRequestBuilder<com.myapp.expensetracker.worker.SheetsSyncWorker>()
@@ -248,6 +264,10 @@ object GoogleSheetsLogger {
                 .setInputData(androidx.work.workDataOf("TRANSACTION_ID" to localId))
                 .build()
 
-        androidx.work.WorkManager.getInstance(context).enqueue(workRequest)
+        androidx.work.WorkManager.getInstance(context).enqueueUniqueWork(
+            "sync_$localId",
+            androidx.work.ExistingWorkPolicy.KEEP,
+            workRequest
+        )
     }
 }
