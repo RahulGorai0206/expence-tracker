@@ -1,6 +1,7 @@
 package com.myapp.expensetracker.di
 
 import com.myapp.expensetracker.AppDatabase
+import com.myapp.expensetracker.viewmodel.AnalyticsViewModel
 import com.myapp.expensetracker.viewmodel.HomeViewModel
 import com.myapp.expensetracker.viewmodel.TransactionViewModel
 import org.koin.android.ext.koin.androidContext
@@ -13,4 +14,6 @@ val appModule = module {
 
     viewModel { HomeViewModel(get()) }
     viewModel { TransactionViewModel(get()) }
+    viewModel { AnalyticsViewModel(get()) }
 }
+

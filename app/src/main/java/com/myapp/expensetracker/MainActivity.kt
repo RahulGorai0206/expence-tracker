@@ -136,7 +136,7 @@ fun MainScreen(
         return
     }
 
-    val pagerState = rememberPagerState(pageCount = { 3 })
+    val pagerState = rememberPagerState(pageCount = { 4 })
     val coroutineScope = rememberCoroutineScope()
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
 
@@ -187,7 +187,7 @@ fun MainScreen(
                 HorizontalPager(
                     state = pagerState,
                     modifier = Modifier.fillMaxSize(),
-                    beyondViewportPageCount = 1
+                    beyondViewportPageCount = 2
                 ) { targetTab ->
                     when (targetTab) {
                         0 -> HomeScreen(
@@ -203,7 +203,7 @@ fun MainScreen(
                             onSettingsClick = {
                                 coroutineScope.launch {
                                     pagerState.animateScrollToPage(
-                                        2,
+                                        3,
                                         animationSpec = tween(400)
                                     )
                                 }
@@ -211,7 +211,8 @@ fun MainScreen(
                         )
 
                         1 -> TransactionScreen(onTransactionClick = { selectedTransaction = it })
-                        2 -> SettingsScreen(
+                        2 -> AnalyticsScreen()
+                        3 -> SettingsScreen(
                             isDarkTheme = isDarkTheme,
                             onDarkThemeChange = onDarkThemeChange,
                             followSystemTheme = followSystemTheme,
@@ -259,12 +260,24 @@ fun MainScreen(
                         }
                         NavItem(
                             pagerState.currentPage == 2,
+                            Icons.Default.Analytics,
+                            "Analytics"
+                        ) {
+                            coroutineScope.launch {
+                                pagerState.animateScrollToPage(
+                                    2,
+                                    animationSpec = tween(400)
+                                )
+                            }
+                        }
+                        NavItem(
+                            pagerState.currentPage == 3,
                             Icons.Default.Settings,
                             "Settings"
                         ) {
                             coroutineScope.launch {
                                 pagerState.animateScrollToPage(
-                                    2,
+                                    3,
                                     animationSpec = tween(400)
                                 )
                             }

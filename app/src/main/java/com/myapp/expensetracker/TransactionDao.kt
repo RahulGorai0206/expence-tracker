@@ -56,4 +56,52 @@ interface TransactionDao {
 
     @Query("SELECT * FROM transactions WHERE status != 'deleted' AND date >= :startDate AND date <= :endDate ORDER BY date DESC LIMIT 1")
     suspend fun getLastTransactionBetween(startDate: Long, endDate: Long): Transaction?
+
+    // ── Analytics queries ──────────────────────────────────────────────
+
+    @Query("SELECT * FROM transactions WHERE status != 'deleted' AND date >= :startDate AND date <= :endDate ORDER BY date DESC")
+    fun getTransactionsInRange(startDate: Long, endDate: Long): Flow<List<Transaction>>
+
+    @Query("SELECT SUM(ABS(amount)) FROM transactions WHERE amount < 0 AND status != 'deleted' AND date >= :startDate AND date <= :endDate")
+    suspend fun getTotalSpentInRange(startDate: Long, endDate: Long): Double?
+
+    @Query(
+        """
+        SELECT strftime('%Y-%m', date / 1000, 'unixepoch', 'localtime') AS monthLabel,
+               SUM(ABS(amount)) AS total
+        FROM transactions
+        WHERE amount < 0 AND status != 'deleted' AND date >= :startDate AND date <= :endDate
+        GROUP BY monthLabel
+        ORDER BY monthLabel ASC
+    """
+    )
+    suspend fun getMonthlySpending(startDate: Long, endDate: Long): List<MonthlySpending>
+
+    @Query(
+        """
+        SELECT category,
+               SUM(ABS(amount)) AS total
+        FROM transactions
+        WHERE amount < 0 AND status != 'deleted' AND date >= :startDate AND date <= :endDate
+        GROUP BY category
+        ORDER BY total DESC
+    """
+    )
+    suspend fun getCategorySpending(startDate: Long, endDate: Long): List<CategorySpending>
+
+    @Query(
+        """
+        SELECT strftime('%Y-%m-%d', date / 1000, 'unixepoch', 'localtime') AS dayLabel,
+               SUM(ABS(amount)) AS total
+        FROM transactions
+        WHERE amount < 0 AND status != 'deleted' AND date >= :startDate AND date <= :endDate
+        GROUP BY dayLabel
+        ORDER BY dayLabel ASC
+    """
+    )
+    suspend fun getDailySpending(startDate: Long, endDate: Long): List<DailySpending>
 }
+
+data class MonthlySpending(val monthLabel: String, val total: Double)
+data class CategorySpending(val category: String, val total: Double)
+data class DailySpending(val dayLabel: String, val total: Double)
