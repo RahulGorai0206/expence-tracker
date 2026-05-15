@@ -58,8 +58,9 @@ import java.util.UUID
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 
 @Composable
 fun SettingsItem(
@@ -157,22 +158,35 @@ fun SettingsScreen(
         )
     }
 
-    // Refresh state when coming back to this screen
-    LaunchedEffect(Unit) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            isIgnoringBatteryOptimizations = powerManager?.isIgnoringBatteryOptimizations(context.packageName) ?: true
-        }
-    }
-
     // Check if notification listener access is granted (needed for RCS detection)
     var isNotificationListenerEnabled by remember {
         mutableStateOf(
             NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
         )
     }
-    // Refresh when returning from system settings
-    LaunchedEffect(Unit) {
-        isNotificationListenerEnabled = NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
+
+    fun refreshStatuses() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            isIgnoringBatteryOptimizations =
+                powerManager?.isIgnoringBatteryOptimizations(context.packageName) ?: true
+        }
+        isNotificationListenerEnabled =
+            NotificationManagerCompat.getEnabledListenerPackages(context)
+                .contains(context.packageName)
+    }
+
+    // Refresh state when coming back to this screen or app becomes resumed
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                refreshStatuses()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
 
     var showRestoreDialog by remember { mutableStateOf(false) }
