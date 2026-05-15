@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.sp
 import com.myapp.expensetracker.ui.screens.*
 import com.myapp.expensetracker.ui.theme.LedgerTheme
 import androidx.core.content.edit
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -68,20 +69,36 @@ class MainActivity : ComponentActivity() {
             }
             
             val currentTheme = if (followSystemTheme) systemInDarkTheme else darkTheme
+
+            var showBrandedSplash by remember { mutableStateOf(true) }
+
+            LaunchedEffect(Unit) {
+                delay(2000) // Show splash for 2 seconds
+                showBrandedSplash = false
+            }
             
             LedgerTheme(darkTheme = currentTheme) {
-                MainScreen(
-                    isDarkTheme = darkTheme, 
-                    onDarkThemeChange = { 
-                        darkTheme = it
-                        sharedPrefs.edit { putBoolean("dark_theme", it) }
-                    },
-                    followSystemTheme = followSystemTheme,
-                    onFollowSystemThemeChange = {
-                        followSystemTheme = it
-                        sharedPrefs.edit { putBoolean("follow_system_theme", it) }
+                Box(modifier = Modifier.fillMaxSize()) {
+                    MainScreen(
+                        isDarkTheme = darkTheme,
+                        onDarkThemeChange = {
+                            darkTheme = it
+                            sharedPrefs.edit { putBoolean("dark_theme", it) }
+                        },
+                        followSystemTheme = followSystemTheme,
+                        onFollowSystemThemeChange = {
+                            followSystemTheme = it
+                            sharedPrefs.edit { putBoolean("follow_system_theme", it) }
+                        }
+                    )
+
+                    AnimatedVisibility(
+                        visible = showBrandedSplash,
+                        exit = fadeOut(animationSpec = tween(500))
+                    ) {
+                        BrandedSplashScreen()
                     }
-                )
+                }
             }
         }
     }
