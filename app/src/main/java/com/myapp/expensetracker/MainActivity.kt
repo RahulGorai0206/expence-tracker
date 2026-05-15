@@ -29,17 +29,24 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.myapp.expensetracker.ui.screens.*
 import com.myapp.expensetracker.ui.theme.LedgerTheme
 import androidx.core.content.edit
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
     private val requestPermissionLauncher = registerForActivityResult(
@@ -172,6 +179,32 @@ fun MainScreen(
         }
     }
 
+    // ── Bottom nav hide-on-scroll ───────────────────────────────────
+    // The nav bar height + padding ≈ 100dp. We track cumulative scroll
+    // delta and translate the bar off-screen when scrolling down.
+    val navBarHeightPx = with(LocalDensity.current) { 100.dp.toPx() }
+    var navBarOffsetPx by remember { mutableFloatStateOf(0f) }
+
+    val nestedScrollConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                val delta = available.y
+                val newOffset = navBarOffsetPx - delta
+                navBarOffsetPx = newOffset.coerceIn(0f, navBarHeightPx * 2)
+                return Offset.Zero // don't consume — let children scroll
+            }
+        }
+    }
+
+    val animatedNavOffset by animateFloatAsState(
+        targetValue = navBarOffsetPx,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "navOffset"
+    )
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0, 0, 0, 0) // Force drawing behind bars
@@ -183,6 +216,7 @@ fun MainScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .statusBarsPadding()
+                    .nestedScroll(nestedScrollConnection)
             ) {
                 HorizontalPager(
                     state = pagerState,
@@ -225,7 +259,8 @@ fun MainScreen(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 20.dp),
+                        .padding(horizontal = 24.dp, vertical = 20.dp)
+                        .offset { IntOffset(0, animatedNavOffset.roundToInt()) },
                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
                     shape = RoundedCornerShape(100.dp),
                     tonalElevation = 8.dp,
@@ -233,7 +268,7 @@ fun MainScreen(
                 ) {
                     Row(
                         modifier = Modifier
-                            .padding(vertical = 8.dp, horizontal = 12.dp)
+                            .padding(vertical = 8.dp, horizontal = 8.dp)
                             .fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceAround,
                         verticalAlignment = Alignment.CenterVertically
@@ -347,7 +382,7 @@ fun NavItem(selected: Boolean, icon: ImageVector, label: String, onClick: () -> 
             .clip(RoundedCornerShape(100.dp))
             .background(containerColor)
             .clickable(onClick = onClick)
-            .padding(vertical = 12.dp, horizontal = 24.dp),
+            .padding(vertical = 10.dp, horizontal = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
