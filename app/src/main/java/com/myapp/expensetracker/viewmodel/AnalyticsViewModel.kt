@@ -29,6 +29,7 @@ data class AnalyticsState(
     val endDate: Long = 0L,
     val totalSpent: Double = 0.0,
     val transactionCount: Int = 0,
+    val spendingDays: Int = 0,
     val dailyAverage: Double = 0.0,
     val monthlySpending: List<MonthlySpending> = emptyList(),
     val categorySpending: List<CategorySpending> = emptyList(),
@@ -121,6 +122,9 @@ class AnalyticsViewModel(private val dao: TransactionDao) : ViewModel() {
                 val topDay = daily.maxByOrNull { it.total }
                 val topCat = categories.maxByOrNull { it.total }
 
+                // Unique days that had spending
+                val uniqueSpendingDays = daily.size
+
                 // Month-over-month change
                 val momChange = if (monthly.size >= 2) {
                     val current = monthly.last().total
@@ -131,6 +135,7 @@ class AnalyticsViewModel(private val dao: TransactionDao) : ViewModel() {
                 _state.value.copy(
                     totalSpent = spent,
                     transactionCount = txCount,
+                    spendingDays = uniqueSpendingDays,
                     dailyAverage = dailyAverage,
                     monthlySpending = monthly,
                     categorySpending = categories,

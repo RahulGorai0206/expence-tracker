@@ -170,7 +170,7 @@ fun AnalyticsScreen() {
             SpendingSummaryCard(
                 totalSpent = state.totalSpent,
                 dailyAverage = state.dailyAverage,
-                transactionDays = state.transactionCount,
+                transactionDays = state.spendingDays,
                 monthOverMonth = state.monthOverMonthChange
             )
         }
@@ -207,7 +207,7 @@ fun AnalyticsScreen() {
                 },
                 dailyAvg = "₹%,.0f".format(state.dailyAverage),
                 topCategory = state.topCategory?.category ?: "—",
-                spendingDays = state.transactionCount.toString()
+                spendingDays = state.spendingDays.toString()
             )
         }
     }
