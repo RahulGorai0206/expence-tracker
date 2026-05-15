@@ -24,7 +24,7 @@ enum class DateRangePreset(val label: String) {
 }
 
 data class AnalyticsState(
-    val selectedPreset: DateRangePreset = DateRangePreset.SIX_MONTHS,
+    val selectedPreset: DateRangePreset = DateRangePreset.THIS_MONTH,
     val startDate: Long = 0L,
     val endDate: Long = 0L,
     val totalSpent: Double = 0.0,
@@ -47,7 +47,7 @@ class AnalyticsViewModel(private val dao: TransactionDao) : ViewModel() {
     private var dataCollectionJob: Job? = null
 
     init {
-        setPreset(DateRangePreset.SIX_MONTHS)
+        setPreset(DateRangePreset.THIS_MONTH)
     }
 
     fun setPreset(preset: DateRangePreset) {
