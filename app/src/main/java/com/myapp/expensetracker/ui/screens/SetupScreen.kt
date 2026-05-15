@@ -50,6 +50,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -71,20 +72,32 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
     var isTestingConnection by remember { mutableStateOf(false) }
     var currentStep by remember { mutableIntStateOf(0) }
 
-    // Total steps: Welcome(0), Privacy(1), SMS(2), Location(3), Notifications(4), Background(5), Budget(6), Cloud(7)
-    val totalSteps = 8
+    // Total steps: Welcome(0), Privacy(1), SMS(2), NotifAccess(3), Location(4), Notifications(5), Background(6), Budget(7), Cloud(8)
+    val totalSteps = 9
 
     // Permission States
     var hasSmsPermission by remember { mutableStateOf(false) }
+    var hasNotificationAccess by remember { mutableStateOf(false) }
     var hasLocationPermission by remember { mutableStateOf(false) }
     var hasNotificationPermission by remember { mutableStateOf(false) }
     var isIgnoringBatteryOptimizations by remember { mutableStateOf(false) }
+
+    // Attempted States
+    var attemptedSms by remember { mutableStateOf(false) }
+    var attemptedNotifAccess by remember { mutableStateOf(false) }
+    var attemptedLocation by remember { mutableStateOf(false) }
+    var attemptedNotification by remember { mutableStateOf(false) }
+    var attemptedBackground by remember { mutableStateOf(false) }
 
     fun checkPermissions() {
         hasSmsPermission = ContextCompat.checkSelfPermission(
             context,
             Manifest.permission.READ_SMS
         ) == PackageManager.PERMISSION_GRANTED
+
+        hasNotificationAccess = NotificationManagerCompat.getEnabledListenerPackages(context)
+            .contains(context.packageName)
+
         hasLocationPermission = ContextCompat.checkSelfPermission(
             context,
             Manifest.permission.ACCESS_COARSE_LOCATION
@@ -169,11 +182,13 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
                         title = stringResource(R.string.setup_sms_title),
                         description = stringResource(R.string.setup_sms_description),
                         reasoning = stringResource(R.string.setup_sms_reasoning),
-                        buttonText = if (hasSmsPermission) stringResource(R.string.setup_permission_granted) else stringResource(
-                            R.string.setup_grant
-                        ),
+                        buttonText = if (hasSmsPermission) stringResource(R.string.setup_permission_granted) else if (attemptedSms) stringResource(
+                            R.string.setup_permission_not_granted
+                        ) else stringResource(R.string.setup_grant),
                         isGranted = hasSmsPermission,
+                        attempted = attemptedSms,
                         onButtonClick = {
+                            attemptedSms = true
                             smsPermissionLauncher.launch(
                                 arrayOf(
                                     Manifest.permission.READ_SMS,
@@ -183,15 +198,34 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
                         }
                     )
                     3 -> PermissionStep(
+                        icon = Icons.Default.MarkChatUnread,
+                        title = stringResource(R.string.setup_notification_access_title),
+                        description = stringResource(R.string.setup_notification_access_description),
+                        reasoning = stringResource(R.string.setup_notification_access_reasoning),
+                        buttonText = if (hasNotificationAccess) stringResource(R.string.setup_permission_granted) else if (attemptedNotifAccess) stringResource(
+                            R.string.setup_permission_not_granted
+                        ) else stringResource(R.string.setup_grant),
+                        isGranted = hasNotificationAccess,
+                        attempted = attemptedNotifAccess,
+                        onButtonClick = {
+                            attemptedNotifAccess = true
+                            val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+                            context.startActivity(intent)
+                        }
+                    )
+
+                    4 -> PermissionStep(
                         icon = Icons.Default.LocationOn,
                         title = stringResource(R.string.setup_location_title),
                         description = stringResource(R.string.setup_location_description),
                         reasoning = stringResource(R.string.setup_location_reasoning),
-                        buttonText = if (hasLocationPermission) stringResource(R.string.setup_permission_granted) else stringResource(
-                            R.string.setup_grant
-                        ),
+                        buttonText = if (hasLocationPermission) stringResource(R.string.setup_permission_granted) else if (attemptedLocation) stringResource(
+                            R.string.setup_permission_not_granted
+                        ) else stringResource(R.string.setup_grant),
                         isGranted = hasLocationPermission,
+                        attempted = attemptedLocation,
                         onButtonClick = {
+                            attemptedLocation = true
                             locationPermissionLauncher.launch(
                                 arrayOf(
                                     Manifest.permission.ACCESS_FINE_LOCATION,
@@ -200,31 +234,37 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
                             )
                         }
                     )
-                    4 -> PermissionStep(
+
+                    5 -> PermissionStep(
                         icon = Icons.Default.Notifications,
                         title = stringResource(R.string.setup_notification_title),
                         description = stringResource(R.string.setup_notification_description),
                         reasoning = stringResource(R.string.setup_notification_reasoning),
-                        buttonText = if (hasNotificationPermission) stringResource(R.string.setup_permission_granted) else stringResource(
-                            R.string.setup_grant
-                        ),
+                        buttonText = if (hasNotificationPermission) stringResource(R.string.setup_permission_granted) else if (attemptedNotification) stringResource(
+                            R.string.setup_permission_not_granted
+                        ) else stringResource(R.string.setup_grant),
                         isGranted = hasNotificationPermission,
+                        attempted = attemptedNotification,
                         onButtonClick = {
+                            attemptedNotification = true
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                 notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                             }
                         }
                     )
-                    5 -> PermissionStep(
+
+                    6 -> PermissionStep(
                         icon = Icons.Default.RunningWithErrors,
                         title = stringResource(R.string.setup_background_title),
                         description = stringResource(R.string.setup_background_description),
                         reasoning = stringResource(R.string.setup_background_reasoning),
-                        buttonText = if (isIgnoringBatteryOptimizations) stringResource(R.string.setup_permission_granted) else stringResource(
-                            R.string.setup_open_settings
-                        ),
+                        buttonText = if (isIgnoringBatteryOptimizations) stringResource(R.string.setup_permission_granted) else if (attemptedBackground) stringResource(
+                            R.string.setup_permission_not_granted
+                        ) else stringResource(R.string.setup_open_settings),
                         isGranted = isIgnoringBatteryOptimizations,
+                        attempted = attemptedBackground,
                         onButtonClick = {
+                            attemptedBackground = true
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                                 if (!isIgnoringBatteryOptimizations) {
                                     val intent =
@@ -242,7 +282,8 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
                             }
                         }
                     )
-                    6 -> BudgetStep(
+
+                    7 -> BudgetStep(
                         value = budgetText,
                         isError = showError && budgetText.isEmpty(),
                         onValueChange = { 
@@ -250,7 +291,8 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
                             if (it.isNotEmpty()) showError = false
                         }
                     )
-                    7 -> CloudSyncStep(
+
+                    8 -> CloudSyncStep(
                         isEnabled = isCloudSyncEnabled,
                         onToggle = { isCloudSyncEnabled = it },
                         sheetUrl = sheetUrl,
@@ -313,17 +355,17 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
                         when (currentStep) {
                             0 -> currentStep = 1
                             1 -> currentStep = 2
-                            2, 3, 4, 5 -> currentStep++
-                            6 -> {
+                            2, 3, 4, 5, 6 -> currentStep++
+                            7 -> {
                                 if (budgetText.isEmpty()) {
                                     showError = true
                                 } else {
                                     showError = false
-                                    currentStep = 7
-                                }
+                                    currentStep = 8
+                            }
                             }
 
-                            7 -> {
+                            8 -> {
                                 if (isCloudSyncEnabled) {
                                     if (scriptUrl.isBlank() || apiKey.isBlank()) {
                                         Toast.makeText(
@@ -595,6 +637,7 @@ fun PermissionStep(
     reasoning: String,
     buttonText: String,
     isGranted: Boolean,
+    attempted: Boolean = false,
     onButtonClick: () -> Unit
 ) {
     Column(
@@ -605,14 +648,14 @@ fun PermissionStep(
         Surface(
             modifier = Modifier.size(100.dp),
             shape = CircleShape,
-            color = if (isGranted) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.primaryContainer
+            color = if (isGranted) Color(0xFFE8F5E9) else if (attempted) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
-                    if (isGranted) Icons.Default.CheckCircle else icon,
+                    if (isGranted) Icons.Default.CheckCircle else if (attempted) Icons.Default.Error else icon,
                     contentDescription = null,
                     modifier = Modifier.size(56.dp),
-                    tint = if (isGranted) Color(0xFF2E7D32) else MaterialTheme.colorScheme.primary
+                    tint = if (isGranted) Color(0xFF2E7D32) else if (attempted) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
                 )
             }
         }
@@ -655,7 +698,9 @@ fun PermissionStep(
             onClick = onButtonClick,
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
-            colors = if (isGranted) ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)) else ButtonDefaults.buttonColors()
+            colors = if (isGranted) ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)) else if (attempted) ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.error
+            ) else ButtonDefaults.buttonColors()
         ) {
             if (isGranted) {
                 Icon(
@@ -666,6 +711,14 @@ fun PermissionStep(
                 Spacer(modifier = Modifier.width(8.dp))
             }
             Text(buttonText)
+        }
+        if (!isGranted && attempted) {
+            Text(
+                text = stringResource(R.string.setup_try_again),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(top = 8.dp)
+            )
         }
     }
 }
