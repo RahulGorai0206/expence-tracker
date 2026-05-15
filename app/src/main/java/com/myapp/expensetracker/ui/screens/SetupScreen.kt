@@ -1,9 +1,18 @@
 package com.myapp.expensetracker.ui.screens
 
+import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.os.PowerManager
+import android.provider.Settings
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
@@ -16,10 +25,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material.icons.filled.CloudSync
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Sms
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,11 +38,13 @@ import androidx.compose.ui.text.font.FontWeight
 import com.myapp.expensetracker.AppDatabase
 import com.myapp.expensetracker.GoogleSheetsLogger
 import com.myapp.expensetracker.R
+import com.myapp.expensetracker.SmsMonitorService
 import kotlinx.coroutines.launch
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import java.util.UUID
 
 @Composable
@@ -53,6 +61,46 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
     var showError by remember { mutableStateOf(false) }
     var isTestingConnection by remember { mutableStateOf(false) }
     var currentStep by remember { mutableIntStateOf(0) }
+
+    // Total steps: Welcome(0), Privacy(1), SMS(2), Location(3), Notifications(4), Background(5), Budget(6), Cloud(7)
+    val totalSteps = 8
+
+    val smsPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { results ->
+        if (results[Manifest.permission.READ_SMS] == true) {
+            currentStep++
+        } else {
+            Toast.makeText(
+                context,
+                "SMS permission is required for auto-tracking",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { results ->
+        if (results[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            results[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        ) {
+            currentStep++
+        } else {
+            Toast.makeText(
+                context,
+                "Location permission helps tag your expenses",
+                Toast.LENGTH_SHORT
+            ).show()
+            currentStep++ // Optional
+        }
+    }
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        currentStep++
+    }
 
     Box(
         modifier = Modifier
@@ -80,8 +128,89 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
             ) { step ->
                 when (step) {
                     0 -> WelcomeStep()
-                    1 -> FeaturesStep()
-                    2 -> BudgetStep(
+                    1 -> PrivacyStep()
+                    2 -> PermissionStep(
+                        icon = Icons.Default.Sms,
+                        title = stringResource(R.string.setup_sms_title),
+                        description = stringResource(R.string.setup_sms_description),
+                        reasoning = stringResource(R.string.setup_sms_reasoning),
+                        buttonText = stringResource(R.string.setup_grant),
+                        onButtonClick = {
+                            smsPermissionLauncher.launch(
+                                arrayOf(
+                                    Manifest.permission.READ_SMS,
+                                    Manifest.permission.RECEIVE_SMS
+                                )
+                            )
+                        }
+                    )
+
+                    3 -> PermissionStep(
+                        icon = Icons.Default.LocationOn,
+                        title = stringResource(R.string.setup_location_title),
+                        description = stringResource(R.string.setup_location_description),
+                        reasoning = stringResource(R.string.setup_location_reasoning),
+                        buttonText = stringResource(R.string.setup_grant),
+                        onButtonClick = {
+                            locationPermissionLauncher.launch(
+                                arrayOf(
+                                    Manifest.permission.ACCESS_FINE_LOCATION,
+                                    Manifest.permission.ACCESS_COARSE_LOCATION
+                                )
+                            )
+                        }
+                    )
+
+                    4 -> PermissionStep(
+                        icon = Icons.Default.Notifications,
+                        title = stringResource(R.string.setup_notification_title),
+                        description = stringResource(R.string.setup_notification_description),
+                        reasoning = stringResource(R.string.setup_notification_reasoning),
+                        buttonText = stringResource(R.string.setup_grant),
+                        onButtonClick = {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            } else {
+                                currentStep++
+                            }
+                        }
+                    )
+
+                    5 -> PermissionStep(
+                        icon = Icons.Default.RunningWithErrors,
+                        title = stringResource(R.string.setup_background_title),
+                        description = stringResource(R.string.setup_background_description),
+                        reasoning = stringResource(R.string.setup_background_reasoning),
+                        buttonText = stringResource(R.string.setup_open_settings),
+                        onButtonClick = {
+                            val powerManager =
+                                context.getSystemService(Context.POWER_SERVICE) as PowerManager
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                if (!powerManager.isIgnoringBatteryOptimizations(context.packageName)) {
+                                    val intent =
+                                        Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                                            data = Uri.parse("package:${context.packageName}")
+                                        }
+                                    context.startActivity(intent)
+                                } else {
+                                    val intent =
+                                        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                            data =
+                                                Uri.fromParts("package", context.packageName, null)
+                                        }
+                                    context.startActivity(intent)
+                                }
+                            } else {
+                                val intent =
+                                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                        data = Uri.fromParts("package", context.packageName, null)
+                                    }
+                                context.startActivity(intent)
+                            }
+                        }
+                    )
+
+                    6 -> BudgetStep(
                         value = budgetText,
                         isError = showError && budgetText.isEmpty(),
                         onValueChange = { 
@@ -89,7 +218,8 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
                             if (it.isNotEmpty()) showError = false
                         }
                     )
-                    3 -> CloudSyncStep(
+
+                    7 -> CloudSyncStep(
                         isEnabled = isCloudSyncEnabled,
                         onToggle = { isCloudSyncEnabled = it },
                         sheetUrl = sheetUrl,
@@ -109,7 +239,7 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
                 modifier = Modifier.padding(bottom = 32.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                repeat(4) { index ->
+                repeat(totalSteps) { index ->
                     val width by animateDpAsState(
                         targetValue = if (currentStep == index) 24.dp else 8.dp,
                         label = "DotWidth"
@@ -134,15 +264,17 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
                     when (currentStep) {
                         0 -> currentStep = 1
                         1 -> currentStep = 2
-                        2 -> {
+                        2, 3, 4, 5 -> currentStep++
+                        6 -> {
                             if (budgetText.isEmpty()) {
                                 showError = true
                             } else {
                                 showError = false
-                                currentStep = 3
+                                currentStep = 7
                             }
                         }
-                        3 -> {
+
+                        7 -> {
                             if (isCloudSyncEnabled) {
                                 if (scriptUrl.isBlank() || apiKey.isBlank()) {
                                     Toast.makeText(context, "Please fill all cloud fields", Toast.LENGTH_SHORT).show()
@@ -164,6 +296,14 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
                                         }
                                         GoogleSheetsLogger.updateUrl(scriptUrl)
                                         GoogleSheetsLogger.updateApiKey(apiKey)
+
+                                        if (ContextCompat.checkSelfPermission(
+                                                context,
+                                                Manifest.permission.READ_SMS
+                                            ) == PackageManager.PERMISSION_GRANTED
+                                        ) {
+                                            SmsMonitorService.start(context)
+                                        }
                                         onSetupComplete()
                                     } else {
                                         isTestingConnection = false
@@ -179,6 +319,13 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
                                     remove("api_key")
                                     putBoolean("is_setup_complete", true)
                                     apply()
+                                }
+                                if (ContextCompat.checkSelfPermission(
+                                        context,
+                                        Manifest.permission.READ_SMS
+                                    ) == PackageManager.PERMISSION_GRANTED
+                                ) {
+                                    SmsMonitorService.start(context)
                                 }
                                 onSetupComplete()
                             }
@@ -222,8 +369,8 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
                             Text(
                                 text = when (currentStep) {
                                     0 -> stringResource(R.string.setup_get_started)
-                                    1, 2 -> stringResource(R.string.setup_continue)
-                                    else -> stringResource(R.string.setup_finish)
+                                    totalSteps - 1 -> stringResource(R.string.setup_finish)
+                                    else -> stringResource(R.string.setup_continue)
                                 },
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 18.sp
@@ -234,6 +381,119 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun PrivacyStep() {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = Modifier.verticalScroll(rememberScrollState())
+    ) {
+        Surface(
+            modifier = Modifier.size(120.dp),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.secondaryContainer
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    Icons.Default.Security,
+                    contentDescription = null,
+                    modifier = Modifier.size(64.dp),
+                    tint = MaterialTheme.colorScheme.secondary
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(32.dp))
+        Text(
+            text = stringResource(R.string.setup_privacy_title),
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Black,
+            color = MaterialTheme.colorScheme.secondary,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = stringResource(R.string.setup_privacy_description),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
+            lineHeight = 24.sp
+        )
+    }
+}
+
+@Composable
+fun PermissionStep(
+    icon: ImageVector,
+    title: String,
+    description: String,
+    reasoning: String,
+    buttonText: String,
+    onButtonClick: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = Modifier.verticalScroll(rememberScrollState())
+    ) {
+        Surface(
+            modifier = Modifier.size(100.dp),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.primaryContainer
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(56.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(24.dp))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            text = description,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(
+                    alpha = 0.5f
+                )
+            ),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = reasoning,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 20.sp
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(32.dp))
+        Button(
+            onClick = onButtonClick,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text(buttonText)
         }
     }
 }

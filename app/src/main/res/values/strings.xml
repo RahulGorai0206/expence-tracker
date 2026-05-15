@@ -2,9 +2,32 @@
     <string name="app_name">Expense Tracker</string>
     <string name="setup_get_started">Get Started</string>
     <string name="setup_continue">Continue</string>
+    <string name="setup_grant">Grant Permission</string>
+    <string name="setup_open_settings">Open Settings</string>
     <string name="setup_finish">Finish Setup</string>
+
+    <string name="setup_privacy_title">Your Privacy Matters</string>
+    <string name="setup_privacy_description">Ledger is designed to be a safe and private app. All your financial data is stored locally on your phone.\n\nNo data is sent outside of your phone unless you explicitly enable Cloud Sync. Even then, your data is stored only on your own private Google Sheet — there are no intermediate servers.</string>
+
     <string name="setup_welcome_title">Welcome to Ledger</string>
     <string name="setup_welcome_description">Your personal financial companion. Track expenses, manage budgets, and stay on top of your money.</string>
+
+    <string name="setup_sms_title">Automatic Tracking</string>
+    <string name="setup_sms_description">To automatically log your expenses, Ledger needs to read incoming transaction SMS from your bank.</string>
+    <string name="setup_sms_reasoning">Why is this needed?\nThis allows the app to detect and categorize your spending in real-time without manual entry.</string>
+
+    <string name="setup_location_title">Expense Location</string>
+    <string name="setup_location_description">Granting location permission allows the app to tag where each transaction happened.</string>
+    <string name="setup_location_reasoning">Why is this needed?\nHelpful for visualizing your spending patterns on a map and remembering where you spent your money.</string>
+
+    <string name="setup_notification_title">Stay Updated</string>
+    <string name="setup_notification_description">Enable notifications to receive alerts about your budget limits and daily summaries.</string>
+    <string name="setup_notification_reasoning">Why is this needed?\nKeeping you informed helps you stay within your monthly budget goals.</string>
+
+    <string name="setup_background_title">Background Sync</string>
+    <string name="setup_background_description">To ensure no transaction is missed, Ledger needs to run its monitoring service in the background.</string>
+    <string name="setup_background_reasoning">Why is this needed?\nAndroid may stop the app if not allowed in background, which would stop automatic tracking. We also recommend disabling battery optimization for Ledger.</string>
+
     <string name="setup_budget_title">Set Your Budget</string>
     <string name="setup_budget_description">How much do you plan to spend this month?</string>
     <string name="setup_budget_label">Monthly Budget</string>
@@ -19,8 +42,8 @@
     <string name="setup_feature_cloud_title">Cloud Sync</string>
     <string name="setup_feature_cloud_desc">Securely backup and sync your data with Google Sheets (Setup in Settings).</string>
 
-    <string name="setup_cloud_title">Cloud Sync</string>
-    <string name="setup_cloud_description">Would you like to sync your expenses with Google Sheets? This helps you keep a backup and access data from anywhere.</string>
+    <string name="setup_cloud_title">Cloud Sync Features</string>
+    <string name="setup_cloud_description">Cloud Sync offers powerful features while keeping you in full control:\n\n• Automatic Backup: Never lose your data.\n• Multi-device Access: View your data on any device via Google Sheets.\n• Custom Analysis: Use Google Sheets tools to create your own reports.\n• Privacy: Your data goes directly from your phone to your Google Sheet.</string>
     <string name="setup_cloud_enable_label">Enable Cloud Sync</string>
     <string name="setup_cloud_note">You can always change this later in Settings.</string>
     <string name="setup_cloud_url_label">Google Script URL</string>

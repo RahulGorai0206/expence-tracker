@@ -1,6 +1,5 @@
 package com.myapp.expensetracker
 
-import android.Manifest
 import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -49,43 +48,10 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
-    private val requestPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { results ->
-        val fineLocationGranted = results[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
-        val coarseLocationGranted = results[Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
-        
-        if (fineLocationGranted || coarseLocationGranted) {
-            // Foreground location granted, request background location separately for Android 11+
-            backgroundPermissionLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-        }
-
-        // Start SMS monitoring AFTER permissions are granted so the watermark
-        // can correctly query the SMS database and skip old messages.
-        val smsGranted = results[Manifest.permission.READ_SMS] ?: false
-        if (smsGranted && SmsMonitorService.isEnabled(this)) {
-            SmsMonitorService.start(this)
-        }
-    }
-
-    private val backgroundPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { _ -> }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        
-        requestPermissionLauncher.launch(
-            arrayOf(
-                Manifest.permission.RECEIVE_SMS,
-                Manifest.permission.READ_SMS,
-                Manifest.permission.POST_NOTIFICATIONS,
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            )
-        )
         
         GoogleSheetsLogger.init(this)
 
