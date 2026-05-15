@@ -102,7 +102,11 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
     Box(modifier = Modifier
         .fillMaxSize()
     ) {
-        Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+        Column(
+            modifier = Modifier
+                .padding(horizontal = 20.dp)
+                .padding(top = 12.dp)
+        ) {
             // Header Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -189,59 +193,67 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
                 }
             }
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            // Premium Balance Card
+            // Monthly overview card
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(220.dp)
+                    .height(214.dp)
                     .graphicsLayer {
-                        shadowElevation = 24f
-                        shape = RoundedCornerShape(32.dp)
+                        shadowElevation = 14f
+                        shape = RoundedCornerShape(22.dp)
                         clip = true
                     }
                     .background(
                         Brush.linearGradient(
-                            0.0f to Color(0xFF1A237E),
-                            0.5f to Color(0xFF0D47A1),
-                            1.0f to Color(0xFF01579B)
+                            0.0f to Color(0xFF173861),
+                            0.58f to Color(0xFF197160),
+                            1.0f to Color(0xFF9A5B00)
                         )
                     )
             ) {
-                // Animated Abstract Pattern (Static for now but visual)
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.radialGradient(
-                                listOf(Color.White.copy(alpha = 0.12f), Color.Transparent),
-                                center = androidx.compose.ui.geometry.Offset(0f, 0f),
-                                radius = 600f
-                            )
-                        )
-                )
-                
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(28.dp),
+                        .padding(24.dp),
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column {
-                        Text(
-                            "TOTAL EXPENSE",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = Color.White.copy(alpha = 0.6f),
-                            letterSpacing = 2.sp,
-                            fontWeight = FontWeight.ExtraBold
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "THIS MONTH",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = Color.White.copy(alpha = 0.72f),
+                                letterSpacing = 1.4.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                            Surface(
+                                color = Color.White.copy(alpha = 0.14f),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Text(
+                                    text = "Net \u20B9${"%,.0f".format(totalBalance)}",
+                                    modifier = Modifier.padding(
+                                        horizontal = 10.dp,
+                                        vertical = 6.dp
+                                    ),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
                         
                         Spacer(modifier = Modifier.height(8.dp))
                         
                         Row(verticalAlignment = Alignment.Bottom) {
                             Text(
-                                text = "₹ ",
+                                text = "\u20B9 ",
                                 style = MaterialTheme.typography.displaySmall,
                                 color = Color.White,
                                 fontWeight = FontWeight.Light,
@@ -252,7 +264,7 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
                                 style = MaterialTheme.typography.displayLarge.copy(
                                     fontSize = 44.sp,
                                     fontWeight = FontWeight.Black,
-                                    letterSpacing = (-1).sp
+                                    letterSpacing = 0.sp
                                 ),
                                 color = Color.White
                             )
@@ -270,19 +282,19 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
 
                     // Budget progress bar
                     if (budget > 0) {
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(6.dp)
-                                .clip(RoundedCornerShape(3.dp))
+                                .height(7.dp)
+                                .clip(RoundedCornerShape(4.dp))
                                 .background(Color.White.copy(alpha = 0.15f))
                         ) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxHeight()
                                     .fillMaxWidth(budgetProgress.coerceAtMost(1f))
-                                    .clip(RoundedCornerShape(3.dp))
+                                    .clip(RoundedCornerShape(4.dp))
                                     .background(
                                         Brush.horizontalGradient(
                                             listOf(
@@ -321,14 +333,14 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
                                 )
                             } else if (remainingBudget >= 0) {
                                 Text(
-                                    "₹ ${"%,.0f".format(remainingBudget)} left",
+                                    "\u20B9 ${"%,.0f".format(remainingBudget)} left",
                                     style = MaterialTheme.typography.titleMedium,
                                     color = budgetStatusColor,
                                     fontWeight = FontWeight.ExtraBold
                                 )
                             } else {
                                 Text(
-                                    "₹ ${"%,.0f".format(abs(remainingBudget))} over!",
+                                    "\u20B9 ${"%,.0f".format(abs(remainingBudget))} over!",
                                     style = MaterialTheme.typography.titleMedium,
                                     color = budgetStatusColor,
                                     fontWeight = FontWeight.ExtraBold
@@ -406,7 +418,7 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
                 .padding(bottom = 140.dp, end = 24.dp),
             containerColor = MaterialTheme.colorScheme.primaryContainer,
             contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-            shape = RoundedCornerShape(24.dp)
+            shape = RoundedCornerShape(18.dp)
         ) {
             Icon(Icons.Default.Add, contentDescription = "Add Transaction", modifier = Modifier.size(32.dp))
         }

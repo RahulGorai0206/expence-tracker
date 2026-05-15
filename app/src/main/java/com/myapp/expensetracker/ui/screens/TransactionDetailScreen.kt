@@ -145,7 +145,7 @@ fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit)
             val shareText = """
                 |💸 *Transaction Receipt*
                 |━━━━━━━━━━━━━━━━━━$merchantInfo
-                |💰 *Total Amount:* ₹${"%,.2f".format(abs(currentTransaction.amount))}$dateTimeInfo
+                |💰 *Total Amount:* \u20B9${"%,.2f".format(abs(currentTransaction.amount))}$dateTimeInfo
                 |━━━━━━━━━━━━━━━━━━$locationInfo$messageInfo
                 |
                 |_Shared via Expense Tracker_
@@ -216,7 +216,7 @@ fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit)
             Box(
                 modifier = Modifier
                     .size(96.dp)
-                    .clip(RoundedCornerShape(28.dp))
+                    .clip(RoundedCornerShape(20.dp))
                     .background(color.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
@@ -231,7 +231,7 @@ fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit)
                 letterSpacing = 2.sp
             )
             Text(
-                "₹${"%,.2f".format(currentTransaction.amount)}",
+                "\u20B9${"%,.2f".format(currentTransaction.amount)}",
                 style = MaterialTheme.typography.displayLarge.copy(fontSize = 52.sp),
                 color = MaterialTheme.colorScheme.onBackground
             )
@@ -305,7 +305,7 @@ fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit)
                         .fillMaxWidth()
                         .height(60.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer),
-                    shape = RoundedCornerShape(20.dp)
+                    shape = RoundedCornerShape(16.dp)
                 ) {
                     Icon(Icons.Default.Map, null)
                     Spacer(modifier = Modifier.width(12.dp))
@@ -329,7 +329,7 @@ fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit)
                         .weight(1f)
                         .height(60.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                    shape = RoundedCornerShape(20.dp)
+                    shape = RoundedCornerShape(16.dp)
                 ) {
                     Icon(Icons.Default.Edit, null)
                     Spacer(modifier = Modifier.width(8.dp))
@@ -358,7 +358,7 @@ fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit)
                     },
                     modifier = Modifier
                         .size(60.dp)
-                        .clip(RoundedCornerShape(20.dp))
+                        .clip(RoundedCornerShape(16.dp))
                         .background(MaterialTheme.colorScheme.errorContainer)
                 ) {
                     Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error)
@@ -376,7 +376,7 @@ fun DetailCard(label: String, value: String, icon: ImageVector? = null, subValue
             .fillMaxWidth()
             .padding(vertical = 8.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-        shape = RoundedCornerShape(24.dp)
+        shape = RoundedCornerShape(16.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -429,7 +429,7 @@ fun EditTransactionDialog(
                 .fillMaxWidth(0.9f)
                 .wrapContentHeight()
                 .padding(vertical = 24.dp),
-            shape = RoundedCornerShape(28.dp),
+            shape = RoundedCornerShape(20.dp),
             color = MaterialTheme.colorScheme.surfaceContainerHigh
         ) {
             Column(
@@ -449,7 +449,7 @@ fun EditTransactionDialog(
                     onValueChange = {
                         if (it.isEmpty() || it.toDoubleOrNull() != null) amountText = it
                     },
-                    label = { Text("Amount (₹)") },
+                    label = { Text("Amount (\u20B9)") },
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     leadingIcon = { Icon(Icons.Default.CurrencyRupee, null) }
@@ -610,7 +610,7 @@ fun ShareOptionsDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Cancel") }
         },
-        shape = RoundedCornerShape(28.dp),
+        shape = RoundedCornerShape(20.dp),
         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
     )
 }

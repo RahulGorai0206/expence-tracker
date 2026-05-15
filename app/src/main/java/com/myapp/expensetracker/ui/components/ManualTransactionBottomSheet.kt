@@ -48,7 +48,12 @@ fun ManualTransactionBottomSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(
+            topStart = 20.dp,
+            topEnd = 20.dp
+        )
     ) {
         Column(
             modifier = Modifier
@@ -67,7 +72,7 @@ fun ManualTransactionBottomSheet(
             OutlinedTextField(
                 value = amount,
                 onValueChange = { if (it.isEmpty() || it.toDoubleOrNull() != null) amount = it },
-                label = { Text("Amount (₹)") },
+                label = { Text("Amount (\u20B9)") },
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 leadingIcon = { Icon(Icons.Default.CurrencyRupee, null) }

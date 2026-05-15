@@ -606,7 +606,7 @@ fun WelcomeStep() {
             text = stringResource(R.string.setup_welcome_title),
             style = MaterialTheme.typography.displaySmall.copy(
                 fontWeight = FontWeight.Black,
-                letterSpacing = (-1).sp
+                letterSpacing = 0.sp
             ),
             color = MaterialTheme.colorScheme.onBackground,
             textAlign = TextAlign.Center

@@ -270,12 +270,12 @@ fun MainScreen(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 20.dp)
+                        .padding(horizontal = 18.dp, vertical = 18.dp)
                         .offset { IntOffset(0, animatedNavOffset.roundToInt()) },
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    shape = RoundedCornerShape(100.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    shape = RoundedCornerShape(22.dp),
                     tonalElevation = 8.dp,
-                    shadowElevation = 12.dp
+                    shadowElevation = 10.dp
                 ) {
                     Row(
                         modifier = Modifier
@@ -393,7 +393,7 @@ fun NavItem(selected: Boolean, icon: ImageVector, label: String, onClick: () -> 
             .clip(RoundedCornerShape(100.dp))
             .background(containerColor)
             .clickable(onClick = onClick)
-            .padding(vertical = 10.dp, horizontal = 16.dp),
+            .padding(vertical = 9.dp, horizontal = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {

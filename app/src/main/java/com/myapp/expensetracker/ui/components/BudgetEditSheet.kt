@@ -49,7 +49,7 @@ fun BudgetEditSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
         tonalElevation = 0.dp,
         dragHandle = {
             Column(
@@ -122,7 +122,7 @@ fun BudgetEditSheet(
                 label = { Text("Budget Amount") },
                 prefix = {
                     Text(
-                        "₹ ",
+                        "\u20B9 ",
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp,
                         color = MaterialTheme.colorScheme.primary
@@ -192,7 +192,7 @@ fun BudgetEditSheet(
                                 modifier = Modifier.padding(vertical = 12.dp, horizontal = 8.dp)
                             ) {
                                 Text(
-                                    "₹%,.0f".format(amount),
+                                    "\u20B9%,.0f".format(amount),
                                     style = MaterialTheme.typography.labelLarge,
                                     fontWeight = FontWeight.Bold,
                                     color = textColor
@@ -247,7 +247,7 @@ fun BudgetEditSheet(
                             modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp)
                         ) {
                             Text(
-                                "₹%,.0f".format(amount),
+                                "\u20B9%,.0f".format(amount),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = textColor

@@ -89,7 +89,7 @@ fun SettingsItem(
             Box(
                 modifier = Modifier
                     .size(44.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(10.dp))
                     .background(containerColor),
                 contentAlignment = Alignment.Center
             ) {
@@ -130,8 +130,9 @@ fun SettingsCategory(title: String, content: @Composable ColumnScope.() -> Unit)
         )
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-            shape = RoundedCornerShape(24.dp)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+            shape = RoundedCornerShape(16.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 content()
@@ -669,7 +670,7 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
                     }
                 }
             },
-            shape = RoundedCornerShape(28.dp),
+            shape = RoundedCornerShape(20.dp),
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
         )
     }
@@ -687,7 +688,7 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
                 modifier = Modifier
                     .fillMaxWidth(0.95f)
                     .wrapContentHeight(),
-                shape = RoundedCornerShape(28.dp),
+                shape = RoundedCornerShape(20.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
                 tonalElevation = 6.dp
             ) {
@@ -803,7 +804,7 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
                     Text("Cancel")
                 }
             },
-            shape = RoundedCornerShape(28.dp),
+            shape = RoundedCornerShape(20.dp),
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
         )
     }
@@ -836,7 +837,7 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
                     Text("Close")
                 }
             },
-            shape = RoundedCornerShape(28.dp),
+            shape = RoundedCornerShape(20.dp),
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
         )
     }
@@ -844,6 +845,7 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
     Column(
         modifier = Modifier
             .padding(horizontal = 20.dp)
+            .padding(top = 12.dp)
             .verticalScroll(rememberScrollState())
     ) {
         Text(
@@ -886,7 +888,7 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
         SettingsCategory("BUDGETING") {
             SettingsItem(
                 title = "Monthly Target Budget",
-                subtitle = if (budget > 0) "₹ ${"%,.0f".format(budget)}" else "Not set",
+                subtitle = if (budget > 0) "\u20B9 ${"%,.0f".format(budget)}" else "Not set",
                 icon = Icons.Default.AccountBalanceWallet,
                 onClick = { showBudgetEdit = true },
                 trailing = {

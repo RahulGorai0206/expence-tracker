@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -99,7 +100,7 @@ fun AnalyticsScreen() {
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 20.dp),
-        contentPadding = PaddingValues(bottom = 120.dp),
+        contentPadding = PaddingValues(top = 12.dp, bottom = 120.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
         // ── Header ─────────────────────────────────────────────────────
@@ -203,9 +204,9 @@ fun AnalyticsScreen() {
             Spacer(modifier = Modifier.height(12.dp))
             InsightCardsGrid(
                 topDay = state.topSpendingDay?.let {
-                    "${it.dayLabel} — ₹%,.0f".format(it.total)
+                    "${it.dayLabel} - \u20B9%,.0f".format(it.total)
                 },
-                dailyAvg = "₹%,.0f".format(state.dailyAverage),
+                dailyAvg = "\u20B9%,.0f".format(state.dailyAverage),
                 topCategory = state.topCategory?.category ?: "—",
                 spendingDays = state.spendingDays.toString()
             )
@@ -229,31 +230,18 @@ private fun SpendingSummaryCard(
         modifier = Modifier
             .fillMaxWidth()
             .graphicsLayer {
-                shadowElevation = 24f
-                shape = RoundedCornerShape(28.dp)
+                shadowElevation = 12f
+                shape = RoundedCornerShape(20.dp)
                 clip = true
             }
             .background(
                 Brush.linearGradient(
-                    0.0f to Color(0xFF1A237E),
-                    0.5f to Color(0xFF0D47A1),
-                    1.0f to Color(0xFF01579B)
+                    0.0f to Color(0xFF173861),
+                    0.58f to Color(0xFF197160),
+                    1.0f to Color(0xFF9A5B00)
                 )
             )
     ) {
-        // Subtle decorative radial
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.radialGradient(
-                        listOf(Color.White.copy(alpha = 0.1f), Color.Transparent),
-                        center = Offset(0f, 0f),
-                        radius = 600f
-                    )
-                )
-        )
-
         Column(modifier = Modifier.padding(24.dp)) {
             Text(
                 "TOTAL SPENT",
@@ -265,7 +253,7 @@ private fun SpendingSummaryCard(
             Spacer(modifier = Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
-                    "₹ ",
+                    "\u20B9 ",
                     style = MaterialTheme.typography.headlineMedium,
                     color = Color.White,
                     fontWeight = FontWeight.Light,
@@ -276,7 +264,7 @@ private fun SpendingSummaryCard(
                     style = MaterialTheme.typography.displaySmall.copy(
                         fontSize = 38.sp,
                         fontWeight = FontWeight.Black,
-                        letterSpacing = (-1).sp
+                        letterSpacing = 0.sp
                     ),
                     color = Color.White
                 )
@@ -290,7 +278,7 @@ private fun SpendingSummaryCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                SummaryMetric("Daily Avg", "₹%,.0f".format(dailyAverage))
+                SummaryMetric("Daily Avg", "\u20B9%,.0f".format(dailyAverage))
                 SummaryMetric("Spending Days", transactionDays.toString())
                 if (monthOverMonth != null) {
                     val isUp = monthOverMonth > 0
@@ -350,8 +338,8 @@ private fun MonthlyBarChart(data: List<MonthlySpending>) {
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
         tonalElevation = 2.dp
     ) {
         Canvas(
@@ -403,7 +391,7 @@ private fun MonthlyBarChart(data: List<MonthlySpending>) {
                 if (animatedProgress.value > 0.8f) {
                     drawContext.canvas.nativeCanvas.apply {
                         val paint = android.graphics.Paint().apply {
-                            color = textColor.hashCode()
+                            color = textColor.toArgb()
                             textSize = 24f
                             textAlign = android.graphics.Paint.Align.CENTER
                             isAntiAlias = true
@@ -413,7 +401,7 @@ private fun MonthlyBarChart(data: List<MonthlySpending>) {
                             )
                         }
                         drawText(
-                            "₹%,.0f".format(item.total),
+                            "\u20B9%,.0f".format(item.total),
                             x + barWidth / 2,
                             chartHeight - barHeight - 12f,
                             paint
@@ -424,7 +412,7 @@ private fun MonthlyBarChart(data: List<MonthlySpending>) {
                 // Month label
                 drawContext.canvas.nativeCanvas.apply {
                     val paint = android.graphics.Paint().apply {
-                        color = textColor.hashCode()
+                        color = textColor.toArgb()
                         textSize = 22f
                         textAlign = android.graphics.Paint.Align.CENTER
                         isAntiAlias = true
@@ -466,8 +454,8 @@ private fun CategoryDonutChart(categories: List<CategorySpending>) {
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
         tonalElevation = 2.dp
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
@@ -508,7 +496,7 @@ private fun CategoryDonutChart(categories: List<CategorySpending>) {
                 // Center text
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        "₹%,.0f".format(total),
+                        "\u20B9%,.0f".format(total),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Black,
                         color = MaterialTheme.colorScheme.onSurface
@@ -557,7 +545,7 @@ private fun CategoryDonutChart(categories: List<CategorySpending>) {
                         modifier = Modifier.weight(1f)
                     )
                     Text(
-                        "₹%,.0f".format(cat.total),
+                        "\u20B9%,.0f".format(cat.total),
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -639,8 +627,8 @@ private fun InsightCard(
 ) {
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
         tonalElevation = 2.dp
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -708,8 +696,8 @@ private fun EmptyChartPlaceholder(message: String) {
         modifier = Modifier
             .fillMaxWidth()
             .height(160.dp),
-        shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
         tonalElevation = 2.dp
     ) {
         Box(contentAlignment = Alignment.Center) {

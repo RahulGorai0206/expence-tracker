@@ -28,13 +28,14 @@ import java.util.*
 fun TransactionListItem(transaction: Transaction, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(16.dp),
+        tonalElevation = 1.dp,
         modifier = Modifier
             .fillMaxWidth()
             .graphicsLayer {
-                shadowElevation = 2f
-                shape = RoundedCornerShape(24.dp)
+                shadowElevation = 1f
+                shape = RoundedCornerShape(16.dp)
                 clip = true
             }
     ) {
@@ -49,8 +50,8 @@ fun TransactionListItem(transaction: Transaction, onClick: () -> Unit) {
             
             Box(
                 modifier = Modifier
-                    .size(52.dp)
-                    .clip(RoundedCornerShape(16.dp))
+                    .size(50.dp)
+                    .clip(RoundedCornerShape(14.dp))
                     .background(color.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
@@ -73,10 +74,10 @@ fun TransactionListItem(transaction: Transaction, onClick: () -> Unit) {
                     maxLines = 1
                 )
                 Text(
-                    transaction.category.uppercase(), 
-                    style = MaterialTheme.typography.labelSmall, 
+                    transaction.category,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                    letterSpacing = 1.sp
+                    maxLines = 1
                 )
                 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -105,9 +106,13 @@ fun TransactionListItem(transaction: Transaction, onClick: () -> Unit) {
             
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    if (transaction.amount > 0) "+₹${"%,.0f".format(transaction.amount)}" else "-₹${"%,.0f".format(-transaction.amount)}",
+                    if (transaction.amount > 0) "+\u20B9${"%,.0f".format(transaction.amount)}" else "-\u20B9${
+                        "%,.0f".format(
+                            -transaction.amount
+                        )
+                    }",
                     fontWeight = FontWeight.Black,
-                    color = if (transaction.amount > 0) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurface,
+                    color = if (transaction.amount > 0) Color(0xFF2E7D32) else MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.titleLarge.copy(fontSize = 18.sp)
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {

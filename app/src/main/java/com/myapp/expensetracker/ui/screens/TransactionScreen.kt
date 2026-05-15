@@ -33,7 +33,9 @@ fun TransactionScreen(onTransactionClick: (Transaction) -> Unit) {
 
     Column(modifier = Modifier
         .fillMaxSize()
-        .padding(horizontal = 20.dp)) {
+        .padding(horizontal = 20.dp)
+        .padding(top = 12.dp)
+    ) {
         Text(
             "Ledger History", 
             style = MaterialTheme.typography.headlineLarge, 
