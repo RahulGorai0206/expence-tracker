@@ -108,10 +108,11 @@ class AnalyticsViewModel(private val dao: TransactionDao) : ViewModel() {
 
             combine(
                 dao.getTotalSpentInRange(startDate, endDate),
+                dao.getTransactionCountInRange(startDate, endDate),
                 dao.getMonthlySpending(startDate, endDate),
                 dao.getCategorySpending(startDate, endDate),
                 dao.getDailySpending(startDate, endDate)
-            ) { totalSpent, monthly, categories, daily ->
+            ) { totalSpent, txCount, monthly, categories, daily ->
                 val spent = totalSpent ?: 0.0
                 val daysInRange =
                     ((endDate - startDate) / (1000L * 60 * 60 * 24)).coerceAtLeast(1)
@@ -129,7 +130,7 @@ class AnalyticsViewModel(private val dao: TransactionDao) : ViewModel() {
 
                 _state.value.copy(
                     totalSpent = spent,
-                    transactionCount = daily.size,
+                    transactionCount = txCount,
                     dailyAverage = dailyAverage,
                     monthlySpending = monthly,
                     categorySpending = categories,

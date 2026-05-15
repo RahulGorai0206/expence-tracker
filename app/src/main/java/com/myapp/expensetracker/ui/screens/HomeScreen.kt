@@ -59,8 +59,9 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
         remember { mutableStateOf(sharedPrefs.getBoolean("budget_monthly", true)) }
 
     val totalSpent = remember(transactions, isMonthlyBudget.value) {
-        val currentMonth = java.util.Calendar.getInstance().get(java.util.Calendar.MONTH)
-        val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+        val now = java.util.Calendar.getInstance()
+        val currentMonth = now.get(java.util.Calendar.MONTH)
+        val currentYear = now.get(java.util.Calendar.YEAR)
 
         transactions.filter { tx ->
             val inMonth = if (isMonthlyBudget.value) {

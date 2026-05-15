@@ -68,6 +68,9 @@ interface TransactionDao {
     @Query("SELECT SUM(ABS(amount)) FROM transactions WHERE amount < 0 AND status != 'deleted' AND date >= :startDate AND date <= :endDate")
     fun getTotalSpentInRange(startDate: Long, endDate: Long): Flow<Double?>
 
+    @Query("SELECT COUNT(*) FROM transactions WHERE amount < 0 AND status != 'deleted' AND date >= :startDate AND date <= :endDate")
+    fun getTransactionCountInRange(startDate: Long, endDate: Long): Flow<Int>
+
     @Query(
         """
         SELECT strftime('%Y-%m', date / 1000, 'unixepoch', 'localtime') AS monthLabel,
