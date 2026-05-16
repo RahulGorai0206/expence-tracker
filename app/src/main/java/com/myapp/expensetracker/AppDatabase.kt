@@ -14,7 +14,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-@Database(entities = [Transaction::class, MonthlyBudget::class], version = 8, exportSchema = false)
+@Database(entities = [Transaction::class, MonthlyBudget::class], version = 9, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun transactionDao(): TransactionDao
     abstract fun monthlyBudgetDao(): MonthlyBudgetDao
@@ -51,6 +51,14 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val migration8to9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE transactions ADD COLUMN tag TEXT NOT NULL DEFAULT ''"
+                )
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -58,7 +66,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "expense_database"
                 )
-                    .addMigrations(createMigration7to8(context))
+                    .addMigrations(createMigration7to8(context), migration8to9)
                 .addCallback(object : RoomDatabase.Callback() {
                     override fun onOpen(db: SupportSQLiteDatabase) {
                         super.onOpen(db)

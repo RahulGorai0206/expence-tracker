@@ -19,6 +19,7 @@ interface GoogleSheetsApi {
         @Field("date") date: Long? = null,
         @Field("body") body: String? = null,
         @Field("category") category: String? = null,
+        @Field("tag") tag: String? = null,
         @Field("status") status: String? = null,
         @Field("type") type: String? = null,
         @Field("latitude") latitude: Double? = null,
@@ -63,6 +64,7 @@ data class RemoteTransaction(
     val date: Long?,
     val body: String?,
     val category: String?,
+    val tag: String?,
     val type: String?,
     val latitude: Double?,
     val longitude: Double?

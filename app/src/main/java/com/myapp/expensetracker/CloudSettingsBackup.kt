@@ -21,7 +21,8 @@ data class CloudSettingsBackup(
     val background_monitoring: Boolean? = null,
     val follow_system_theme: Boolean? = null,
     val dark_theme: Boolean? = null,
-    val cloud_sync: Boolean? = null
+    val cloud_sync: Boolean? = null,
+    val saved_tags: List<String>? = null
 )
 
 object CloudSettingsBackupManager {
@@ -34,7 +35,8 @@ object CloudSettingsBackupManager {
         "background_monitoring",
         "follow_system_theme",
         "dark_theme",
-        "cloud_sync"
+        "cloud_sync",
+        "saved_tags"
     )
 
     fun backupAsync(context: Context) {
@@ -60,7 +62,8 @@ object CloudSettingsBackupManager {
             background_monitoring = prefs.getBoolean("background_monitoring", true),
             follow_system_theme = prefs.getBoolean("follow_system_theme", true),
             dark_theme = prefs.getBoolean("dark_theme", true),
-            cloud_sync = GoogleSheetsLogger.isConfigured()
+            cloud_sync = GoogleSheetsLogger.isConfigured(),
+            saved_tags = getSavedTags(context)
         )
     }
 
@@ -74,6 +77,7 @@ object CloudSettingsBackupManager {
             backup.follow_system_theme?.let { putBoolean("follow_system_theme", it) }
             backup.dark_theme?.let { putBoolean("dark_theme", it) }
             backup.cloud_sync?.let { putBoolean("cloud_sync", it) }
+            backup.saved_tags?.let { putStringSet("saved_tags", it.toSortedSet()) }
         }
 
         backup.background_monitoring?.let { enabled ->
@@ -95,5 +99,26 @@ object CloudSettingsBackupManager {
 
     private fun currentMonthKey(): String {
         return SimpleDateFormat("yyyy-MM", Locale.getDefault()).format(Date())
+    }
+
+    fun getSavedTags(context: Context): List<String> {
+        val prefs = context.getSharedPreferences("prefs", Context.MODE_PRIVATE)
+        return prefs.getStringSet("saved_tags", emptySet()).orEmpty()
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinctBy { it.lowercase(Locale.getDefault()) }
+            .sortedWith(String.CASE_INSENSITIVE_ORDER)
+    }
+
+    fun saveTags(context: Context, tags: Collection<String>) {
+        val normalized = tags
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinctBy { it.lowercase(Locale.getDefault()) }
+            .sortedWith(String.CASE_INSENSITIVE_ORDER)
+            .toSet()
+
+        context.getSharedPreferences("prefs", Context.MODE_PRIVATE)
+            .edit { putStringSet("saved_tags", normalized) }
     }
 }

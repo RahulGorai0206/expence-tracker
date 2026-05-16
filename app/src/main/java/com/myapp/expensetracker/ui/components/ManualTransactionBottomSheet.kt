@@ -19,6 +19,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.google.android.gms.location.LocationServices
 import com.myapp.expensetracker.AppDatabase
+import com.myapp.expensetracker.CloudSettingsBackupManager
 import com.myapp.expensetracker.Transaction
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -41,8 +42,12 @@ fun ManualTransactionBottomSheet(
     var location by remember { mutableStateOf<Location?>(null) }
     var isCapturingLocation by remember { mutableStateOf(false) }
     var isDebit by remember { mutableStateOf(true) }
+    var selectedTag by remember { mutableStateOf("") }
 
     val categories = listOf("Dining", "Shopping", "Transport", "Groceries", "Bills", "Other")
+    val savedTags = remember {
+        CloudSettingsBackupManager.getSavedTags(context)
+    }
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -142,6 +147,37 @@ fun ManualTransactionBottomSheet(
                 }
             }
 
+            if (savedTags.isNotEmpty()) {
+                Text("Tag", style = MaterialTheme.typography.labelLarge)
+                androidx.compose.foundation.lazy.LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(horizontal = 4.dp)
+                ) {
+                    item {
+                        FilterChip(
+                            selected = selectedTag.isBlank(),
+                            onClick = { selectedTag = "" },
+                            label = { Text("No tag") },
+                            leadingIcon = if (selectedTag.isBlank()) {
+                                { Icon(Icons.Default.Check, null, modifier = Modifier.size(16.dp)) }
+                            } else null
+                        )
+                    }
+                    items(savedTags.size) { index ->
+                        val tag = savedTags[index]
+                        FilterChip(
+                            selected = selectedTag == tag,
+                            onClick = { selectedTag = tag },
+                            label = { Text(tag) },
+                            leadingIcon = if (selectedTag == tag) {
+                                { Icon(Icons.Default.Check, null, modifier = Modifier.size(16.dp)) }
+                            } else null
+                        )
+                    }
+                }
+            }
+
             Button(
                 onClick = {
                     scope.launch {
@@ -181,6 +217,7 @@ fun ManualTransactionBottomSheet(
                                 body = body,
                                 date = System.currentTimeMillis(),
                                 category = category,
+                                tag = selectedTag.trim(),
                                 type = "manual",
                                 latitude = location?.latitude,
                                 longitude = location?.longitude,

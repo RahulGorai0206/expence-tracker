@@ -26,6 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -141,6 +142,111 @@ fun SettingsCategory(title: String, content: @Composable ColumnScope.() -> Unit)
     }
 }
 
+@Composable
+fun TagsEditorDialog(
+    tags: List<String>,
+    onDismiss: () -> Unit,
+    onSave: (List<String>) -> Unit
+) {
+    var draftTags by remember(tags) { mutableStateOf(tags) }
+    var newTag by remember { mutableStateOf("") }
+
+    fun normalized(values: Collection<String>): List<String> {
+        return values
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinctBy { it.lowercase() }
+            .sortedWith(String.CASE_INSENSITIVE_ORDER)
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Saved Tags", fontWeight = FontWeight.Black) },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 420.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedTextField(
+                    value = newTag,
+                    onValueChange = { newTag = it },
+                    label = { Text("New tag") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.Label, null) },
+                    trailingIcon = {
+                        IconButton(
+                            onClick = {
+                                draftTags = normalized(draftTags + newTag)
+                                newTag = ""
+                            },
+                            enabled = newTag.isNotBlank()
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = "Add tag")
+                        }
+                    },
+                    shape = RoundedCornerShape(16.dp)
+                )
+
+                if (draftTags.isEmpty()) {
+                    Text(
+                        "Create tags here, then apply them from manual entry or transaction details.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    draftTags.forEach { tag ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            AssistChip(
+                                onClick = {},
+                                label = { Text(tag) },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.Label,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            )
+                            IconButton(
+                                onClick = { draftTags = draftTags.filterNot { it == tag } }
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "Remove $tag",
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onSave(normalized(draftTags + newTag))
+                },
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        },
+        shape = RoundedCornerShape(28.dp),
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
@@ -158,6 +264,7 @@ fun SettingsScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showPrivacyDialog by remember { mutableStateOf(false) }
     var showBudgetEdit by remember { mutableStateOf(false) }
+    var showTagsDialog by remember { mutableStateOf(false) }
 
     if (showBudgetEdit) {
         BudgetEditSheet(
@@ -258,6 +365,7 @@ fun SettingsScreen(
         )
     }
     var backgroundMonitoring by remember { mutableStateOf(SmsMonitorService.isEnabled(context)) }
+    var savedTags by remember { mutableStateOf(CloudSettingsBackupManager.getSavedTags(context)) }
 
     var updateAvailable by remember {
         mutableStateOf(
@@ -313,10 +421,10 @@ var LEGACY_SHEET_INDEX = 0;
 
 var COL = {
   ID: 1, DATE: 2, AMOUNT: 3, SENDER: 4, CATEGORY: 5, STATUS: 6,
-  TYPE: 7, BODY: 8, LATITUDE: 9, LONGITUDE: 10, CREATED_AT: 11, UPDATED_AT: 12
+  TYPE: 7, BODY: 8, LATITUDE: 9, LONGITUDE: 10, CREATED_AT: 11, UPDATED_AT: 12, TAG: 13
 };
 
-var HEADERS = ["id","date","amount","sender","category","status","type","body","latitude","longitude","created_at","updated_at"];
+var HEADERS = ["id","date","amount","sender","category","status","type","body","latitude","longitude","created_at","updated_at","tag"];
 var SETTINGS_HEADERS = ["key","value","updated_at"];
 
 // ============================================================
@@ -430,6 +538,7 @@ function handleCreate(params) {
     row[COL.AMOUNT - 1] = pAmount;
     row[COL.SENDER - 1] = params.sender || "";
     row[COL.CATEGORY - 1] = params.category || "Other";
+    row[COL.TAG - 1] = params.tag || "";
     row[COL.STATUS - 1] = params.status || "active";
     row[COL.TYPE - 1] = params.type || "manual";
     row[COL.BODY - 1] = params.body || "";
@@ -470,6 +579,7 @@ function handleUpdate(params) {
   var row = data[rowIndex];
   if (params.amount !== undefined) row[COL.AMOUNT - 1] = Number(params.amount);
   if (params.category !== undefined) row[COL.CATEGORY - 1] = params.category;
+  if (params.tag !== undefined) row[COL.TAG - 1] = params.tag;
   if (params.status !== undefined) row[COL.STATUS - 1] = params.status;
   row[COL.UPDATED_AT - 1] = new Date().toISOString();
 
@@ -724,6 +834,7 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
                                         sharedPrefs.getBoolean("track_only_debits", false)
                                     ignoreCcBills = sharedPrefs.getBoolean("ignore_cc_bills", false)
                                     backgroundMonitoring = SmsMonitorService.isEnabled(context)
+                                    savedTags = CloudSettingsBackupManager.getSavedTags(context)
                                     isRestoring = false
                                     showRestoreDialog = false
                                     Toast.makeText(
@@ -921,6 +1032,19 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
         )
     }
 
+    if (showTagsDialog) {
+        TagsEditorDialog(
+            tags = savedTags,
+            onDismiss = { showTagsDialog = false },
+            onSave = { updatedTags ->
+                savedTags = updatedTags
+                CloudSettingsBackupManager.saveTags(context, updatedTags)
+                CloudSettingsBackupManager.backupAsync(context)
+                showTagsDialog = false
+            }
+        )
+    }
+
     Column(
         modifier = Modifier
             .padding(horizontal = 20.dp)
@@ -992,6 +1116,24 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
                         sharedPrefs.edit().putBoolean("budget_monthly", it).apply()
                         com.myapp.expensetracker.enqueueWidgetUpdate(context)
                     })
+                }
+            )
+        }
+
+        // --- TAGS ---
+        SettingsCategory("TAGS") {
+            SettingsItem(
+                title = "Saved Tags",
+                subtitle = if (savedTags.isEmpty()) "No tags saved" else savedTags.joinToString(", "),
+                icon = Icons.AutoMirrored.Filled.Label,
+                onClick = { showTagsDialog = true },
+                trailing = {
+                    Icon(
+                        Icons.Default.Edit,
+                        contentDescription = "Edit Tags",
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                 }
             )
         }

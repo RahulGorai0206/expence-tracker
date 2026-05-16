@@ -858,10 +858,10 @@ var LEGACY_SHEET_INDEX = 0;
 
 var COL = {
   ID: 1, DATE: 2, AMOUNT: 3, SENDER: 4, CATEGORY: 5, STATUS: 6,
-  TYPE: 7, BODY: 8, LATITUDE: 9, LONGITUDE: 10, CREATED_AT: 11, UPDATED_AT: 12
+  TYPE: 7, BODY: 8, LATITUDE: 9, LONGITUDE: 10, CREATED_AT: 11, UPDATED_AT: 12, TAG: 13
 };
 
-var HEADERS = ["id","date","amount","sender","category","status","type","body","latitude","longitude","created_at","updated_at"];
+var HEADERS = ["id","date","amount","sender","category","status","type","body","latitude","longitude","created_at","updated_at","tag"];
 var SETTINGS_HEADERS = ["key","value","updated_at"];
 
 // ============================================================
@@ -975,6 +975,7 @@ function handleCreate(params) {
     row[COL.AMOUNT - 1] = pAmount;
     row[COL.SENDER - 1] = params.sender || "";
     row[COL.CATEGORY - 1] = params.category || "Other";
+    row[COL.TAG - 1] = params.tag || "";
     row[COL.STATUS - 1] = params.status || "active";
     row[COL.TYPE - 1] = params.type || "manual";
     row[COL.BODY - 1] = params.body || "";
@@ -1015,6 +1016,7 @@ function handleUpdate(params) {
   var row = data[rowIndex];
   if (params.amount !== undefined) row[COL.AMOUNT - 1] = Number(params.amount);
   if (params.category !== undefined) row[COL.CATEGORY - 1] = params.category;
+  if (params.tag !== undefined) row[COL.TAG - 1] = params.tag;
   if (params.status !== undefined) row[COL.STATUS - 1] = params.status;
   row[COL.UPDATED_AT - 1] = new Date().toISOString();
 

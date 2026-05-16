@@ -149,26 +149,43 @@ fun TransactionListItem(
                 )
                 
                 Spacer(modifier = Modifier.height(4.dp))
-                
-                Surface(
-                    color = when (transaction.type) {
-                        "manual" -> MaterialTheme.colorScheme.tertiaryContainer
-                        "AI" -> MaterialTheme.colorScheme.primaryContainer
-                        else -> MaterialTheme.colorScheme.secondaryContainer
-                    }.copy(alpha = 0.2f),
-                    shape = RoundedCornerShape(4.dp)
-                ) {
-                    Text(
-                        transaction.type.uppercase(),
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp),
+
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Surface(
                         color = when (transaction.type) {
-                            "manual" -> MaterialTheme.colorScheme.tertiary
-                            "AI" -> MaterialTheme.colorScheme.primary
-                            else -> MaterialTheme.colorScheme.secondary
-                        },
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                        fontWeight = FontWeight.Bold
-                    )
+                            "manual" -> MaterialTheme.colorScheme.tertiaryContainer
+                            "AI" -> MaterialTheme.colorScheme.primaryContainer
+                            else -> MaterialTheme.colorScheme.secondaryContainer
+                        }.copy(alpha = 0.2f),
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Text(
+                            transaction.type.uppercase(),
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp),
+                            color = when (transaction.type) {
+                                "manual" -> MaterialTheme.colorScheme.tertiary
+                                "AI" -> MaterialTheme.colorScheme.primary
+                                else -> MaterialTheme.colorScheme.secondary
+                            },
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    if (transaction.tag.isNotBlank()) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                transaction.tag.uppercase(),
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1
+                            )
+                        }
+                    }
                 }
             }
             

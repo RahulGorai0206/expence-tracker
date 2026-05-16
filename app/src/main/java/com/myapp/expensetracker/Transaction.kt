@@ -14,6 +14,7 @@ data class Transaction(
     val body: String,
     val bodyHash: Int = body.hashCode(),
     val category: String = "Other",
+    val tag: String = "",
     val status: String = "Cleared",
     val type: String = "automated",
     val latitude: Double? = null,

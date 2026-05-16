@@ -18,6 +18,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.automirrored.filled.Notes
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -35,6 +36,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
 import com.myapp.expensetracker.AppDatabase
+import com.myapp.expensetracker.CloudSettingsBackupManager
 import com.myapp.expensetracker.Transaction
 import com.myapp.expensetracker.ui.components.getCategoryInfo
 import kotlinx.coroutines.Dispatchers
@@ -258,6 +260,10 @@ fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit)
             Spacer(modifier = Modifier.height(40.dp))
             DetailCard("TRANSACTION DATE", SimpleDateFormat("MMMM dd, yyyy • hh:mm a", Locale.getDefault()).format(Date(currentTransaction.date)), Icons.Default.CalendarMonth)
 
+            if (currentTransaction.tag.isNotBlank()) {
+                DetailCard("TAG", currentTransaction.tag, Icons.AutoMirrored.Filled.Label)
+            }
+
             val sourceLabel = when (currentTransaction.type) {
                 "manual" -> "LOGGED BY USER"
                 "AI" -> "AI ANALYZED SOURCE"
@@ -428,9 +434,14 @@ fun EditTransactionDialog(
     var senderText by remember { mutableStateOf(transaction.sender) }
     var bodyText by remember { mutableStateOf(transaction.body) }
     var category by remember { mutableStateOf(transaction.category) }
+    var tagText by remember { mutableStateOf(transaction.tag) }
     var isDebit by remember { mutableStateOf(transaction.amount < 0) }
+    val context = LocalContext.current
 
     val categories = listOf("Dining", "Shopping", "Transport", "Groceries", "Bills", "Other")
+    val savedTags = remember {
+        CloudSettingsBackupManager.getSavedTags(context)
+    }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -533,6 +544,46 @@ fun EditTransactionDialog(
                     }
                 }
 
+                Text("Tag", style = MaterialTheme.typography.labelLarge)
+                OutlinedTextField(
+                    value = tagText,
+                    onValueChange = { tagText = it },
+                    label = { Text("Tag") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.Label, null) },
+                    trailingIcon = if (tagText.isNotBlank()) {
+                        {
+                            IconButton(onClick = { tagText = "" }) {
+                                Icon(Icons.Default.Close, contentDescription = "Remove tag")
+                            }
+                        }
+                    } else null
+                )
+
+                if (savedTags.isNotEmpty()) {
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        item {
+                            FilterChip(
+                                selected = tagText.isBlank(),
+                                onClick = { tagText = "" },
+                                label = { Text("No tag") }
+                            )
+                        }
+                        items(savedTags.size) { index ->
+                            val savedTag = savedTags[index]
+                            FilterChip(
+                                selected = tagText == savedTag,
+                                onClick = { tagText = savedTag },
+                                label = { Text(savedTag) }
+                            )
+                        }
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Row(
@@ -551,7 +602,8 @@ fun EditTransactionDialog(
                                 amount = if (isDebit) -abs(newAmount) else abs(newAmount),
                                 sender = if (isManual) senderText else transaction.sender,
                                 body = if (isManual) bodyText else transaction.body,
-                                category = category
+                                category = category,
+                                tag = tagText.trim()
                             )
                             onSave(updated)
                         },
