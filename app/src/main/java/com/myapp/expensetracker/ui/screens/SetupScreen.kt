@@ -411,6 +411,7 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
                                             }
                                             GoogleSheetsLogger.updateUrl(scriptUrl)
                                             GoogleSheetsLogger.updateApiKey(apiKey)
+                                            GoogleSheetsLogger.backupSettings(context)
 
                                             if (ContextCompat.checkSelfPermission(
                                                     context,
@@ -852,6 +853,7 @@ var SPREADSHEET_ID = "$extractedSheetId";
 var API_KEY = PropertiesService.getScriptProperties().getProperty('API_KEY');
 var DB_SHEET_NAME  = "database";
 var LOG_SHEET_NAME = "logs";
+var SETTINGS_SHEET_NAME = "settings";
 var LEGACY_SHEET_INDEX = 0; 
 
 var COL = {
@@ -860,6 +862,7 @@ var COL = {
 };
 
 var HEADERS = ["id","date","amount","sender","category","status","type","body","latitude","longitude","created_at","updated_at"];
+var SETTINGS_HEADERS = ["key","value","updated_at"];
 
 // ============================================================
 //  AUTH HELPER
@@ -924,6 +927,7 @@ function doPost(e) {
       case "read"   : result = handleRead(e.parameter); break;
       case "update" : result = handleUpdate(e.parameter); break;
       case "delete" : result = handleDelete(e.parameter); break;
+      case "settings": result = handleSettings(e.parameter); break;
       case "legacy" : return handleLegacy(e.parameter); // legacy returns text
       default       : return respondError("Unknown action: " + action);
     }
@@ -1040,6 +1044,30 @@ function handleDelete(params) {
   return { success: true, action: "delete", id: params.id, type: "soft", record: rowToObject(row) };
 }
 
+function handleSettings(params) {
+  var mode = (params.mode || "read").toLowerCase();
+  var sheet = getSettingsSheet();
+
+  if (mode === "write") {
+    requireParams(params, ["settings_json"]);
+    var settings = JSON.parse(params.settings_json);
+    var now = new Date().toISOString();
+    var rows = [SETTINGS_HEADERS];
+
+    Object.keys(settings).sort().forEach(function(key) {
+      rows.push([key, JSON.stringify(settings[key]), now]);
+    });
+
+    sheet.clearContents();
+    sheet.getRange(1, 1, rows.length, SETTINGS_HEADERS.length).setValues(rows);
+    sheet.setFrozenRows(1);
+    logInfo("Settings", "Backed up " + (rows.length - 1) + " settings");
+    return { success: true, action: "settings", settings: settings };
+  }
+
+  return { success: true, action: "settings", settings: getSettingsObject(sheet) };
+}
+
 function handleLegacy(params) {
   var amount = parseFloat(params.amount);
   if (isNaN(amount) || amount >= 0) {
@@ -1090,6 +1118,48 @@ function getDbSheet() {
     }
   }
   return sheet;
+}
+
+function getSettingsSheet() {
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var sheet = ss.getSheetByName(SETTINGS_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(SETTINGS_SHEET_NAME);
+    sheet.appendRow(SETTINGS_HEADERS);
+    sheet.setFrozenRows(1);
+    logInfo("Setup", "Created settings sheet");
+  } else {
+    var firstCell = sheet.getRange(1, 1).getValue();
+    if (firstCell !== "key") {
+      sheet.insertRowBefore(1);
+      sheet.getRange(1, 1, 1, SETTINGS_HEADERS.length).setValues([SETTINGS_HEADERS]);
+      sheet.setFrozenRows(1);
+      logInfo("Setup", "Inserted missing settings headers");
+    }
+  }
+  return sheet;
+}
+
+function getSettingsObject(sheet) {
+  var data = sheet.getDataRange().getValues();
+  var settings = {};
+  if (data.length <= 1) return settings;
+
+  data.slice(1).forEach(function(row) {
+    var key = row[0];
+    if (!key) return;
+    settings[key] = parseSettingValue(row[1]);
+  });
+  return settings;
+}
+
+function parseSettingValue(value) {
+  if (value === "" || value === null || value === undefined) return null;
+  try {
+    return JSON.parse(value);
+  } catch (e) {
+    return value;
+  }
 }
 
 function getAllRecords(sheet) {

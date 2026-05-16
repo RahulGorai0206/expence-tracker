@@ -8,6 +8,9 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
 
 class ExpenseApplication : Application() {
+    private var settingsBackupListener:
+            android.content.SharedPreferences.OnSharedPreferenceChangeListener? = null
+
     override fun onCreate() {
         super.onCreate()
 
@@ -26,5 +29,13 @@ class ExpenseApplication : Application() {
         if (latestSha == BuildConfig.GIT_COMMIT_HASH) {
             sharedPrefs.edit().putBoolean("update_available", false).apply()
         }
+
+        settingsBackupListener =
+            android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+                if (key in CloudSettingsBackupManager.backupPreferenceKeys) {
+                    CloudSettingsBackupManager.backupAsync(this)
+                }
+            }
+        sharedPrefs.registerOnSharedPreferenceChangeListener(settingsBackupListener)
     }
 }

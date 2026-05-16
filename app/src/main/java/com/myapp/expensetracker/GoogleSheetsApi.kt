@@ -33,12 +33,23 @@ interface GoogleSheetsApi {
         @Field("action") action: String = "read",
         @Field("api_key") apiKey: String? = null
     ): GoogleSheetResponse
+
+    @FormUrlEncoded
+    @POST
+    suspend fun syncSettings(
+        @Url url: String,
+        @Field("action") action: String = "settings",
+        @Field("mode") mode: String = "read",
+        @Field("settings_json") settingsJson: String? = null,
+        @Field("api_key") apiKey: String? = null
+    ): GoogleSheetResponse
 }
 
 data class GoogleSheetResponse(
     val success: Boolean,
     val action: String? = null,
     val records: List<RemoteTransaction>? = null,
+    val settings: CloudSettingsBackup? = null,
     val error: String? = null
 )
 

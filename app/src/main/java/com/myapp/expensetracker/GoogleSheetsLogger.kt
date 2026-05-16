@@ -6,6 +6,7 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import com.google.gson.Gson
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -164,6 +165,49 @@ object GoogleSheetsLogger {
         }
     }
 
+    suspend fun backupSettings(context: Context): String? {
+        val loggerApi = api ?: return "Sync not configured"
+        val url = currentUrl ?: return "Script URL not set"
+        val key = apiKey
+        if (url.isBlank()) return "Script URL is empty"
+        if (key.isNullOrBlank()) return "API Key is empty"
+
+        return try {
+            val backup = CloudSettingsBackupManager.capture(context)
+            val response = loggerApi.syncSettings(
+                url = url,
+                mode = "write",
+                settingsJson = Gson().toJson(backup),
+                apiKey = key
+            )
+            if (response.success) null else response.error ?: "Failed to back up settings"
+        } catch (e: Exception) {
+            e.printStackTrace()
+            "Settings backup error: ${e.localizedMessage}"
+        }
+    }
+
+    suspend fun restoreSettingsFromCloud(context: Context): String? {
+        val loggerApi = api ?: return "Sync not configured"
+        val url = currentUrl ?: return "Script URL not set"
+        val key = apiKey
+        if (url.isBlank()) return "Script URL is empty"
+        if (key.isNullOrBlank()) return "API Key is empty"
+
+        return try {
+            val response = loggerApi.syncSettings(url = url, mode = "read", apiKey = key)
+            if (!response.success) {
+                response.error ?: "Failed to restore settings"
+            } else {
+                response.settings?.let { CloudSettingsBackupManager.apply(context, it) }
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            "Settings restore error: ${e.localizedMessage}"
+        }
+    }
+
     suspend fun syncFromCloud(
         context: Context,
         onProgress: (Int, Int) -> Unit = { _, _ -> }
@@ -175,6 +219,7 @@ object GoogleSheetsLogger {
         if (key.isNullOrBlank()) return "API Key is empty"
 
         return try {
+            val settingsError = restoreSettingsFromCloud(context)
             val response = loggerApi.getRecords(url, apiKey = key)
             if (response.success && response.records != null) {
                 val db = AppDatabase.getDatabase(context)
@@ -222,7 +267,7 @@ object GoogleSheetsLogger {
                     enqueueWidgetUpdate(context)
                     null // Success
                 } else {
-                    "No valid records found to restore"
+                    settingsError ?: "No valid records found to restore"
                 }
             } else {
                 response.error ?: "Failed to fetch records"

@@ -29,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.myapp.expensetracker.GoogleSheetsLogger
+import com.myapp.expensetracker.CloudSettingsBackupManager
 import com.myapp.expensetracker.viewmodel.HomeViewModel
 import org.koin.androidx.compose.koinViewModel
 import com.myapp.expensetracker.Transaction
@@ -61,7 +62,10 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
         BudgetEditSheet(
             currentBudget = budget,
             smartSuggestions = smartSuggestions,
-            onSave = { amount -> viewModel.saveBudget(amount) },
+            onSave = { amount ->
+                viewModel.saveBudget(amount)
+                CloudSettingsBackupManager.backupAsync(context)
+            },
             onDismiss = { showBudgetEdit = false }
         )
     }
