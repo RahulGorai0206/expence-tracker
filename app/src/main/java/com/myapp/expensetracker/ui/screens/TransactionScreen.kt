@@ -1,29 +1,24 @@
 package com.myapp.expensetracker.ui.screens
 
 import android.widget.Toast
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.SizeTransform
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandHorizontally
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkHorizontally
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sync
@@ -68,7 +63,6 @@ fun TransactionScreen(onTransactionClick: (Transaction) -> Unit) {
     var isSearchActive by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     var searchFilter by remember { mutableStateOf(SearchFilter.ALL) }
-    var showFilterMenu by remember { mutableStateOf(false) }
 
     val selectedTransactions = remember(transactions, selectedIds) {
         transactions.filter { it.id in selectedIds }
@@ -125,147 +119,220 @@ fun TransactionScreen(onTransactionClick: (Transaction) -> Unit) {
             .fillMaxSize()
             .padding(horizontal = 20.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .animateContentSize(
-                        animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing)
-                    )
-            ) {
-                if (isSearchActive) {
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
+        AnimatedContent(
+            targetState = isSearchActive,
+            transitionSpec = {
+                (fadeIn(tween(300)) + slideInVertically(tween(300)) { -it / 2 })
+                    .togetherWith(fadeOut(tween(200)) + slideOutVertically(tween(200)) { -it / 2 })
+            },
+            label = "headerTransition"
+        ) { searchActive ->
+            if (searchActive) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        placeholder = { Text("Search by ${searchFilter.label.lowercase()}...") },
-                        leadingIcon = {
-                            Box {
-                                IconButton(onClick = { showFilterMenu = true }) {
-                                    Icon(Icons.Default.FilterList, contentDescription = "Filter")
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(56.dp),
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            tonalElevation = 2.dp
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                IconButton(onClick = {
+                                    isSearchActive = false
+                                    searchQuery = ""
+                                }) {
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = "Back",
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
                                 }
-                                DropdownMenu(
-                                    expanded = showFilterMenu,
-                                    onDismissRequest = { showFilterMenu = false },
-                                    offset = DpOffset(0.dp, 10.dp),
-                                    shape = RoundedCornerShape(16.dp),
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(horizontal = 8.dp)
                                 ) {
-                                    SearchFilter.entries.forEach { filter ->
-                                        DropdownMenuItem(
-                                            text = { Text(filter.label) },
-                                            onClick = {
-                                                searchFilter = filter
-                                                showFilterMenu = false
-                                            },
-                                            leadingIcon = {
-                                                if (searchFilter == filter) {
-                                                    Icon(
-                                                        Icons.Default.FilterList,
-                                                        contentDescription = null,
-                                                        modifier = Modifier.size(18.dp)
-                                                    )
-                                                }
-                                            }
+                                    if (searchQuery.isEmpty()) {
+                                        Text(
+                                            "Search by ${searchFilter.label.lowercase()}...",
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                                alpha = 0.6f
+                                            )
+                                        )
+                                    }
+                                    androidx.compose.foundation.text.BasicTextField(
+                                        value = searchQuery,
+                                        onValueChange = { searchQuery = it },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        textStyle = MaterialTheme.typography.bodyLarge.copy(
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        ),
+                                        singleLine = true,
+                                        cursorBrush = androidx.compose.ui.graphics.SolidColor(
+                                            MaterialTheme.colorScheme.primary
+                                        )
+                                    )
+                                }
+
+                                if (searchQuery.isNotEmpty()) {
+                                    IconButton(onClick = { searchQuery = "" }) {
+                                        Icon(
+                                            Icons.Default.Close,
+                                            contentDescription = "Clear",
+                                            modifier = Modifier.size(20.dp)
                                         )
                                     }
                                 }
                             }
-                        },
-                        trailingIcon = {
-                            IconButton(onClick = {
-                                isSearchActive = false
-                                searchQuery = ""
-                            }) {
-                                Icon(Icons.Default.Close, contentDescription = "Close search")
-                            }
-                        },
-                        singleLine = true,
-                        shape = RoundedCornerShape(16.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                            focusedBorderColor = MaterialTheme.colorScheme.primary
-                        )
-                    )
-                } else {
-                    AnimatedContent(
-                        targetState = selectedIds.size,
-                        transitionSpec = {
-                            (fadeIn(tween(160)) + slideInVertically(
-                                animationSpec = tween(220, easing = FastOutSlowInEasing)
-                            ) { it / 3 }).togetherWith(
-                                fadeOut(tween(120)) + slideOutVertically(
-                                    animationSpec = tween(180, easing = FastOutSlowInEasing)
-                                ) { -it / 3 }
-                            ).using(SizeTransform(clip = false))
-                        },
-                        label = "historyTitle"
-                    ) { selectedCount ->
-                        Text(
-                            if (selectedCount > 0) "$selectedCount selected" else "Ledger History",
-                            style = MaterialTheme.typography.headlineLarge,
-                            color = MaterialTheme.colorScheme.onBackground,
-                            fontWeight = FontWeight.Black
-                        )
-                    }
-                    AnimatedContent(
-                        targetState = selectionMode,
-                        transitionSpec = {
-                            fadeIn(tween(160)).togetherWith(fadeOut(tween(120)))
-                        },
-                        label = "historySubtitle"
-                    ) { selecting ->
-                        Text(
-                            if (selecting) "Tap more transactions to add them." else "Tracking your financial journey.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-
-            if (!isSearchActive) {
-                AnimatedVisibility(
-                    visible = selectionMode,
-                    enter = fadeIn(tween(160)) + expandHorizontally(
-                        animationSpec = tween(240, easing = FastOutSlowInEasing),
-                        expandFrom = Alignment.End
-                    ),
-                    exit = fadeOut(tween(120)) + shrinkHorizontally(
-                        animationSpec = tween(200, easing = FastOutSlowInEasing),
-                        shrinkTowards = Alignment.End
-                    )
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = { selectedIds = emptySet() }) {
-                            Icon(Icons.Default.Close, contentDescription = "Exit selection")
                         }
-                        IconButton(
-                            onClick = { showDeleteDialog = true },
-                            colors = IconButtonDefaults.iconButtonColors(
-                                contentColor = MaterialTheme.colorScheme.error
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
+                            .padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        SearchFilter.entries.forEach { filter ->
+                            FilterChip(
+                                selected = searchFilter == filter,
+                                onClick = { searchFilter = filter },
+                                label = { Text(filter.label) },
+                                leadingIcon = if (searchFilter == filter) {
+                                    {
+                                        Icon(
+                                            Icons.Default.Done,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(FilterChipDefaults.IconSize)
+                                        )
+                                    }
+                                } else null,
+                                shape = RoundedCornerShape(12.dp),
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
                             )
-                        ) {
-                            Icon(Icons.Default.Delete, contentDescription = "Delete selected")
                         }
                     }
                 }
+            } else {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .animateContentSize(
+                                animationSpec = tween(
+                                    durationMillis = 240,
+                                    easing = FastOutSlowInEasing
+                                )
+                            )
+                    ) {
+                        AnimatedContent(
+                            targetState = selectedIds.size,
+                            transitionSpec = {
+                                (fadeIn(tween(160)) + slideInVertically(
+                                    animationSpec = tween(220, easing = FastOutSlowInEasing)
+                                ) { it / 3 }).togetherWith(
+                                    fadeOut(tween(120)) + slideOutVertically(
+                                        animationSpec = tween(180, easing = FastOutSlowInEasing)
+                                    ) { -it / 3 }
+                                ).using(SizeTransform(clip = false))
+                            },
+                            label = "historyTitle"
+                        ) { selectedCount ->
+                            Text(
+                                if (selectedCount > 0) "$selectedCount selected" else "Ledger History",
+                                style = MaterialTheme.typography.headlineLarge,
+                                color = MaterialTheme.colorScheme.onBackground,
+                                fontWeight = FontWeight.Black
+                            )
+                        }
+                        AnimatedContent(
+                            targetState = selectionMode,
+                            transitionSpec = {
+                                fadeIn(tween(160)).togetherWith(fadeOut(tween(120)))
+                            },
+                            label = "historySubtitle"
+                        ) { selecting ->
+                            Text(
+                                if (selecting) "Tap more transactions to add them." else "Tracking your financial journey.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
 
-                if (!selectionMode) {
-                    IconButton(onClick = { isSearchActive = true }) {
-                        Icon(Icons.Default.Search, contentDescription = "Search history")
+                    AnimatedVisibility(
+                        visible = selectionMode,
+                        enter = fadeIn(tween(160)) + expandHorizontally(
+                            animationSpec = tween(240, easing = FastOutSlowInEasing),
+                            expandFrom = Alignment.End
+                        ),
+                        exit = fadeOut(tween(120)) + shrinkHorizontally(
+                            animationSpec = tween(200, easing = FastOutSlowInEasing),
+                            shrinkTowards = Alignment.End
+                        )
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = { selectedIds = emptySet() }) {
+                                Icon(Icons.Default.Close, contentDescription = "Exit selection")
+                            }
+                            IconButton(
+                                onClick = { showDeleteDialog = true },
+                                colors = IconButtonDefaults.iconButtonColors(
+                                    contentColor = MaterialTheme.colorScheme.error
+                                )
+                            ) {
+                                Icon(Icons.Default.Delete, contentDescription = "Delete selected")
+                            }
+                        }
+                    }
+
+                    if (!selectionMode) {
+                        Surface(
+                            onClick = { isSearchActive = true },
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Default.Search,
+                                    contentDescription = "Search history",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
                     }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         if (transactions.isEmpty() && deletedSyncTransactions.isEmpty()) {
             EmptyState(
