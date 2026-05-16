@@ -329,8 +329,19 @@ class LazySyncManager(private val context: Context) {
 
         val prompt = """
             <start_of_turn>user
-            Extract transaction details from this SMS. If it is NOT a bank transaction, if it's an OTP, or if it is a credit card bill/statement/payment due reminder, answer INVALID.
-            Otherwise, extract the details precisely in this format:
+            You are a bank SMS classifier. Your job is to decide if an SMS is a REAL bank transaction or not.
+
+            Answer INVALID for ALL of the following:
+            - OTP or verification code messages (even if they mention an amount)
+            - Login or sign-in alerts
+            - Fee/charges updates or policy notifications
+            - Credit card bill/statement/payment due reminders
+            - Promotional or marketing messages
+            - Any SMS that does NOT confirm money was actually debited or credited
+
+            A REAL transaction SMS must confirm that money has ALREADY moved (debited/credited/spent/received/transferred/paid/withdrawn).
+
+            If it IS a real transaction, extract ONLY the amount explicitly stated in the SMS — never invent or guess an amount. Respond in this exact format:
             AMOUNT: (number only, use dot for decimals)
             TYPE: (DEBIT or CREDIT)
             CATEGORY: (Dining, Transport, Groceries, Shopping, Bills, Entertainment, Health, or Other)
@@ -338,10 +349,22 @@ class LazySyncManager(private val context: Context) {
             $groundingPrompt
 
             Examples:
-            SMS: "Your A/c XX123 debited by Rs 500.00 for txn at Amazon"
-            Response: AMOUNT: 500.00, TYPE: DEBIT, CATEGORY: Shopping
+            SMS: "Your A/c XX123 debited by Rs 1200.50 for txn at Swiggy"
+            Response: AMOUNT: 1200.50, TYPE: DEBIT, CATEGORY: Dining
+
+            SMS: "Rs 350.00 credited to your A/c XX456. UPI Ref 12345"
+            Response: AMOUNT: 350.00, TYPE: CREDIT, CATEGORY: Other
 
             SMS: "OTP is 123456 for txn of Rs 100.00"
+            Response: INVALID
+
+            SMS: "LOGIN to your Flipkart account using OTP 352547. DO NOT SHARE this code."
+            Response: INVALID
+
+            SMS: "Important Update on Fees and Charges for your Credit Card. View details: http://example.com"
+            Response: INVALID
+
+            SMS: "823132 is the OTP for transaction of INR 160.45 on Card 8303. Do not share OTP."
             Response: INVALID
 
             SMS: "$body"<end_of_turn>
@@ -350,8 +373,15 @@ class LazySyncManager(private val context: Context) {
         
         val response = llmInference.generateResponse(prompt).trim()
         Log.d("LazySync", "LLM Response: $response")
-        
-        if (response.contains("INVALID", ignoreCase = true) && !response.contains("AMOUNT", ignoreCase = true)) {
+
+        // Check for INVALID — look at the first line of response for robustness
+        val firstLine = response.lines().firstOrNull()?.trim() ?: ""
+        if (firstLine.contains("INVALID", ignoreCase = true) ||
+            (response.contains("INVALID", ignoreCase = true) && !response.contains(
+                "AMOUNT",
+                ignoreCase = true
+            ))
+        ) {
             return null
         }
         
