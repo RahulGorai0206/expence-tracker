@@ -5,6 +5,16 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudOff
@@ -14,6 +24,7 @@ import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,19 +47,37 @@ fun TransactionListItem(
     onLongClick: (() -> Unit)? = null
 ) {
     val cardShape = RoundedCornerShape(24.dp)
-
-    Surface(
-        color = if (selected) {
+    val containerColor by animateColorAsState(
+        targetValue = if (selected) {
             MaterialTheme.colorScheme.primaryContainer
         } else {
             MaterialTheme.colorScheme.surfaceContainer
         },
+        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+        label = "transactionContainer"
+    )
+    val tonalElevation by animateDpAsState(
+        targetValue = if (selected || selectionMode) 0.dp else 1.dp,
+        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+        label = "transactionTonalElevation"
+    )
+    val shadowElevation by animateDpAsState(
+        targetValue = if (selected || selectionMode) 0.dp else 2.dp,
+        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+        label = "transactionShadowElevation"
+    )
+
+    Surface(
+        color = containerColor,
         shape = cardShape,
-        tonalElevation = if (selected || selectionMode) 0.dp else 1.dp,
-        shadowElevation = if (selected || selectionMode) 0.dp else 2.dp,
+        tonalElevation = tonalElevation,
+        shadowElevation = shadowElevation,
         modifier = modifier
             .fillMaxWidth()
             .clip(cardShape)
+            .animateContentSize(
+                animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing)
+            )
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick
@@ -63,7 +92,17 @@ fun TransactionListItem(
             val icon = categoryInfo.icon
             val color = categoryInfo.color
 
-            if (selectionMode) {
+            AnimatedVisibility(
+                visible = selectionMode,
+                enter = fadeIn(tween(160)) + expandHorizontally(
+                    animationSpec = tween(240, easing = FastOutSlowInEasing),
+                    expandFrom = Alignment.Start
+                ),
+                exit = fadeOut(tween(120)) + shrinkHorizontally(
+                    animationSpec = tween(200, easing = FastOutSlowInEasing),
+                    shrinkTowards = Alignment.Start
+                )
+            ) {
                 Box(
                     modifier = Modifier
                         .width(40.dp)

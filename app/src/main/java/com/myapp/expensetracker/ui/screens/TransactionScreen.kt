@@ -1,6 +1,19 @@
 package com.myapp.expensetracker.ui.screens
 
 import android.widget.Toast
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -102,31 +115,71 @@ fun TransactionScreen(onTransactionClick: (Transaction) -> Unit) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    if (selectionMode) "${selectedIds.size} selected" else "Ledger History",
-                    style = MaterialTheme.typography.headlineLarge,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    fontWeight = FontWeight.Black
-                )
-                Text(
-                    if (selectionMode) "Tap more transactions to add them." else "Tracking your financial journey.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .animateContentSize(
+                        animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing)
+                    )
+            ) {
+                AnimatedContent(
+                    targetState = selectedIds.size,
+                    transitionSpec = {
+                        (fadeIn(tween(160)) + slideInVertically(
+                            animationSpec = tween(220, easing = FastOutSlowInEasing)
+                        ) { it / 3 }).togetherWith(
+                            fadeOut(tween(120)) + slideOutVertically(
+                                animationSpec = tween(180, easing = FastOutSlowInEasing)
+                            ) { -it / 3 }
+                        ).using(SizeTransform(clip = false))
+                    },
+                    label = "historyTitle"
+                ) { selectedCount ->
+                    Text(
+                        if (selectedCount > 0) "$selectedCount selected" else "Ledger History",
+                        style = MaterialTheme.typography.headlineLarge,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        fontWeight = FontWeight.Black
+                    )
+                }
+                AnimatedContent(
+                    targetState = selectionMode,
+                    transitionSpec = {
+                        fadeIn(tween(160)).togetherWith(fadeOut(tween(120)))
+                    },
+                    label = "historySubtitle"
+                ) { selecting ->
+                    Text(
+                        if (selecting) "Tap more transactions to add them." else "Tracking your financial journey.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
 
-            if (selectionMode) {
-                IconButton(onClick = { selectedIds = emptySet() }) {
-                    Icon(Icons.Default.Close, contentDescription = "Exit selection")
-                }
-                IconButton(
-                    onClick = { showDeleteDialog = true },
-                    colors = IconButtonDefaults.iconButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error
-                    )
-                ) {
-                    Icon(Icons.Default.Delete, contentDescription = "Delete selected")
+            AnimatedVisibility(
+                visible = selectionMode,
+                enter = fadeIn(tween(160)) + expandHorizontally(
+                    animationSpec = tween(240, easing = FastOutSlowInEasing),
+                    expandFrom = Alignment.End
+                ),
+                exit = fadeOut(tween(120)) + shrinkHorizontally(
+                    animationSpec = tween(200, easing = FastOutSlowInEasing),
+                    shrinkTowards = Alignment.End
+                )
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { selectedIds = emptySet() }) {
+                        Icon(Icons.Default.Close, contentDescription = "Exit selection")
+                    }
+                    IconButton(
+                        onClick = { showDeleteDialog = true },
+                        colors = IconButtonDefaults.iconButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        Icon(Icons.Default.Delete, contentDescription = "Delete selected")
+                    }
                 }
             }
         }
