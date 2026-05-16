@@ -52,6 +52,7 @@ import android.content.ComponentName
 import com.myapp.expensetracker.TransactionNotificationListener
 import com.myapp.expensetracker.ExpenseWidgetReceiver
 import com.myapp.expensetracker.PinnedWidgetReceiver
+import com.myapp.expensetracker.worker.LazySyncWorker
 import com.myapp.expensetracker.worker.UpdateCheckWorker
 import kotlinx.coroutines.launch
 import java.util.Calendar
@@ -351,6 +352,7 @@ fun SettingsScreen(
     var modelDownloadProgress by remember { mutableStateOf("") }
 
     var showLazySyncDialog by remember { mutableStateOf(false) }
+    var showLazySyncStartedDialog by remember { mutableStateOf(false) }
     var isLazySyncing by remember { mutableStateOf(false) }
     var lazySyncStatus by remember { mutableStateOf("") }
     val dateRangePickerState = rememberDateRangePickerState()
@@ -935,26 +937,13 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
                                 enabled = dateRangePickerState.selectedStartDateMillis != null &&
                                     dateRangePickerState.selectedEndDateMillis != null,
                                 onClick = {
-                                    isLazySyncing = true
-                                    scope.launch {
-                                        val manager = LazySyncManager(context)
-                                        val success = try {
-                                            manager.syncMessages(
-                                                dateRangePickerState.selectedStartDateMillis!!,
-                                                dateRangePickerState.selectedEndDateMillis!!
-                                            ) { status ->
-                                                lazySyncStatus = status
-                                            }
-                                        } catch (e: Throwable) {
-                                            android.widget.Toast.makeText(context, "Unexpected Error: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
-                                            lazySyncStatus = "Error: ${e.message}"
-                                            false
-                                        }
-                                        isLazySyncing = false
-                                        if (success) {
-                                            showLazySyncDialog = false
-                                        }
-                                    }
+                                    LazySyncWorker.start(
+                                        context,
+                                        dateRangePickerState.selectedStartDateMillis!!,
+                                        dateRangePickerState.selectedEndDateMillis!!
+                                    )
+                                    showLazySyncDialog = false
+                                    showLazySyncStartedDialog = true
                                 },
                                 shape = RoundedCornerShape(12.dp)
                             ) {
@@ -967,6 +956,26 @@ function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeTyp
                 }
             }
         }
+    }
+
+    if (showLazySyncStartedDialog) {
+        AlertDialog(
+            onDismissRequest = { showLazySyncStartedDialog = false },
+            title = { Text("Lazy Sync started", fontWeight = FontWeight.Black) },
+            text = {
+                Text("AI is scanning your messages in the background. You can close this window or minimize the app; progress will stay visible in the notification shade.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showLazySyncStartedDialog = false },
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Okay")
+                }
+            },
+            shape = RoundedCornerShape(28.dp),
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        )
     }
 
     if (showDeleteDialog) {

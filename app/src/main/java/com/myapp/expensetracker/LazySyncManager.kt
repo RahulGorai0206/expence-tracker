@@ -6,6 +6,7 @@ import android.util.Log
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
 import com.google.mediapipe.tasks.genai.llminference.LlmInference.LlmInferenceOptions
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.net.URL
@@ -16,9 +17,104 @@ class LazySyncManager(private val context: Context) {
     private val database = AppDatabase.getDatabase(context)
     private val extractor = TransactionExtractor()
 
+    data class SyncProgress(
+        val message: String,
+        val current: Int = 0,
+        val total: Int = 0,
+        val added: Int = 0
+    )
+
     companion object {
         private const val MODEL_URL = "https://huggingface.co/rperuman/gemma-2b-it-cpu-int4.bin/resolve/main/gemma-2b-it-cpu-int4.bin"
         private const val MODEL_FILE_NAME = "gemma.bin"
+    }
+
+    suspend fun syncMessagesInBackground(
+        startDate: Long,
+        endDate: Long,
+        onProgress: suspend (SyncProgress) -> Unit
+    ): Boolean = withContext(Dispatchers.IO) {
+        try {
+            onProgress(SyncProgress("Checking AI model..."))
+            val modelFile = File(context.filesDir, MODEL_FILE_NAME)
+            if (!modelFile.exists()) {
+                downloadModel(modelFile) { status ->
+                    runBlocking { onProgress(SyncProgress(status)) }
+                }
+            }
+
+            onProgress(SyncProgress("Initializing AI..."))
+            val options = LlmInferenceOptions.builder()
+                .setModelPath(modelFile.absolutePath)
+                .setMaxTokens(512)
+                .build()
+
+            LlmInference.createFromOptions(context, options).use { llmInference ->
+                onProgress(SyncProgress("Fetching SMS messages..."))
+                val messages = fetchSmsMessages(startDate, endDate)
+                val prefs =
+                    context.getSharedPreferences("prefs", android.content.Context.MODE_PRIVATE)
+                val ignoreCcBills = prefs.getBoolean("ignore_cc_bills", false)
+                val trackOnlyDebits = prefs.getBoolean("track_only_debits", false)
+
+                var count = 0
+                messages.forEachIndexed { index, sms ->
+                    val current = index + 1
+                    onProgress(
+                        SyncProgress(
+                            message = "AI checking message $current/${messages.size}...",
+                            current = current,
+                            total = messages.size,
+                            added = count
+                        )
+                    )
+
+                    val transaction =
+                        extractWithAI(llmInference, sms.body, sms.sender, sms.timestamp)
+                            ?: return@forEachIndexed
+
+                    if (ignoreCcBills && extractor.isCreditCardBill(sms.body)) {
+                        Log.d("LazySync", "Ignoring CC bill after AI check: ${sms.body}")
+                        return@forEachIndexed
+                    }
+                    if (trackOnlyDebits && transaction.amount >= 0) {
+                        Log.d("LazySync", "Skipping credit due to Track Only Debits: ${sms.body}")
+                        return@forEachIndexed
+                    }
+
+                    val duplicateCount = database.transactionDao().checkDuplicate(
+                        transaction.date,
+                        transaction.amount,
+                        transaction.bodyHash
+                    )
+                    if (duplicateCount > 0) {
+                        Log.d("LazySync", "Duplicate skipped after AI scan")
+                        return@forEachIndexed
+                    }
+
+                    val localId = database.transactionDao().insertAndReturnId(transaction)
+                    GoogleSheetsLogger.logAsync(context, transaction, localId)
+                    count++
+                }
+
+                onProgress(
+                    SyncProgress(
+                        message = "Sync complete! Added $count transactions.",
+                        current = messages.size,
+                        total = messages.size,
+                        added = count
+                    )
+                )
+                if (count > 0) {
+                    enqueueWidgetUpdate(context)
+                }
+                true
+            }
+        } catch (e: Throwable) {
+            Log.e("LazySync", "Error during background lazy sync", e)
+            onProgress(SyncProgress("Error: ${e.localizedMessage}"))
+            false
+        }
     }
 
     suspend fun syncMessages(startDate: Long, endDate: Long, onProgress: (String) -> Unit): Boolean = withContext(Dispatchers.IO) {
@@ -336,7 +432,7 @@ class LazySyncManager(private val context: Context) {
 
         val prompt = """
             <start_of_turn>user
-            Extract transaction details from this SMS. If it is NOT a bank transaction or if it's an OTP, answer INVALID.
+            Extract transaction details from this SMS. If it is NOT a bank transaction, if it's an OTP, or if it is a credit card bill/statement/payment due reminder, answer INVALID.
             Otherwise, extract the details precisely in this format:
             AMOUNT: (number only, use dot for decimals)
             TYPE: (DEBIT or CREDIT)
