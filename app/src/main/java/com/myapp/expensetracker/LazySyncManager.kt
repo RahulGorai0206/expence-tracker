@@ -46,7 +46,7 @@ class LazySyncManager(private val context: Context) {
             onProgress(SyncProgress("Initializing AI..."))
             val options = LlmInferenceOptions.builder()
                 .setModelPath(modelFile.absolutePath)
-                .setMaxTokens(512)
+                .setMaxTokens(1024)
                 .build()
 
             LlmInference.createFromOptions(context, options).use { llmInference ->
