@@ -25,6 +25,7 @@ import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,10 +50,6 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
-    companion object {
-        private var splashShownThisSession = false
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
@@ -71,16 +68,17 @@ class MainActivity : ComponentActivity() {
             var darkTheme by remember { 
                 mutableStateOf(sharedPrefs.getBoolean("dark_theme", true)) 
             }
-            
+
             val currentTheme = if (followSystemTheme) systemInDarkTheme else darkTheme
 
-            var showBrandedSplash by remember { mutableStateOf(!splashShownThisSession) }
+            var showBrandedSplash by rememberSaveable {
+                mutableStateOf(savedInstanceState == null)
+            }
 
-            LaunchedEffect(Unit) {
+            LaunchedEffect(showBrandedSplash) {
                 if (showBrandedSplash) {
-                    delay(2000) // Show splash for 2 seconds
+                    delay(1700)
                     showBrandedSplash = false
-                    splashShownThisSession = true
                 }
             }
             
@@ -101,7 +99,8 @@ class MainActivity : ComponentActivity() {
 
                     AnimatedVisibility(
                         visible = showBrandedSplash,
-                        exit = fadeOut(animationSpec = tween(500))
+                        enter = fadeIn(animationSpec = tween(220)),
+                        exit = fadeOut(animationSpec = tween(420))
                     ) {
                         BrandedSplashScreen()
                     }
