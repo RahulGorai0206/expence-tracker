@@ -9,8 +9,10 @@ import android.net.Uri
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.work.*
+import com.myapp.expensetracker.AppDatabase
 import com.myapp.expensetracker.BuildConfig
 import com.myapp.expensetracker.GitHubApi
+import com.myapp.expensetracker.GoogleSheetsLogger
 import com.myapp.expensetracker.R
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
@@ -146,6 +148,21 @@ class UpdateCheckWorker(
                     putBoolean("update_available", false)
                     putString("latest_version_sha", latestCommitSha)
                     apply()
+                }
+            }
+
+            // --- SYNC PENDING/FAILED TRANSACTIONS ---
+            if (GoogleSheetsLogger.isConfigured()) {
+                val dao = AppDatabase.getDatabase(applicationContext).transactionDao()
+                val needingSync = dao.getAllTransactionsNeedingSync()
+                if (needingSync.isNotEmpty()) {
+                    Log.d(
+                        "UpdateCheckWorker",
+                        "Found ${needingSync.size} transactions needing sync. Triggering..."
+                    )
+                    needingSync.forEach { tx ->
+                        GoogleSheetsLogger.logAsync(applicationContext, tx, tx.id.toLong())
+                    }
                 }
             }
 

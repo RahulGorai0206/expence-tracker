@@ -63,6 +63,9 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE syncStatus IN ('pending', 'failed') AND id != :excludeId")
     suspend fun getPendingOrFailedTransactions(excludeId: Int): List<Transaction>
 
+    @Query("SELECT * FROM transactions WHERE syncStatus IN ('pending', 'failed')")
+    suspend fun getAllTransactionsNeedingSync(): List<Transaction>
+
     @Query("SELECT * FROM transactions WHERE status = 'deleted' AND syncStatus IN ('pending', 'failed') ORDER BY date DESC")
     fun getDeletedPendingOrFailedTransactions(): Flow<List<Transaction>>
 
