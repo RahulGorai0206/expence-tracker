@@ -564,10 +564,14 @@ fun SettingsScreen(
                                 enabled = dateRangePickerState.selectedStartDateMillis != null &&
                                     dateRangePickerState.selectedEndDateMillis != null,
                                 onClick = {
+                                    // DateRangePicker returns UTC midnight; add 24h-1ms
+                                    // so the entire end day is included in any timezone
+                                    val endOfDay = dateRangePickerState.selectedEndDateMillis!! +
+                                            (24 * 60 * 60 * 1000L - 1L)
                                     LazySyncWorker.start(
                                         context,
                                         dateRangePickerState.selectedStartDateMillis!!,
-                                        dateRangePickerState.selectedEndDateMillis!!
+                                        endOfDay
                                     )
                                     showLazySyncDialog = false
                                     showLazySyncStartedDialog = true
