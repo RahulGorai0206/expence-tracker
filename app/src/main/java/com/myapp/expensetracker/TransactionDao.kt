@@ -57,6 +57,9 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE status != 'deleted' AND date >= :startDate AND date <= :endDate ORDER BY date DESC LIMIT 1")
     suspend fun getLastTransactionBetween(startDate: Long, endDate: Long): Transaction?
 
+    @Query("SELECT COUNT(*) FROM transactions WHERE status != 'deleted'")
+    suspend fun getActiveTransactionCount(): Int
+
     @Query("SELECT * FROM transactions WHERE syncStatus IN ('pending', 'failed') AND id != :excludeId")
     suspend fun getPendingOrFailedTransactions(excludeId: Int): List<Transaction>
 
