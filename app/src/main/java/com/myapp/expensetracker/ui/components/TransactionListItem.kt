@@ -18,7 +18,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -36,21 +35,20 @@ fun TransactionListItem(
     selectionMode: Boolean = false,
     onLongClick: (() -> Unit)? = null
 ) {
+    val cardShape = RoundedCornerShape(24.dp)
+
     Surface(
         color = if (selected) {
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.62f)
+            MaterialTheme.colorScheme.primaryContainer
         } else {
             MaterialTheme.colorScheme.surfaceContainer
         },
-        shape = RoundedCornerShape(24.dp),
-        tonalElevation = 1.dp,
+        shape = cardShape,
+        tonalElevation = if (selected || selectionMode) 0.dp else 1.dp,
+        shadowElevation = if (selected || selectionMode) 0.dp else 2.dp,
         modifier = modifier
             .fillMaxWidth()
-            .graphicsLayer {
-                shadowElevation = 2f
-                shape = RoundedCornerShape(24.dp)
-                clip = true
-            }
+            .clip(cardShape)
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick
@@ -66,11 +64,17 @@ fun TransactionListItem(
             val color = categoryInfo.color
 
             if (selectionMode) {
-                Checkbox(
-                    checked = selected,
-                    onCheckedChange = { onClick() },
-                    modifier = Modifier.padding(end = 8.dp)
-                )
+                Box(
+                    modifier = Modifier
+                        .width(40.dp)
+                        .padding(end = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Checkbox(
+                        checked = selected,
+                        onCheckedChange = { onClick() }
+                    )
+                }
             }
             
             Box(
