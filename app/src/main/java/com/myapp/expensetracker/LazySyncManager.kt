@@ -413,6 +413,14 @@ class LazySyncManager(private val context: Context) {
                 )
             } else if (aiAmount > 0) {
                 // Fallback to full AI if reliable extraction failed but AI found something
+                // Safety: reject if the AI hallucinated an amount not present in the SMS
+                if (amountStr != null && !body.contains(amountStr)) {
+                    Log.d(
+                        "LazySync",
+                        "AI hallucinated amount $aiAmount not found in SMS body, skipping"
+                    )
+                    return null
+                }
                 Log.d(
                     "LazySync",
                     "Reliable extraction failed, falling back to AI parsed amount: $aiAmount"
