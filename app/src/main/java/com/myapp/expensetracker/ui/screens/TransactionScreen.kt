@@ -24,6 +24,8 @@ import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -31,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.myapp.expensetracker.Transaction
@@ -43,6 +46,13 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
+enum class SearchFilter(val label: String) {
+    ALL("All"),
+    TAG("Tag"),
+    AMOUNT("Amount"),
+    DATE("Date")
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TransactionScreen(onTransactionClick: (Transaction) -> Unit) {
@@ -54,6 +64,11 @@ fun TransactionScreen(onTransactionClick: (Transaction) -> Unit) {
     var selectedIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     val selectionMode = selectedIds.isNotEmpty()
+
+    var isSearchActive by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    var searchFilter by remember { mutableStateOf(SearchFilter.ALL) }
+    var showFilterMenu by remember { mutableStateOf(false) }
 
     val selectedTransactions = remember(transactions, selectedIds) {
         transactions.filter { it.id in selectedIds }
@@ -122,63 +137,129 @@ fun TransactionScreen(onTransactionClick: (Transaction) -> Unit) {
                         animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing)
                     )
             ) {
-                AnimatedContent(
-                    targetState = selectedIds.size,
-                    transitionSpec = {
-                        (fadeIn(tween(160)) + slideInVertically(
-                            animationSpec = tween(220, easing = FastOutSlowInEasing)
-                        ) { it / 3 }).togetherWith(
-                            fadeOut(tween(120)) + slideOutVertically(
-                                animationSpec = tween(180, easing = FastOutSlowInEasing)
-                            ) { -it / 3 }
-                        ).using(SizeTransform(clip = false))
-                    },
-                    label = "historyTitle"
-                ) { selectedCount ->
-                    Text(
-                        if (selectedCount > 0) "$selectedCount selected" else "Ledger History",
-                        style = MaterialTheme.typography.headlineLarge,
-                        color = MaterialTheme.colorScheme.onBackground,
-                        fontWeight = FontWeight.Black
+                if (isSearchActive) {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        placeholder = { Text("Search by ${searchFilter.label.lowercase()}...") },
+                        leadingIcon = {
+                            Box {
+                                IconButton(onClick = { showFilterMenu = true }) {
+                                    Icon(Icons.Default.FilterList, contentDescription = "Filter")
+                                }
+                                DropdownMenu(
+                                    expanded = showFilterMenu,
+                                    onDismissRequest = { showFilterMenu = false },
+                                    offset = DpOffset(0.dp, 10.dp),
+                                    shape = RoundedCornerShape(16.dp),
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                                ) {
+                                    SearchFilter.entries.forEach { filter ->
+                                        DropdownMenuItem(
+                                            text = { Text(filter.label) },
+                                            onClick = {
+                                                searchFilter = filter
+                                                showFilterMenu = false
+                                            },
+                                            leadingIcon = {
+                                                if (searchFilter == filter) {
+                                                    Icon(
+                                                        Icons.Default.FilterList,
+                                                        contentDescription = null,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                }
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        },
+                        trailingIcon = {
+                            IconButton(onClick = {
+                                isSearchActive = false
+                                searchQuery = ""
+                            }) {
+                                Icon(Icons.Default.Close, contentDescription = "Close search")
+                            }
+                        },
+                        singleLine = true,
+                        shape = RoundedCornerShape(16.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                            focusedBorderColor = MaterialTheme.colorScheme.primary
+                        )
                     )
-                }
-                AnimatedContent(
-                    targetState = selectionMode,
-                    transitionSpec = {
-                        fadeIn(tween(160)).togetherWith(fadeOut(tween(120)))
-                    },
-                    label = "historySubtitle"
-                ) { selecting ->
-                    Text(
-                        if (selecting) "Tap more transactions to add them." else "Tracking your financial journey.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                } else {
+                    AnimatedContent(
+                        targetState = selectedIds.size,
+                        transitionSpec = {
+                            (fadeIn(tween(160)) + slideInVertically(
+                                animationSpec = tween(220, easing = FastOutSlowInEasing)
+                            ) { it / 3 }).togetherWith(
+                                fadeOut(tween(120)) + slideOutVertically(
+                                    animationSpec = tween(180, easing = FastOutSlowInEasing)
+                                ) { -it / 3 }
+                            ).using(SizeTransform(clip = false))
+                        },
+                        label = "historyTitle"
+                    ) { selectedCount ->
+                        Text(
+                            if (selectedCount > 0) "$selectedCount selected" else "Ledger History",
+                            style = MaterialTheme.typography.headlineLarge,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            fontWeight = FontWeight.Black
+                        )
+                    }
+                    AnimatedContent(
+                        targetState = selectionMode,
+                        transitionSpec = {
+                            fadeIn(tween(160)).togetherWith(fadeOut(tween(120)))
+                        },
+                        label = "historySubtitle"
+                    ) { selecting ->
+                        Text(
+                            if (selecting) "Tap more transactions to add them." else "Tracking your financial journey.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
 
-            AnimatedVisibility(
-                visible = selectionMode,
-                enter = fadeIn(tween(160)) + expandHorizontally(
-                    animationSpec = tween(240, easing = FastOutSlowInEasing),
-                    expandFrom = Alignment.End
-                ),
-                exit = fadeOut(tween(120)) + shrinkHorizontally(
-                    animationSpec = tween(200, easing = FastOutSlowInEasing),
-                    shrinkTowards = Alignment.End
-                )
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { selectedIds = emptySet() }) {
-                        Icon(Icons.Default.Close, contentDescription = "Exit selection")
+            if (!isSearchActive) {
+                AnimatedVisibility(
+                    visible = selectionMode,
+                    enter = fadeIn(tween(160)) + expandHorizontally(
+                        animationSpec = tween(240, easing = FastOutSlowInEasing),
+                        expandFrom = Alignment.End
+                    ),
+                    exit = fadeOut(tween(120)) + shrinkHorizontally(
+                        animationSpec = tween(200, easing = FastOutSlowInEasing),
+                        shrinkTowards = Alignment.End
+                    )
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { selectedIds = emptySet() }) {
+                            Icon(Icons.Default.Close, contentDescription = "Exit selection")
+                        }
+                        IconButton(
+                            onClick = { showDeleteDialog = true },
+                            colors = IconButtonDefaults.iconButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error
+                            )
+                        ) {
+                            Icon(Icons.Default.Delete, contentDescription = "Delete selected")
+                        }
                     }
-                    IconButton(
-                        onClick = { showDeleteDialog = true },
-                        colors = IconButtonDefaults.iconButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error
-                        )
-                    ) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete selected")
+                }
+
+                if (!selectionMode) {
+                    IconButton(onClick = { isSearchActive = true }) {
+                        Icon(Icons.Default.Search, contentDescription = "Search history")
                     }
                 }
             }
@@ -194,8 +275,41 @@ fun TransactionScreen(onTransactionClick: (Transaction) -> Unit) {
                 modifier = Modifier.weight(1f)
             )
         } else {
-            val grouped = remember(transactions) {
-                transactions.groupBy {
+            val filteredTransactions = remember(transactions, searchQuery, searchFilter) {
+                if (searchQuery.isBlank()) {
+                    transactions
+                } else {
+                    val query = searchQuery.lowercase(Locale.getDefault())
+                    transactions.filter { tx ->
+                        when (searchFilter) {
+                            SearchFilter.ALL -> {
+                                tx.category.lowercase().contains(query) ||
+                                        tx.tag.lowercase().contains(query) ||
+                                        tx.sender.lowercase().contains(query) ||
+                                        tx.body.lowercase().contains(query) ||
+                                        String.format(Locale.getDefault(), "%.2f", tx.amount)
+                                            .contains(query)
+                            }
+
+                            SearchFilter.TAG -> tx.tag.lowercase().contains(query)
+                            SearchFilter.AMOUNT -> String.format(
+                                Locale.getDefault(),
+                                "%.2f",
+                                tx.amount
+                            ).contains(query)
+
+                            SearchFilter.DATE -> {
+                                val dateStr = SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault())
+                                    .format(Date(tx.date)).lowercase()
+                                dateStr.contains(query)
+                            }
+                        }
+                    }
+                }
+            }
+
+            val grouped = remember(filteredTransactions) {
+                filteredTransactions.groupBy {
                     val date = Date(it.date)
                     val now = Calendar.getInstance()
                     val target = Calendar.getInstance().apply { time = date }
