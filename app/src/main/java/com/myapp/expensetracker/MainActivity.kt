@@ -121,17 +121,53 @@ fun MainScreen(
     val sharedPrefs = remember { context.getSharedPreferences("prefs", Context.MODE_PRIVATE) }
     var isSetupComplete by remember { mutableStateOf(sharedPrefs.getBoolean("is_setup_complete", false)) }
 
-    if (!isSetupComplete) {
-        Box(modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding()) {
-            SetupScreen(onSetupComplete = {
-                isSetupComplete = true
-            })
+    AnimatedContent(
+        targetState = isSetupComplete,
+        modifier = Modifier.fillMaxSize(),
+        transitionSpec = {
+            if (targetState) {
+                (slideInHorizontally(animationSpec = tween(520)) { it / 3 } +
+                        fadeIn(animationSpec = tween(420)))
+                    .togetherWith(
+                        slideOutHorizontally(animationSpec = tween(420)) { -it / 5 } +
+                                fadeOut(animationSpec = tween(260))
+                    )
+            } else {
+                (fadeIn(animationSpec = tween(300)))
+                    .togetherWith(fadeOut(animationSpec = tween(240)))
+            }
+        },
+        label = "SetupToAppTransition"
+    ) { setupComplete ->
+        if (!setupComplete) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+            ) {
+                SetupScreen(onSetupComplete = {
+                    isSetupComplete = true
+                })
+            }
+        } else {
+            MainAppContent(
+                isDarkTheme = isDarkTheme,
+                onDarkThemeChange = onDarkThemeChange,
+                followSystemTheme = followSystemTheme,
+                onFollowSystemThemeChange = onFollowSystemThemeChange
+            )
         }
-        return
     }
+}
 
+@Composable
+private fun MainAppContent(
+    isDarkTheme: Boolean,
+    onDarkThemeChange: (Boolean) -> Unit,
+    followSystemTheme: Boolean,
+    onFollowSystemThemeChange: (Boolean) -> Unit
+) {
+    val context = LocalContext.current
     val pagerState = rememberPagerState(pageCount = { 4 })
     val coroutineScope = rememberCoroutineScope()
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
