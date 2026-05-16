@@ -414,7 +414,21 @@ class LazySyncManager(private val context: Context) {
             } else if (aiAmount > 0) {
                 // Fallback to full AI if reliable extraction failed but AI found something
                 // Safety: reject if the AI hallucinated an amount not present in the SMS
-                if (amountStr != null && !body.contains(amountStr)) {
+                // Check multiple format variants to avoid false positives from number formatting
+                val amountInBody = rawAmountStr != null && (
+                        body.contains(rawAmountStr) ||                                    // exact AI match "1200.50"
+                                body.contains(amountStr!!) ||                                      // without commas "1200.5"
+                                body.contains(
+                                    String.format(
+                                        "%.2f",
+                                        aiAmount
+                                    )
+                                ) ||                  // force 2 decimals "1200.50"
+                                body.contains(
+                                    aiAmount.toLong().toString()
+                                )                         // integer part "1200"
+                        )
+                if (rawAmountStr != null && !amountInBody) {
                     Log.d(
                         "LazySync",
                         "AI hallucinated amount $aiAmount not found in SMS body, skipping"
