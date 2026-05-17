@@ -4,7 +4,6 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -418,16 +417,9 @@ private fun MonthlyBarChart(data: List<MonthlySpending>) {
     val gridColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
 
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-                shape = RoundedCornerShape(24.dp)
-            ),
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
         color = MaterialTheme.colorScheme.surfaceContainer,
-        shadowElevation = 4.dp,
         tonalElevation = 2.dp
     ) {
         Canvas(
@@ -541,16 +533,9 @@ private fun CategoryDonutChart(categories: List<CategorySpending>) {
     val total = categories.sumOf { it.total }
 
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-                shape = RoundedCornerShape(24.dp)
-            ),
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
         color = MaterialTheme.colorScheme.surfaceContainer,
-        shadowElevation = 4.dp,
         tonalElevation = 2.dp
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
@@ -721,15 +706,9 @@ private fun InsightCard(
     accentColor: Color
 ) {
     Surface(
-        modifier = modifier
-            .border(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-                shape = RoundedCornerShape(20.dp)
-            ),
+        modifier = modifier,
         shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surfaceContainer,
-        shadowElevation = 4.dp,
         tonalElevation = 2.dp
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -796,15 +775,9 @@ private fun EmptyChartPlaceholder(message: String) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .height(160.dp)
-            .border(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
-                shape = RoundedCornerShape(24.dp)
-            ),
+            .height(160.dp),
         shape = RoundedCornerShape(24.dp),
         color = MaterialTheme.colorScheme.surfaceContainer,
-        shadowElevation = 2.dp,
         tonalElevation = 2.dp
     ) {
         Box(contentAlignment = Alignment.Center) {
