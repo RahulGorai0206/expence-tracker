@@ -210,7 +210,8 @@ fun ManualTransactionBottomSheet(
                 onClick = {
                     if (amount.isNotEmpty() && merchant.isNotEmpty()) {
                         scope.launch {
-                            val doubleAmount = amount.toDouble()
+                            val rawAmount = amount.toDouble()
+                            val doubleAmount = Math.round(rawAmount * 100.0) / 100.0
                             val transaction = Transaction(
                                 amount = if (isDebit) -doubleAmount else doubleAmount,
                                 sender = merchant,

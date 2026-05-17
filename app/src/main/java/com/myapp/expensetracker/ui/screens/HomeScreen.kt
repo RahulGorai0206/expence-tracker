@@ -328,14 +328,14 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
                                 )
                             } else if (remainingBudget >= 0) {
                                 Text(
-                                    "\u20B9 ${"%,.0f".format(remainingBudget)} left",
+                                    "\u20B9 ${"%,.2f".format(remainingBudget)} left",
                                     style = MaterialTheme.typography.titleMedium,
                                     color = budgetStatusColor,
                                     fontWeight = FontWeight.ExtraBold
                                 )
                             } else {
                                 Text(
-                                    "\u20B9 ${"%,.0f".format(abs(remainingBudget))} over!",
+                                    "\u20B9 ${"%,.2f".format(abs(remainingBudget))} over!",
                                     style = MaterialTheme.typography.titleMedium,
                                     color = budgetStatusColor,
                                     fontWeight = FontWeight.ExtraBold

@@ -222,7 +222,10 @@ class TransactionNotificationListener : NotificationListenerService() {
             )
 
             showTransactionNotification(withLocation)
-            Log.d(TAG, "Transaction notification shown for ₹${transaction.amount} from $sender")
+            Log.d(
+                TAG,
+                "Transaction notification shown for \u20B9${"%,.2f".format(transaction.amount)} from $sender"
+            )
 
         } catch (e: Exception) {
             Log.e(TAG, "Error processing notification message", e)
@@ -267,7 +270,7 @@ class TransactionNotificationListener : NotificationListenerService() {
 
         val notification = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentTitle("New Transaction: ₹${transaction.amount}")
+            .setContentTitle("New Transaction: \u20B9${"%,.2f".format(transaction.amount)}")
             .setContentText("From ${transaction.sender}")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)

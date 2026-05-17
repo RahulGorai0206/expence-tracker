@@ -159,7 +159,7 @@ class SmsReceiver : BroadcastReceiver() {
 
         val notification = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentTitle("New Transaction: ₹${transaction.amount}")
+            .setContentTitle("New Transaction: \u20B9${"%,.2f".format(transaction.amount)}")
             .setContentText("From ${transaction.sender}")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)

@@ -102,7 +102,9 @@ class TransactionExtractor {
                                 val startIndex = annotation.start
                                 val prefix = lowerBody.substring((startIndex - 15).coerceAtLeast(0), startIndex)
                                 if (!prefix.contains("bal")) {
-                                    extractedAmount = entity.integerPart.toDouble() + (entity.fractionalPart.toDouble() / 100.0)
+                                    val rawAmount =
+                                        entity.integerPart.toDouble() + (entity.fractionalPart.toDouble() / 100.0)
+                                    extractedAmount = Math.round(rawAmount * 100.0) / 100.0
                                 }
                             }
                         }

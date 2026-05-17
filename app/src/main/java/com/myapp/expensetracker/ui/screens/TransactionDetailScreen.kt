@@ -597,7 +597,8 @@ fun EditTransactionDialog(
                     Spacer(modifier = Modifier.width(8.dp))
                     Button(
                         onClick = {
-                            val newAmount = amountText.toDoubleOrNull() ?: 0.0
+                            val rawAmount = amountText.toDoubleOrNull() ?: 0.0
+                            val newAmount = Math.round(rawAmount * 100.0) / 100.0
                             val updated = transaction.copy(
                                 amount = if (isDebit) -abs(newAmount) else abs(newAmount),
                                 sender = if (isManual) senderText else transaction.sender,

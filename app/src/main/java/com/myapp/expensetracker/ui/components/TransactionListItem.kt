@@ -191,8 +191,8 @@ fun TransactionListItem(
             
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    if (transaction.amount > 0) "+\u20B9${"%,.0f".format(transaction.amount)}" else "-\u20B9${
-                        "%,.0f".format(
+                    if (transaction.amount > 0) "+\u20B9${"%,.2f".format(transaction.amount)}" else "-\u20B9${
+                        "%,.2f".format(
                             -transaction.amount
                         )
                     }",
