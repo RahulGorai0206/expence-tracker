@@ -201,7 +201,7 @@ fun BrandedSplashScreen() {
             Spacer(modifier = Modifier.height(32.dp))
 
             Text(
-                text = "Ledger",
+                text = "Expense Tracker",
                 style = MaterialTheme.typography.headlineLarge.copy(
                     fontWeight = FontWeight.Bold,
                     letterSpacing = (-0.5).sp,

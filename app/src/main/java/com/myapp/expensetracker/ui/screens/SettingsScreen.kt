@@ -687,6 +687,7 @@ fun SettingsScreen(
 
     Column(
         modifier = Modifier
+            .statusBarsPadding()
             .padding(horizontal = 20.dp)
             .verticalScroll(rememberScrollState())
     ) {
