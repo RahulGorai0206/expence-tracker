@@ -92,27 +92,27 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
     val budgetProgress = if (budget > 0) (totalSpent / budget).toFloat().coerceIn(0f, 1.5f) else 0f
     val budgetStatusColor = when {
         budget <= 0 -> Color.White
-        budgetProgress < 0.5f -> Color(0xFF4CAF50)
-        budgetProgress < 0.75f -> Color(0xFFFFA726)
-        budgetProgress <= 1.0f -> Color(0xFFFF5722)
-        else -> Color(0xFFFF1744)
+        budgetProgress < 0.5f -> Color(0xFF4CAF50)   // Green — safe
+        budgetProgress < 0.75f -> Color(0xFFFFA726)  // Amber — caution
+        budgetProgress <= 1.0f -> Color(0xFFFF5722)   // Red-orange — danger
+        else -> Color(0xFFFF1744)                     // Bright red — exceeded
     }
-
+    
+    val totalBalance = remember(transactions) { transactions.sumOf { it.amount } }
     val wholePart = remember(totalSpent) { totalSpent.toInt().toString() }
     val decimalPart =
         remember(totalSpent) { "%.2f".format(totalSpent % 1).removePrefix("0").removePrefix("-0") }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = Modifier
+        .fillMaxSize()
+    ) {
         Column(
             modifier = Modifier
-                .statusBarsPadding()
                 .padding(horizontal = 20.dp)
         ) {
-            // ── Header Row ────────────────────────────────────────────
+            // Header Row
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -130,13 +130,15 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
                         color = MaterialTheme.colorScheme.onBackground
                     )
                 }
-
-                val sheetUrl2 = sharedPrefs.getString("sheet_url", "") ?: ""
-                val scriptUrl2 = sharedPrefs.getString("script_url", "") ?: ""
-                val isSyncEnabled = sheetUrl2.isNotBlank() && scriptUrl2.isNotBlank()
-
+                
+                val sharedPrefs = remember { context.getSharedPreferences("prefs", Context.MODE_PRIVATE) }
+                val sheetUrl = sharedPrefs.getString("sheet_url", "") ?: ""
+                val scriptUrl = sharedPrefs.getString("script_url", "") ?: ""
+                val isSyncEnabled = sheetUrl.isNotBlank() && scriptUrl.isNotBlank()
+                
                 val pendingCount = transactions.count { it.syncStatus == "pending" }
                 val failedCount = transactions.count { it.syncStatus == "failed" }
+
                 val scope = rememberCoroutineScope()
                 val failedWithLocation = transactions.any { it.syncStatus == "failed" && it.latitude != null && it.longitude != null }
 
@@ -146,14 +148,15 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
                             Toast.makeText(context, "Please enable Cloud Sync in settings first", Toast.LENGTH_SHORT).show()
                             onSettingsClick()
                         } else if (failedCount > 0 || pendingCount > 0) {
+                            // Resync failed/pending
                             scope.launch {
                                 Toast.makeText(context, "Resyncing ${failedCount + pendingCount} transactions...", Toast.LENGTH_SHORT).show()
-                                transactions.filter { it.syncStatus == "failed" || it.syncStatus == "pending" }
-                                    .forEach {
+                                transactions.filter { it.syncStatus == "failed" || it.syncStatus == "pending" }.forEach { 
                                     GoogleSheetsLogger.logAsync(context, it, it.id.toLong())
                                 }
                             }
                         } else {
+                            // Already synced, but maybe user wants to check settings
                             onSettingsClick()
                         }
                     },
@@ -176,11 +179,9 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
                                 animationSpec = infiniteRepeatable(animation = tween(2000, easing = LinearEasing), repeatMode = RepeatMode.Restart),
                                 label = "rotation"
                             )
-                            Icon(
-                                Icons.Default.Sync, null, tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier
-                                    .size(22.dp)
-                                    .graphicsLayer { rotationZ = rotation })
+                            Icon(Icons.Default.Sync, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier
+                                .size(22.dp)
+                                .graphicsLayer { rotationZ = rotation })
                         } else if (failedCount > 0) {
                             Icon(
                                 if (failedWithLocation) Icons.Default.CloudOff else Icons.Default.CloudDone,
@@ -195,16 +196,16 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(28.dp))
 
-            // ── Balance Card ──────────────────────────────────────────
+            // Premium Balance Card
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(200.dp)
+                    .height(220.dp)
                     .graphicsLayer {
                         shadowElevation = 24f
-                        shape = RoundedCornerShape(28.dp)
+                        shape = RoundedCornerShape(32.dp)
                         clip = true
                     }
                     .background(
@@ -215,6 +216,7 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
                         )
                     )
             ) {
+                // Animated Abstract Pattern (Static for now but visual)
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -230,7 +232,7 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(24.dp),
+                        .padding(28.dp),
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column {
@@ -241,7 +243,9 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
                             letterSpacing = 2.sp,
                             fontWeight = FontWeight.ExtraBold
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
                         Row(verticalAlignment = Alignment.Bottom) {
                             Text(
                                 text = "\u20B9 ",
@@ -262,7 +266,7 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
                             Text(
                                 text = decimalPart.ifEmpty { ".00" },
                                 style = MaterialTheme.typography.displaySmall.copy(
-                                    fontSize = 22.sp,
+                                    fontSize = 24.sp,
                                     color = Color.White.copy(alpha = 0.7f),
                                     fontWeight = FontWeight.Bold
                                 ),
@@ -271,96 +275,94 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
                         }
                     }
 
-                    Column {
-                        // Budget progress bar
-                        if (budget > 0) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(5.dp)
-                                    .clip(RoundedCornerShape(3.dp))
-                                    .background(Color.White.copy(alpha = 0.15f))
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxHeight()
-                                        .fillMaxWidth(budgetProgress.coerceAtMost(1f))
-                                        .clip(RoundedCornerShape(3.dp))
-                                        .background(
-                                            Brush.horizontalGradient(
-                                                listOf(
-                                                    budgetStatusColor.copy(alpha = 0.7f),
-                                                    budgetStatusColor
-                                                )
-                                            )
-                                        )
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(10.dp))
-                        }
-
-                        Row(
+                    // Budget progress bar
+                    if (budget > 0) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable { showBudgetEdit = true }
-                                .padding(vertical = 2.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                                .height(6.dp)
+                                .clip(RoundedCornerShape(3.dp))
+                                .background(Color.White.copy(alpha = 0.15f))
                         ) {
-                            Column {
-                                Text(
-                                    "MONTHLY BUDGET",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Color.White.copy(alpha = 0.5f),
-                                    fontWeight = FontWeight.Bold
-                                )
-                                if (budget <= 0) {
-                                    Text(
-                                        "Tap to set budget",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = Color.White.copy(alpha = 0.7f),
-                                        fontWeight = FontWeight.ExtraBold
-                                    )
-                                } else if (remainingBudget >= 0) {
-                                    Text(
-                                        "\u20B9 ${"%,.0f".format(remainingBudget)} left",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = budgetStatusColor,
-                                        fontWeight = FontWeight.ExtraBold
-                                    )
-                                } else {
-                                    Text(
-                                        "\u20B9 ${"%,.0f".format(abs(remainingBudget))} over!",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = budgetStatusColor,
-                                        fontWeight = FontWeight.ExtraBold
-                                    )
-                                }
-                            }
-
                             Box(
                                 modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(Color.White.copy(alpha = 0.2f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    Icons.Default.Edit,
-                                    null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(18.dp)
+                                    .fillMaxHeight()
+                                    .fillMaxWidth(budgetProgress.coerceAtMost(1f))
+                                    .clip(RoundedCornerShape(3.dp))
+                                    .background(
+                                        Brush.horizontalGradient(
+                                            listOf(
+                                                budgetStatusColor.copy(alpha = 0.7f),
+                                                budgetStatusColor
+                                            )
+                                        )
+                                    )
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+                    
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { showBudgetEdit = true }
+                            .padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                "MONTHLY BUDGET",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White.copy(alpha = 0.5f),
+                                fontWeight = FontWeight.Bold
+                            )
+                            if (budget <= 0) {
+                                Text(
+                                    "Tap to set budget",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = Color.White.copy(alpha = 0.7f),
+                                    fontWeight = FontWeight.ExtraBold
+                                )
+                            } else if (remainingBudget >= 0) {
+                                Text(
+                                    "\u20B9 ${"%,.0f".format(remainingBudget)} left",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = budgetStatusColor,
+                                    fontWeight = FontWeight.ExtraBold
+                                )
+                            } else {
+                                Text(
+                                    "\u20B9 ${"%,.0f".format(abs(remainingBudget))} over!",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = budgetStatusColor,
+                                    fontWeight = FontWeight.ExtraBold
                                 )
                             }
+                        }
+                        
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color.White.copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Edit,
+                                null,
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // ── Recent Activity ───────────────────────────────────────
+            Spacer(modifier = Modifier.height(36.dp))
+            
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -376,8 +378,8 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
                     Text("See All", fontWeight = FontWeight.Bold)
                 }
             }
-
-            Spacer(modifier = Modifier.height(8.dp))
+            
+            Spacer(modifier = Modifier.height(12.dp))
 
             if (transactions.isEmpty()) {
                 EmptyState(
@@ -388,9 +390,9 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
                 )
             } else {
                 LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 120.dp)
+                    contentPadding = PaddingValues(bottom = 100.dp)
                 ) {
                     items(transactions.take(10), key = { it.id }) { transaction ->
                         Box(modifier = Modifier.animateItem()) {
@@ -403,25 +405,17 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
             }
         }
 
-        // ── FAB ───────────────────────────────────────────────────────
-        FloatingActionButton(
+        // Floating Action Button for Manual Log
+        LargeFloatingActionButton(
             onClick = { showManualLog = true },
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(bottom = 128.dp, end = 22.dp),
-            containerColor = Color(0xFF2979FF),
-            contentColor = Color.White,
-            shape = RoundedCornerShape(20.dp),
-            elevation = FloatingActionButtonDefaults.elevation(
-                defaultElevation = 8.dp,
-                pressedElevation = 14.dp
-            )
+                .padding(bottom = 140.dp, end = 24.dp),
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            shape = RoundedCornerShape(24.dp)
         ) {
-            Icon(
-                Icons.Default.Add,
-                contentDescription = "Add Transaction",
-                modifier = Modifier.size(26.dp)
-            )
+            Icon(Icons.Default.Add, contentDescription = "Add Transaction", modifier = Modifier.size(32.dp))
         }
     }
 }

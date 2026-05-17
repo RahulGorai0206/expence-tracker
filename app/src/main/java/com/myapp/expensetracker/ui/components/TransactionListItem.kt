@@ -4,7 +4,6 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -19,6 +18,10 @@ import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -43,22 +46,32 @@ fun TransactionListItem(
     selectionMode: Boolean = false,
     onLongClick: (() -> Unit)? = null
 ) {
-    val cardShape = RoundedCornerShape(20.dp)
+    val cardShape = RoundedCornerShape(24.dp)
     val containerColor by animateColorAsState(
         targetValue = if (selected) {
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+            MaterialTheme.colorScheme.primaryContainer
         } else {
             MaterialTheme.colorScheme.surfaceContainer
         },
         animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
         label = "transactionContainer"
     )
+    val tonalElevation by animateDpAsState(
+        targetValue = if (selected || selectionMode) 0.dp else 1.dp,
+        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+        label = "transactionTonalElevation"
+    )
+    val shadowElevation by animateDpAsState(
+        targetValue = if (selected || selectionMode) 0.dp else 2.dp,
+        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+        label = "transactionShadowElevation"
+    )
 
     Surface(
         color = containerColor,
         shape = cardShape,
-        tonalElevation = if (selected) 0.dp else 1.dp,
-        shadowElevation = if (selected) 0.dp else 2.dp,
+        tonalElevation = tonalElevation,
+        shadowElevation = shadowElevation,
         modifier = modifier
             .fillMaxWidth()
             .clip(cardShape)
@@ -71,10 +84,14 @@ fun TransactionListItem(
             )
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            modifier = Modifier
+                .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Selection checkbox
+            val categoryInfo = getCategoryInfo(transaction.category)
+            val icon = categoryInfo.icon
+            val color = categoryInfo.color
+
             AnimatedVisibility(
                 visible = selectionMode,
                 enter = fadeIn(tween(160)) + expandHorizontally(
@@ -88,7 +105,7 @@ fun TransactionListItem(
             ) {
                 Box(
                     modifier = Modifier
-                        .width(36.dp)
+                        .width(40.dp)
                         .padding(end = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -98,138 +115,121 @@ fun TransactionListItem(
                     )
                 }
             }
-
-            // Category icon — compact 44dp rounded square
-            val categoryInfo = getCategoryInfo(transaction.category)
-            val icon = categoryInfo.icon
-            val color = categoryInfo.color
-
+            
             Box(
                 modifier = Modifier
-                    .size(44.dp)
-                    .clip(RoundedCornerShape(13.dp))
-                    .background(color.copy(alpha = 0.13f)),
+                    .size(52.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(color.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    icon,
-                    null,
+                    icon, 
+                    null, 
                     tint = color,
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(26.dp)
                 )
             }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            // Middle: name, category + source badge
+            
+            Spacer(modifier = Modifier.width(16.dp))
+            
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    transaction.sender,
-                    fontWeight = FontWeight.Bold,
+                    transaction.sender, 
+                    fontWeight = FontWeight.ExtraBold, 
                     color = MaterialTheme.colorScheme.onSurface,
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.titleMedium,
                     maxLines = 1
                 )
-                Spacer(modifier = Modifier.height(3.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        transaction.category.uppercase(),
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
-                        letterSpacing = 0.8.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    // Source type badge — inline pill
-                    val badgeText = when (transaction.type.lowercase()) {
-                        "manual" -> "MANUAL"
-                        "ai" -> "AUTO"
-                        else -> "AUTO"
-                    }
-                    val badgeColor = when (transaction.type.lowercase()) {
-                        "manual" -> MaterialTheme.colorScheme.tertiary
-                        else -> MaterialTheme.colorScheme.primary
-                    }
-                    val badgeBg = when (transaction.type.lowercase()) {
-                        "manual" -> MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.35f)
-                        else -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
-                    }
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(badgeBg)
-                            .padding(horizontal = 4.dp, vertical = 1.dp)
+                Text(
+                    transaction.category.uppercase(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    letterSpacing = 1.sp
+                )
+                
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Surface(
+                        color = when (transaction.type) {
+                            "manual" -> MaterialTheme.colorScheme.tertiaryContainer
+                            "AI" -> MaterialTheme.colorScheme.primaryContainer
+                            else -> MaterialTheme.colorScheme.secondaryContainer
+                        }.copy(alpha = 0.2f),
+                        shape = RoundedCornerShape(4.dp)
                     ) {
                         Text(
-                            badgeText,
+                            transaction.type.uppercase(),
                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp),
-                            color = badgeColor,
-                            fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = 0.5.sp
+                            color = when (transaction.type) {
+                                "manual" -> MaterialTheme.colorScheme.tertiary
+                                "AI" -> MaterialTheme.colorScheme.primary
+                                else -> MaterialTheme.colorScheme.secondary
+                            },
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                            fontWeight = FontWeight.Bold
                         )
                     }
-                    // Tag badge if present
                     if (transaction.tag.isNotBlank()) {
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
-                                .padding(horizontal = 4.dp, vertical = 1.dp)
+                        Surface(
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
+                            shape = RoundedCornerShape(4.dp)
                         ) {
                             Text(
                                 transaction.tag.uppercase(),
                                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
                                 fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                letterSpacing = 0.3.sp
+                                maxLines = 1
                             )
                         }
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            // Right: amount + time with status dot
+            
             Column(horizontalAlignment = Alignment.End) {
-                val isDebit = transaction.amount < 0
                 Text(
-                    if (isDebit)
-                        "-\u20B9${"%,.0f".format(-transaction.amount)}"
-                    else
-                        "+\u20B9${"%,.0f".format(transaction.amount)}",
-                    fontWeight = FontWeight.ExtraBold,
-                    color = if (isDebit)
-                        MaterialTheme.colorScheme.onSurface
-                    else
-                        Color(0xFF4CAF50),
-                    style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp)
+                    if (transaction.amount > 0) "+\u20B9${"%,.0f".format(transaction.amount)}" else "-\u20B9${
+                        "%,.0f".format(
+                            -transaction.amount
+                        )
+                    }",
+                    fontWeight = FontWeight.Black,
+                    color = if (transaction.amount > 0) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.titleLarge.copy(fontSize = 18.sp)
                 )
-                Spacer(modifier = Modifier.height(3.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Status dot
-                    val dotColor = when (transaction.syncStatus) {
-                        "synced" -> Color(0xFF4CAF50)
-                        "pending" -> Color(0xFFFFA726)
-                        "failed" -> MaterialTheme.colorScheme.error
-                        else -> Color(0xFF4CAF50)
+                    if (transaction.syncStatus == "pending") {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(10.dp),
+                            strokeWidth = 1.dp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                    } else if (transaction.syncStatus == "synced") {
+                        Icon(
+                            androidx.compose.material.icons.Icons.Default.CloudDone,
+                            null,
+                            modifier = Modifier.size(12.dp),
+                            tint = Color(0xFF4CAF50).copy(alpha = 0.6f)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                    } else if (transaction.syncStatus == "failed") {
+                        Icon(
+                            androidx.compose.material.icons.Icons.Default.CloudOff,
+                            null,
+                            modifier = Modifier.size(12.dp),
+                            tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
                     }
-                    Box(
-                        modifier = Modifier
-                            .size(6.dp)
-                            .clip(CircleShape)
-                            .background(dotColor)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
+                    
                     Text(
-                        SimpleDateFormat("hh:mm a", Locale.getDefault())
-                            .format(Date(transaction.date))
-                            .lowercase(),
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(transaction.date)),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                     )
                 }
             }

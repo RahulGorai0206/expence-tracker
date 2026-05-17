@@ -261,6 +261,7 @@ private fun MainAppContent(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .statusBarsPadding()
                     .nestedScroll(nestedScrollConnection)
             ) {
                 HorizontalPager(

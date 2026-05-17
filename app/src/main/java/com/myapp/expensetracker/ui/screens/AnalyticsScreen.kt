@@ -99,7 +99,6 @@ fun AnalyticsScreen() {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .statusBarsPadding()
             .padding(horizontal = 20.dp),
         contentPadding = PaddingValues(bottom = 120.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp)
@@ -122,113 +121,47 @@ fun AnalyticsScreen() {
             }
         }
 
-        // ── Date Range Segmented Control ────────────────────────────
+        // ── Date Range Chips ───────────────────────────────────────────
         item {
-            val presets = DateRangePreset.entries.filter { it != DateRangePreset.CUSTOM }
-            val selectedIndex = presets.indexOfFirst { it == state.selectedPreset }.coerceAtLeast(0)
-
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(100.dp),
-                color = MaterialTheme.colorScheme.surfaceContainer,
-                tonalElevation = 1.dp
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                BoxWithConstraints(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(4.dp)
-                ) {
-                    val segmentWidth = maxWidth / presets.size
-                    val offsetAnim by animateDpAsState(
-                        targetValue = segmentWidth * selectedIndex,
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioMediumBouncy,
-                            stiffness = Spring.StiffnessMediumLow
-                        ),
-                        label = "segOffset"
+                DateRangePreset.entries.forEach { preset ->
+                    val isSelected = state.selectedPreset == preset
+                    val bgColor by animateColorAsState(
+                        if (isSelected) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.surfaceContainerHigh,
+                        label = "chipBg"
+                    )
+                    val textColor by animateColorAsState(
+                        if (isSelected) MaterialTheme.colorScheme.onPrimary
+                        else MaterialTheme.colorScheme.onSurface,
+                        label = "chipText"
                     )
 
-                    // Sliding highlight
-                    Box(
-                        modifier = Modifier
-                            .width(segmentWidth)
-                            .fillMaxHeight()
-                            .offset(x = offsetAnim)
-                            .clip(RoundedCornerShape(100.dp))
-                            .background(
-                                Brush.horizontalGradient(
-                                    listOf(
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
-                                        MaterialTheme.colorScheme.primary
-                                    )
-                                )
-                            )
-                    )
-
-                    // Labels
-                    Row(modifier = Modifier.fillMaxWidth()) {
-                        presets.forEachIndexed { i, preset ->
-                            val isSelected = selectedIndex == i
-                            val textColor by animateColorAsState(
-                                if (isSelected) MaterialTheme.colorScheme.onPrimary
-                                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                                animationSpec = tween(250),
-                                label = "segText$i"
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clip(RoundedCornerShape(100.dp))
-                                    .clickable {
-                                        viewModel.setPreset(preset)
-                                    }
-                                    .padding(vertical = 10.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = preset.label,
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = textColor,
-                                    fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium
-                                )
+                    Surface(
+                        onClick = {
+                            if (preset == DateRangePreset.CUSTOM) {
+                                showDatePicker = true
+                            } else {
+                                viewModel.setPreset(preset)
                             }
-                        }
+                        },
+                        shape = RoundedCornerShape(100.dp),
+                        color = bgColor,
+                        tonalElevation = if (isSelected) 0.dp else 2.dp
+                    ) {
+                        Text(
+                            text = preset.label,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = textColor,
+                            fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium
+                        )
                     }
-                }
-            }
-
-            // Custom range button below (only when CUSTOM is in the enum)
-            if (DateRangePreset.entries.any { it == DateRangePreset.CUSTOM }) {
-                Spacer(modifier = Modifier.height(8.dp))
-                val isCustom = state.selectedPreset == DateRangePreset.CUSTOM
-                OutlinedButton(
-                    onClick = { showDatePicker = true },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(100.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = if (isCustom) MaterialTheme.colorScheme.primaryContainer.copy(
-                            alpha = 0.25f
-                        ) else Color.Transparent,
-                        contentColor = if (isCustom) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                ) {
-                    Icon(Icons.Default.DateRange, null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        if (isCustom) {
-                            val sdf =
-                                java.text.SimpleDateFormat("MMM dd", java.util.Locale.getDefault())
-                            "${sdf.format(java.util.Date(state.startDate))} – ${
-                                sdf.format(
-                                    java.util.Date(
-                                        state.endDate
-                                    )
-                                )
-                            }"
-                        } else "Custom Range",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = if (isCustom) FontWeight.ExtraBold else FontWeight.Medium
-                    )
                 }
             }
         }
