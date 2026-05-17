@@ -77,59 +77,22 @@ fun AnalyticsScreen() {
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
-                Button(
-                    onClick = {
-                        val start = datePickerState.selectedStartDateMillis
-                        val end = datePickerState.selectedEndDateMillis
-                        if (start != null && end != null) viewModel.setCustomRange(start, end)
-                        showDatePicker = false
-                    },
-                    shape = RoundedCornerShape(12.dp)
-                ) { Text("Apply", fontWeight = FontWeight.Bold) }
+                TextButton(onClick = {
+                    val start = datePickerState.selectedStartDateMillis
+                    val end = datePickerState.selectedEndDateMillis
+                    if (start != null && end != null) {
+                        viewModel.setCustomRange(start, end)
+                    }
+                    showDatePicker = false
+                }) { Text("Apply") }
             },
             dismissButton = {
                 TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
-            },
-            shape = RoundedCornerShape(24.dp),
-            colors = DatePickerDefaults.colors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                titleContentColor = MaterialTheme.colorScheme.onSurface,
-                headlineContentColor = MaterialTheme.colorScheme.primary,
-                weekdayContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                subheadContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                navigationContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                yearContentColor = MaterialTheme.colorScheme.onSurface,
-                currentYearContentColor = MaterialTheme.colorScheme.primary,
-                selectedYearContentColor = MaterialTheme.colorScheme.onPrimary,
-                selectedYearContainerColor = MaterialTheme.colorScheme.primary,
-                dayContentColor = MaterialTheme.colorScheme.onSurface,
-                selectedDayContentColor = MaterialTheme.colorScheme.onPrimary,
-                selectedDayContainerColor = MaterialTheme.colorScheme.primary,
-                todayContentColor = MaterialTheme.colorScheme.primary,
-                todayDateBorderColor = MaterialTheme.colorScheme.primary,
-                dayInSelectionRangeContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                dayInSelectionRangeContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(
-                    alpha = 0.4f
-                )
-            )
+            }
         ) {
             DateRangePicker(
                 state = datePickerState,
-                modifier = Modifier.height(480.dp),
-                colors = DatePickerDefaults.colors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    headlineContentColor = MaterialTheme.colorScheme.primary,
-                    weekdayContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    dayContentColor = MaterialTheme.colorScheme.onSurface,
-                    selectedDayContentColor = MaterialTheme.colorScheme.onPrimary,
-                    selectedDayContainerColor = MaterialTheme.colorScheme.primary,
-                    todayContentColor = MaterialTheme.colorScheme.primary,
-                    todayDateBorderColor = MaterialTheme.colorScheme.primary,
-                    dayInSelectionRangeContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    dayInSelectionRangeContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(
-                        alpha = 0.4f
-                    )
-                )
+                modifier = Modifier.height(500.dp)
             )
         }
     }
@@ -168,13 +131,12 @@ fun AnalyticsScreen() {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(100.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                tonalElevation = 0.dp
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                tonalElevation = 1.dp
             ) {
                 BoxWithConstraints(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp)                  // ← explicit height fixes fillMaxHeight()
                         .padding(4.dp)
                 ) {
                     val segmentWidth = maxWidth / presets.size
@@ -187,40 +149,48 @@ fun AnalyticsScreen() {
                         label = "segOffset"
                     )
 
-                    // Sliding highlight pill
+                    // Sliding highlight
                     Box(
                         modifier = Modifier
                             .width(segmentWidth)
-                            .fillMaxHeight()             // now works because parent has fixed height
+                            .fillMaxHeight()
                             .offset(x = offsetAnim)
                             .clip(RoundedCornerShape(100.dp))
-                            .background(MaterialTheme.colorScheme.primary)
+                            .background(
+                                Brush.horizontalGradient(
+                                    listOf(
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+                                        MaterialTheme.colorScheme.primary
+                                    )
+                                )
+                            )
                     )
 
-                    // Labels on top
-                    Row(modifier = Modifier.fillMaxSize()) {
+                    // Labels
+                    Row(modifier = Modifier.fillMaxWidth()) {
                         presets.forEachIndexed { i, preset ->
                             val isSelected = selectedIndex == i
                             val textColor by animateColorAsState(
                                 if (isSelected) MaterialTheme.colorScheme.onPrimary
-                                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+                                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                                 animationSpec = tween(250),
                                 label = "segText$i"
                             )
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .fillMaxHeight()
                                     .clip(RoundedCornerShape(100.dp))
-                                    .clickable { viewModel.setPreset(preset) },
+                                    .clickable {
+                                        viewModel.setPreset(preset)
+                                    }
+                                    .padding(vertical = 10.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = preset.label,
-                                    style = MaterialTheme.typography.labelMedium,
+                                    style = MaterialTheme.typography.labelLarge,
                                     color = textColor,
-                                    fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
-                                    maxLines = 1
+                                    fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium
                                 )
                             }
                         }
