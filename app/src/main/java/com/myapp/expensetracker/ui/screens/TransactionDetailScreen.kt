@@ -4,13 +4,17 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.view.View
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.text.input.KeyboardType
@@ -392,32 +396,40 @@ fun DetailCard(label: String, value: String, icon: ImageVector? = null, subValue
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-        shape = RoundedCornerShape(24.dp)
+            .padding(vertical = 6.dp)
+            .border(
+                1.dp,
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+                RoundedCornerShape(20.dp)
+            ),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        shape = RoundedCornerShape(20.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                label, style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp
+            )
+            Spacer(modifier = Modifier.height(4.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                    if (subValue != null) Text(subValue, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                if (icon != null) Icon(icon, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f))
-                if (isCategory) {
-                    Row {
-                        Box(modifier = Modifier
-                            .width(32.dp)
-                            .height(4.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Box(modifier = Modifier
-                            .size(4.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)))
+                    if (subValue != null) {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            subValue,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
+                if (icon != null) Icon(
+                    icon,
+                    null,
+                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                )
             }
         }
     }
@@ -437,11 +449,8 @@ fun EditTransactionDialog(
     var tagText by remember { mutableStateOf(transaction.tag) }
     var isDebit by remember { mutableStateOf(transaction.amount < 0) }
     val context = LocalContext.current
-
     val categories = listOf("Dining", "Shopping", "Transport", "Groceries", "Bills", "Other")
-    val savedTags = remember {
-        CloudSettingsBackupManager.getSavedTags(context)
-    }
+    val savedTags = remember { CloudSettingsBackupManager.getSavedTags(context) }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -449,33 +458,148 @@ fun EditTransactionDialog(
     ) {
         Surface(
             modifier = Modifier
-                .fillMaxWidth(0.9f)
+                .fillMaxWidth(0.92f)
                 .wrapContentHeight()
                 .padding(vertical = 24.dp),
             shape = RoundedCornerShape(28.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHigh
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            tonalElevation = 3.dp
         ) {
             Column(
                 modifier = Modifier
                     .padding(24.dp)
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                Text(
-                    "Edit Transaction",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Edit,
+                            null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        "Edit Transaction",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+
+                if (isManual) {
+                    val debitBg by animateColorAsState(
+                        if (isDebit) Color(0xFFFFEBEE) else MaterialTheme.colorScheme.surfaceContainerHighest,
+                        tween(200),
+                        label = ""
+                    )
+                    val creditBg by animateColorAsState(
+                        if (!isDebit) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.surfaceContainerHighest,
+                        tween(200),
+                        label = ""
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .border(
+                                1.dp,
+                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                                RoundedCornerShape(14.dp)
+                            )
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .background(debitBg)
+                                .clickable { isDebit = true }, contentAlignment = Alignment.Center
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Default.ArrowUpward,
+                                    null,
+                                    tint = if (isDebit) Color(0xFFD32F2F) else MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                        0.4f
+                                    ),
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text(
+                                    "Debit",
+                                    fontWeight = if (isDebit) FontWeight.ExtraBold else FontWeight.Normal,
+                                    color = if (isDebit) Color(0xFFD32F2F) else MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                        0.4f
+                                    ),
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                            }
+                        }
+                        Box(
+                            modifier = Modifier
+                                .width(1.dp)
+                                .fillMaxHeight()
+                                .background(MaterialTheme.colorScheme.outlineVariant.copy(0.4f))
+                        )
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .background(creditBg)
+                                .clickable { isDebit = false }, contentAlignment = Alignment.Center
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Default.ArrowDownward,
+                                    null,
+                                    tint = if (!isDebit) Color(0xFF388E3C) else MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                        0.4f
+                                    ),
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text(
+                                    "Credit",
+                                    fontWeight = if (!isDebit) FontWeight.ExtraBold else FontWeight.Normal,
+                                    color = if (!isDebit) Color(0xFF388E3C) else MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                        0.4f
+                                    ),
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    Text(
+                        "Source: ${transaction.sender}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
 
                 OutlinedTextField(
                     value = amountText,
                     onValueChange = {
                         if (it.isEmpty() || it.toDoubleOrNull() != null) amountText = it
                     },
-                    label = { Text("Amount (\u20B9)") },
+                    label = { Text("Amount (\u20b9)") },
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    leadingIcon = { Icon(Icons.Default.CurrencyRupee, null) }
+                    leadingIcon = { Icon(Icons.Default.CurrencyRupee, null) },
+                    shape = RoundedCornerShape(14.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(0.6f)
+                    )
                 )
 
                 if (isManual) {
@@ -484,117 +608,169 @@ fun EditTransactionDialog(
                         onValueChange = { senderText = it },
                         label = { Text("Merchant / Description") },
                         modifier = Modifier.fillMaxWidth(),
-                        leadingIcon = { Icon(Icons.Default.Store, null) }
+                        leadingIcon = { Icon(Icons.Default.Store, null) },
+                        shape = RoundedCornerShape(14.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(
+                                0.6f
+                            )
+                        )
                     )
-
                     OutlinedTextField(
                         value = bodyText,
                         onValueChange = { bodyText = it },
-                        label = { Text("Source Message / Notes") },
+                        label = { Text("Notes") },
                         modifier = Modifier.fillMaxWidth(),
                         minLines = 2,
-                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.Notes, null) }
-                    )
-
-                    Text("Type", style = MaterialTheme.typography.labelLarge)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        FilterChip(
-                            selected = isDebit,
-                            onClick = { isDebit = true },
-                            label = { Text("Debit") },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.errorContainer,
-                                selectedLabelColor = MaterialTheme.colorScheme.onErrorContainer
+                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.Notes, null) },
+                        shape = RoundedCornerShape(14.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(
+                                0.6f
                             )
                         )
-                        FilterChip(
-                            selected = !isDebit,
-                            onClick = { isDebit = false },
-                            label = { Text("Credit") },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Color(0xFFE8F5E9),
-                                selectedLabelColor = Color(0xFF2E7D32)
-                            )
-                        )
-                    }
-                } else {
-                    // Show read-only merchant for automated/AI
-                    Text(
-                        "Source: ${transaction.sender}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
-                Text("Category", style = MaterialTheme.typography.labelLarge)
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(categories.size) { index ->
-                        val cat = categories[index]
-                        FilterChip(
-                            selected = category == cat,
+                Text(
+                    "CATEGORY",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.55f),
+                    letterSpacing = 0.8.sp
+                )
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(categories) { cat ->
+                        val catInfo = getCategoryInfo(cat)
+                        val isSel = category == cat
+                        val chipBg by animateColorAsState(
+                            if (isSel) catInfo.color.copy(0.15f) else MaterialTheme.colorScheme.surfaceContainerHighest,
+                            tween(180),
+                            label = ""
+                        )
+                        Surface(
                             onClick = { category = cat },
-                            label = { Text(cat) }
-                        )
+                            shape = RoundedCornerShape(100.dp),
+                            color = chipBg,
+                            modifier = Modifier.border(
+                                1.dp,
+                                if (isSel) catInfo.color.copy(0.6f) else MaterialTheme.colorScheme.outlineVariant.copy(
+                                    0.35f
+                                ),
+                                RoundedCornerShape(100.dp)
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            ) {
+                                if (isSel) Icon(
+                                    catInfo.icon,
+                                    null,
+                                    tint = catInfo.color,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Text(
+                                    cat,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = if (isSel) FontWeight.ExtraBold else FontWeight.Medium,
+                                    color = if (isSel) catInfo.color else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
                     }
                 }
 
-                Text("Tag", style = MaterialTheme.typography.labelLarge)
                 OutlinedTextField(
                     value = tagText,
                     onValueChange = { tagText = it },
-                    label = { Text("Tag") },
+                    label = { Text("Tag (optional)") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     leadingIcon = { Icon(Icons.AutoMirrored.Filled.Label, null) },
                     trailingIcon = if (tagText.isNotBlank()) {
                         {
                             IconButton(onClick = { tagText = "" }) {
-                                Icon(Icons.Default.Close, contentDescription = "Remove tag")
+                                Icon(
+                                    Icons.Default.Close,
+                                    null
+                                )
                             }
                         }
-                    } else null
+                    } else null,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(0.6f)
+                    )
                 )
 
                 if (savedTags.isNotEmpty()) {
-                    LazyRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         item {
-                            FilterChip(
-                                selected = tagText.isBlank(),
-                                onClick = { tagText = "" },
-                                label = { Text("No tag") }
-                            )
+                            val isSel = tagText.isBlank()
+                            Surface(
+                                onClick = { tagText = "" }, shape = RoundedCornerShape(100.dp),
+                                color = if (isSel) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surfaceContainerHigh,
+                                modifier = Modifier.border(
+                                    1.dp,
+                                    if (isSel) MaterialTheme.colorScheme.outline.copy(0.4f) else MaterialTheme.colorScheme.outlineVariant.copy(
+                                        0.3f
+                                    ),
+                                    RoundedCornerShape(100.dp)
+                                )
+                            ) {
+                                Text(
+                                    "No tag",
+                                    modifier = Modifier.padding(
+                                        horizontal = 12.dp,
+                                        vertical = 7.dp
+                                    ),
+                                    style = MaterialTheme.typography.labelMedium
+                                )
+                            }
                         }
-                        items(savedTags.size) { index ->
-                            val savedTag = savedTags[index]
-                            FilterChip(
-                                selected = tagText == savedTag,
-                                onClick = { tagText = savedTag },
-                                label = { Text(savedTag) }
-                            )
+                        items(savedTags) { tag ->
+                            val isSel = tagText == tag
+                            Surface(
+                                onClick = { tagText = tag }, shape = RoundedCornerShape(100.dp),
+                                color = if (isSel) MaterialTheme.colorScheme.primaryContainer.copy(
+                                    0.4f
+                                ) else MaterialTheme.colorScheme.surfaceContainerHigh,
+                                modifier = Modifier.border(
+                                    1.dp,
+                                    if (isSel) MaterialTheme.colorScheme.primary.copy(0.5f) else MaterialTheme.colorScheme.outlineVariant.copy(
+                                        0.3f
+                                    ),
+                                    RoundedCornerShape(100.dp)
+                                )
+                            ) {
+                                Text(
+                                    tag,
+                                    modifier = Modifier.padding(
+                                        horizontal = 12.dp,
+                                        vertical = 7.dp
+                                    ),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = if (isSel) FontWeight.ExtraBold else FontWeight.Normal,
+                                    color = if (isSel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
-
+                Spacer(Modifier.height(4.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    TextButton(onClick = onDismiss) {
-                        Text("Cancel")
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
+                    TextButton(onClick = onDismiss) { Text("Cancel") }
+                    Spacer(Modifier.width(8.dp))
                     Button(
                         onClick = {
                             val newAmount = amountText.toDoubleOrNull() ?: 0.0
@@ -602,14 +778,15 @@ fun EditTransactionDialog(
                                 amount = if (isDebit) -abs(newAmount) else abs(newAmount),
                                 sender = if (isManual) senderText else transaction.sender,
                                 body = if (isManual) bodyText else transaction.body,
-                                category = category,
-                                tag = tagText.trim()
+                                category = category, tag = tagText.trim()
                             )
                             onSave(updated)
                         },
                         enabled = amountText.isNotEmpty() && (if (isManual) senderText.isNotEmpty() else true),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(14.dp)
                     ) {
+                        Icon(Icons.Default.Save, null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
                         Text("Save")
                     }
                 }

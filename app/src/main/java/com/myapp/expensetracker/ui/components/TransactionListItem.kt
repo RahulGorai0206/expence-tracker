@@ -2,6 +2,7 @@ package com.myapp.expensetracker.ui.components
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -58,10 +59,18 @@ fun TransactionListItem(
         color = containerColor,
         shape = cardShape,
         tonalElevation = if (selected) 0.dp else 1.dp,
-        shadowElevation = if (selected) 0.dp else 2.dp,
+        shadowElevation = if (selected) 0.dp else 3.dp,
         modifier = modifier
             .fillMaxWidth()
             .clip(cardShape)
+            .border(
+                width = 1.dp,
+                color = if (selected)
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+                else
+                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+                shape = cardShape
+            )
             .animateContentSize(
                 animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing)
             )
