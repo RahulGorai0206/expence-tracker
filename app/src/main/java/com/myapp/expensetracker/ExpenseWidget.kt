@@ -95,7 +95,7 @@ class ExpenseWidget : GlanceAppWidget() {
         isMonthlyBudget: Boolean
     ) {
         val context = LocalContext.current
-        Row(
+        Column(
             modifier = GlanceModifier
                 .fillMaxSize()
                 .appWidgetBackground()
@@ -110,32 +110,29 @@ class ExpenseWidget : GlanceAppWidget() {
                         )
                     )
                 )
-                .padding(horizontal = 12.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Column(
-                modifier = GlanceModifier.defaultWeight(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Total Expense",
-                    style = TextStyle(
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = GlanceTheme.colors.primary
-                    )
+            Text(
+                text = "Total Expense",
+                style = TextStyle(
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = GlanceTheme.colors.primary
                 )
+            )
 
-                val formattedSpent = "₹${"%,.0f".format(totalSpent)}"
-                Text(
-                    text = formattedSpent,
-                    style = TextStyle(
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = GlanceTheme.colors.onSurface
-                    )
-                )
-            }
+            val formattedSpent = "₹${"%,.0f".format(totalSpent)}"
+            Text(
+                text = formattedSpent,
+                style = TextStyle(
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = GlanceTheme.colors.onSurface
+                ),
+                modifier = GlanceModifier.padding(bottom = 2.dp)
+            )
 
             val isExpense = lastTransaction != null && lastTransaction.amount < 0
             val pillColor =
@@ -143,6 +140,8 @@ class ExpenseWidget : GlanceAppWidget() {
             val pillTextColor =
                 if (isExpense) GlanceTheme.colors.onErrorContainer else GlanceTheme.colors.onSecondaryContainer
 
+            val trendLabel =
+                if (lastTransaction != null || isMonthlyBudget) "Last transaction amount" else "Monthly Budget"
             val trendText = if (lastTransaction != null) {
                 "${if (isExpense) "↘" else "↗"}\u00A0₹${"%,.0f".format(abs(lastTransaction.amount))}"
             } else if (isMonthlyBudget) {
@@ -152,10 +151,20 @@ class ExpenseWidget : GlanceAppWidget() {
             }
 
             Column(
-                modifier = GlanceModifier.defaultWeight(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalAlignment = Alignment.End
+                modifier = GlanceModifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                Text(
+                    text = trendLabel,
+                    style = TextStyle(
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = GlanceTheme.colors.onSurfaceVariant
+                    ),
+                    modifier = GlanceModifier.padding(bottom = 2.dp),
+                    maxLines = 1
+                )
+
                 Box(
                     modifier = GlanceModifier
                         .background(pillColor)
