@@ -22,6 +22,10 @@ data class CloudSettingsBackup(
     val follow_system_theme: Boolean? = null,
     val dark_theme: Boolean? = null,
     val cloud_sync: Boolean? = null,
+    val is_setup_complete: Boolean? = null,
+    val sheet_url: String? = null,
+    val script_url: String? = null,
+    val api_key: String? = null,
     val saved_tags: List<String>? = null
 )
 
@@ -63,21 +67,65 @@ object CloudSettingsBackupManager {
             follow_system_theme = prefs.getBoolean("follow_system_theme", true),
             dark_theme = prefs.getBoolean("dark_theme", true),
             cloud_sync = GoogleSheetsLogger.isConfigured(),
+            is_setup_complete = prefs.getBoolean("is_setup_complete", false),
+            sheet_url = prefs.getString("sheet_url", ""),
+            script_url = prefs.getString("script_url", ""),
+            api_key = prefs.getString("api_key", ""),
             saved_tags = getSavedTags(context)
         )
     }
 
     suspend fun apply(context: Context, backup: CloudSettingsBackup) {
+        android.util.Log.d("CloudBackup", "Applying backup: $backup")
         val prefs = context.getSharedPreferences("prefs", Context.MODE_PRIVATE)
 
-        prefs.edit {
-            backup.budget_monthly?.let { putBoolean("budget_monthly", it) }
-            backup.track_only_debits?.let { putBoolean("track_only_debits", it) }
-            backup.ignore_cc_bills?.let { putBoolean("ignore_cc_bills", it) }
-            backup.follow_system_theme?.let { putBoolean("follow_system_theme", it) }
-            backup.dark_theme?.let { putBoolean("dark_theme", it) }
-            backup.cloud_sync?.let { putBoolean("cloud_sync", it) }
-            backup.saved_tags?.let { putStringSet("saved_tags", it.toSortedSet()) }
+        prefs.edit(commit = true) {
+            backup.budget_monthly?.let {
+                android.util.Log.d("CloudBackup", "Setting budget_monthly: $it")
+                putBoolean("budget_monthly", it)
+            }
+            backup.track_only_debits?.let {
+                android.util.Log.d("CloudBackup", "Setting track_only_debits: $it")
+                putBoolean("track_only_debits", it)
+            }
+            backup.ignore_cc_bills?.let {
+                android.util.Log.d("CloudBackup", "Setting ignore_cc_bills: $it")
+                putBoolean("ignore_cc_bills", it)
+            }
+            backup.follow_system_theme?.let {
+                android.util.Log.d("CloudBackup", "Setting follow_system_theme: $it")
+                putBoolean("follow_system_theme", it)
+            }
+            backup.dark_theme?.let {
+                android.util.Log.d("CloudBackup", "Setting dark_theme: $it")
+                putBoolean("dark_theme", it)
+            }
+            backup.cloud_sync?.let {
+                android.util.Log.d("CloudBackup", "Setting cloud_sync: $it")
+                putBoolean("cloud_sync", it)
+            }
+            backup.is_setup_complete?.let {
+                android.util.Log.d("CloudBackup", "Setting is_setup_complete: $it")
+                putBoolean("is_setup_complete", it)
+            }
+            backup.sheet_url?.let {
+                android.util.Log.d("CloudBackup", "Setting sheet_url: $it")
+                putString("sheet_url", it)
+            }
+            backup.script_url?.let {
+                android.util.Log.d("CloudBackup", "Setting script_url: $it")
+                putString("script_url", it)
+                GoogleSheetsLogger.updateUrl(it)
+            }
+            backup.api_key?.let {
+                android.util.Log.d("CloudBackup", "Setting api_key: $it")
+                putString("api_key", it)
+                GoogleSheetsLogger.updateApiKey(it)
+            }
+            backup.saved_tags?.let {
+                android.util.Log.d("CloudBackup", "Setting saved_tags: $it")
+                putStringSet("saved_tags", it.toSortedSet())
+            }
         }
 
         backup.background_monitoring?.let { enabled ->
@@ -93,7 +141,7 @@ object CloudSettingsBackupManager {
                     amount = amount
                 )
             )
-            prefs.edit { putFloat("budget", amount.toFloat()) }
+            prefs.edit(commit = true) { putFloat("budget", amount.toFloat()) }
         }
     }
 

@@ -75,6 +75,7 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
     var showError by remember { mutableStateOf(false) }
     var isTestingConnection by remember { mutableStateOf(false) }
     var currentStep by remember { mutableIntStateOf(0) }
+    var isRestoring by remember { mutableStateOf(false) }
 
     // Total steps: Welcome(0), Privacy(1), SMS(2), NotifAccess(3), Location(4), Notifications(5), Background(6), Budget(7), Cloud(8)
     val totalSteps = 9
@@ -411,8 +412,15 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
                                             }
                                             GoogleSheetsLogger.updateUrl(scriptUrl)
                                             GoogleSheetsLogger.updateApiKey(apiKey)
-                                            GoogleSheetsLogger.backupSettings(context)
 
+                                            isRestoring = true
+                                            // Trigger initial restore of transactions and settings
+                                            GoogleSheetsLogger.syncFromCloud(context)
+
+                                            // Ensure current setup settings are also backed up
+                                            GoogleSheetsLogger.backupSettings(context)
+                                            isRestoring = false
+                                            
                                             if (ContextCompat.checkSelfPermission(
                                                     context,
                                                     Manifest.permission.READ_SMS
@@ -519,6 +527,30 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
                 }
             }
         }
+    }
+    if (isRestoring) {
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text("Restoring Data", fontWeight = FontWeight.Black) },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        "Please wait while we restore your transactions and settings from the cloud...",
+                        textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            },
+            confirmButton = {},
+            dismissButton = {},
+            shape = RoundedCornerShape(28.dp),
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        )
     }
 }
 

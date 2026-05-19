@@ -198,6 +198,10 @@ object GoogleSheetsLogger {
 
         return try {
             val response = loggerApi.syncSettings(url = url, mode = "read", apiKey = key)
+            android.util.Log.d(
+                "CloudBackup",
+                "Restore response: success=${response.success}, settings=${response.settings != null}"
+            )
             if (!response.success) {
                 response.error ?: "Failed to restore settings"
             } else {
@@ -222,6 +226,10 @@ object GoogleSheetsLogger {
 
         return try {
             val settingsError = restoreSettingsFromCloud(context)
+            if (settingsError != null) {
+                android.util.Log.e("CloudSync", "Settings restore failed: $settingsError")
+            }
+
             val response = loggerApi.getRecords(url, apiKey = key)
             if (response.success && response.records != null) {
                 val db = AppDatabase.getDatabase(context)

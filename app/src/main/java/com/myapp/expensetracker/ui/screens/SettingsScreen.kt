@@ -458,12 +458,34 @@ fun SettingsScreen(
                                 }
                                 
                                 if (error == null) {
-                                    isMonthlyBudget = sharedPrefs.getBoolean("budget_monthly", true)
-                                    trackOnlyDebits =
+                                    val restoredMonthlyBudget =
+                                        sharedPrefs.getBoolean("budget_monthly", true)
+                                    isMonthlyBudget = restoredMonthlyBudget
+
+                                    val restoredTrackOnlyDebits =
                                         sharedPrefs.getBoolean("track_only_debits", false)
-                                    ignoreCcBills = sharedPrefs.getBoolean("ignore_cc_bills", false)
+                                    trackOnlyDebits = restoredTrackOnlyDebits
+
+                                    val restoredIgnoreCcBills =
+                                        sharedPrefs.getBoolean("ignore_cc_bills", false)
+                                    ignoreCcBills = restoredIgnoreCcBills
+                                    
                                     backgroundMonitoring = SmsMonitorService.isEnabled(context)
                                     savedTags = CloudSettingsBackupManager.getSavedTags(context)
+
+                                    onDarkThemeChange(sharedPrefs.getBoolean("dark_theme", true))
+                                    onFollowSystemThemeChange(
+                                        sharedPrefs.getBoolean(
+                                            "follow_system_theme",
+                                            true
+                                        )
+                                    )
+
+                                    sheetUrl = sharedPrefs.getString("sheet_url", "") ?: ""
+                                    scriptUrl = sharedPrefs.getString("script_url", "") ?: ""
+                                    apiKey = sharedPrefs.getString("api_key", "") ?: ""
+                                    isCloudSaved = scriptUrl.isNotBlank() && apiKey.isNotBlank()
+
                                     isRestoring = false
                                     showRestoreDialog = false
                                     Toast.makeText(
