@@ -37,6 +37,24 @@ class TransactionExtractor {
         "credited", "received", "deposited", "added", "refunded", "cashback"
     )
 
+    // Non-transactional phrases that indicate informational/promotional messages
+    private val nonTransactionalPhrases = listOf(
+        "welcome to",
+        "txn. limit", "txn limit", "transaction limit",
+        "limit can be enhanced", "limit will be upgraded", "limit has been",
+        "activate your", "register for", "apply now",
+        "reward points", "loyalty points",
+        "emi available", "pre-approved", "pre approved",
+        "upgrade your", "exclusive offer",
+        "kyc", "pan card", "aadhaar",
+        "download the app", "install the app"
+    )
+
+    // Words that, when appearing right next to "txn", indicate a non-transactional context
+    private val txnDisqualifiers = listOf(
+        "limit", "alert", "password", "pin"
+    )
+
     fun isCreditCardBill(body: String): Boolean {
         val lowerBody = body.lowercase()
 
@@ -75,6 +93,11 @@ class TransactionExtractor {
         
         // 1. Skip OTPs and non-transactional alerts
         if (lowerBody.contains("otp") || lowerBody.contains("verification code") || lowerBody.contains("is your code")) {
+            return null
+        }
+
+        // 1b. Skip informational / promotional bank messages
+        if (nonTransactionalPhrases.any { lowerBody.contains(it) }) {
             return null
         }
 
@@ -139,7 +162,7 @@ class TransactionExtractor {
                 }
             }
 
-            val isSpend = spendKeywords.any { lowerBody.contains(it) }
+            val isSpend = spendKeywords.any { keywordMatchesTransaction(lowerBody, it) }
             val isReceive = receiveKeywords.any { lowerBody.contains(it) }
 
             if (extractedAmount != null && (isSpend || isReceive)) {
@@ -168,5 +191,34 @@ class TransactionExtractor {
             e.printStackTrace()
             null
         }
+    }
+
+    /**
+     * Checks if a spend keyword appears in a genuine transactional context.
+     * For ambiguous keywords like "txn", verifies that the surrounding words
+     * don't indicate a non-transactional context (e.g., "txn limit").
+     */
+    private fun keywordMatchesTransaction(body: String, keyword: String): Boolean {
+        if (!body.contains(keyword)) return false
+
+        // For "txn", check that it's not followed by disqualifying words
+        if (keyword == "txn") {
+            // Find all occurrences and check context around each
+            var searchFrom = 0
+            while (true) {
+                val idx = body.indexOf(keyword, searchFrom)
+                if (idx == -1) return false
+                // Grab up to 15 chars after the keyword to check context
+                val afterEnd = (idx + keyword.length + 15).coerceAtMost(body.length)
+                val after = body.substring(idx + keyword.length, afterEnd)
+                    .trimStart('.', ' ', ',')
+                    .lowercase()
+                val isDisqualified = txnDisqualifiers.any { after.startsWith(it) }
+                if (!isDisqualified) return true // found a valid transactional "txn"
+                searchFrom = idx + keyword.length
+            }
+        }
+
+        return true
     }
 }
