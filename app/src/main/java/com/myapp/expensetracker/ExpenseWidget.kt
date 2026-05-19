@@ -27,6 +27,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import androidx.glance.LocalContext
+import androidx.glance.LocalSize
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.ExistingWorkPolicy
@@ -95,6 +96,15 @@ class ExpenseWidget : GlanceAppWidget() {
         isMonthlyBudget: Boolean
     ) {
         val context = LocalContext.current
+        val size = LocalSize.current
+        val isSmallHeight = size.height < 100.dp
+
+        val verticalPadding = if (isSmallHeight) 4.dp else 8.dp
+        val mainFontSize = if (isSmallHeight) 20.sp else 24.sp
+        val labelFontSize = if (isSmallHeight) 11.sp else 12.sp
+        val trendLabelFontSize = if (isSmallHeight) 10.sp else 11.sp
+        val spacing = if (isSmallHeight) 0.dp else 2.dp
+
         Column(
             modifier = GlanceModifier
                 .fillMaxSize()
@@ -110,14 +120,14 @@ class ExpenseWidget : GlanceAppWidget() {
                         )
                     )
                 )
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .padding(horizontal = 12.dp, vertical = verticalPadding),
             verticalAlignment = Alignment.CenterVertically,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
                 text = "Total Expense",
                 style = TextStyle(
-                    fontSize = 12.sp,
+                    fontSize = labelFontSize,
                     fontWeight = FontWeight.Medium,
                     color = GlanceTheme.colors.primary
                 )
@@ -127,11 +137,11 @@ class ExpenseWidget : GlanceAppWidget() {
             Text(
                 text = formattedSpent,
                 style = TextStyle(
-                    fontSize = 24.sp,
+                    fontSize = mainFontSize,
                     fontWeight = FontWeight.Bold,
                     color = GlanceTheme.colors.onSurface
                 ),
-                modifier = GlanceModifier.padding(bottom = 2.dp)
+                modifier = GlanceModifier.padding(bottom = spacing)
             )
 
             val isExpense = lastTransaction != null && lastTransaction.amount < 0
@@ -157,11 +167,11 @@ class ExpenseWidget : GlanceAppWidget() {
                 Text(
                     text = trendLabel,
                     style = TextStyle(
-                        fontSize = 11.sp,
+                        fontSize = trendLabelFontSize,
                         fontWeight = FontWeight.Medium,
                         color = GlanceTheme.colors.onSurfaceVariant
                     ),
-                    modifier = GlanceModifier.padding(bottom = 2.dp),
+                    modifier = GlanceModifier.padding(bottom = spacing),
                     maxLines = 1
                 )
 
