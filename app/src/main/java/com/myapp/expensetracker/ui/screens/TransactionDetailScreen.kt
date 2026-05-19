@@ -545,21 +545,33 @@ fun EditTransactionDialog(
                 }
 
                 Text("Tag", style = MaterialTheme.typography.labelLarge)
-                OutlinedTextField(
-                    value = tagText,
-                    onValueChange = { tagText = it },
-                    label = { Text("Tag") },
+                Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.Label, null) },
-                    trailingIcon = if (tagText.isNotBlank()) {
-                        {
-                            IconButton(onClick = { tagText = "" }) {
-                                Icon(Icons.Default.Close, contentDescription = "Remove tag")
-                            }
-                        }
-                    } else null
-                )
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        MaterialTheme.colorScheme.outlineVariant
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.Label,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = if (tagText.isBlank()) "No tag selected" else tagText,
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = if (tagText.isBlank()) FontWeight.Normal else FontWeight.Bold,
+                            color = if (tagText.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
 
                 if (savedTags.isNotEmpty()) {
                     LazyRow(
@@ -582,6 +594,13 @@ fun EditTransactionDialog(
                             )
                         }
                     }
+                } else {
+                    Text(
+                        "No saved tags. Add tags in Settings to categorize your transactions.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
