@@ -6,7 +6,7 @@
     android:minHeight="110dp"
     android:previewLayout="@layout/glance_default_layout"
     android:targetCellWidth="2"
-    android:targetCellHeight="2"
+    android:targetCellHeight="1"
     android:resizeMode="horizontal|vertical"
     android:updatePeriodMillis="0"
     android:widgetCategory="home_screen" />
