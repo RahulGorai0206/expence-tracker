@@ -199,11 +199,7 @@ private fun MainAppContent(
             selectedTransaction = null
         } else if (pagerState.currentPage != 0) {
             coroutineScope.launch {
-                if (pagerState.currentPage == 1) {
-                    pagerState.animateScrollToPage(0, animationSpec = tween(400))
-                } else {
-                    pagerState.scrollToPage(0)
-                }
+                pagerState.animateScrollToPage(0, animationSpec = tween(400))
             }
         }
     }
@@ -286,7 +282,7 @@ private fun MainAppContent(
                             },
                             onSettingsClick = {
                                 coroutineScope.launch {
-                                    pagerState.scrollToPage(3)
+                                    pagerState.animateScrollToPage(3, animationSpec = tween(400))
                                 }
                             }
                         )
@@ -320,56 +316,36 @@ private fun MainAppContent(
                         horizontalArrangement = Arrangement.SpaceAround,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        NavItem(pagerState.currentPage == 0, Icons.Default.Home, "Home") {
+                        NavItem(pagerState.targetPage == 0, Icons.Default.Home, "Home") {
                             coroutineScope.launch {
-                                val current = pagerState.currentPage
-                                if (kotlin.math.abs(current - 0) <= 1) {
-                                    pagerState.animateScrollToPage(0, animationSpec = tween(400))
-                                } else {
-                                    pagerState.scrollToPage(0)
-                                }
+                                pagerState.animateScrollToPage(0, animationSpec = tween(400))
                             }
                         }
                         NavItem(
-                            pagerState.currentPage == 1,
+                            pagerState.targetPage == 1,
                             Icons.AutoMirrored.Filled.ReceiptLong,
                             "History"
                         ) {
                             coroutineScope.launch {
-                                val current = pagerState.currentPage
-                                if (kotlin.math.abs(current - 1) <= 1) {
-                                    pagerState.animateScrollToPage(1, animationSpec = tween(400))
-                                } else {
-                                    pagerState.scrollToPage(1)
-                                }
+                                pagerState.animateScrollToPage(1, animationSpec = tween(400))
                             }
                         }
                         NavItem(
-                            pagerState.currentPage == 2,
+                            pagerState.targetPage == 2,
                             Icons.Default.Analytics,
                             "Analytics"
                         ) {
                             coroutineScope.launch {
-                                val current = pagerState.currentPage
-                                if (kotlin.math.abs(current - 2) <= 1) {
-                                    pagerState.animateScrollToPage(2, animationSpec = tween(400))
-                                } else {
-                                    pagerState.scrollToPage(2)
-                                }
+                                pagerState.animateScrollToPage(2, animationSpec = tween(400))
                             }
                         }
                         NavItem(
-                            pagerState.currentPage == 3,
+                            pagerState.targetPage == 3,
                             Icons.Default.Settings,
                             "Settings"
                         ) {
                             coroutineScope.launch {
-                                val current = pagerState.currentPage
-                                if (kotlin.math.abs(current - 3) <= 1) {
-                                    pagerState.animateScrollToPage(3, animationSpec = tween(400))
-                                } else {
-                                    pagerState.scrollToPage(3)
-                                }
+                                pagerState.animateScrollToPage(3, animationSpec = tween(400))
                             }
                         }
                     }
