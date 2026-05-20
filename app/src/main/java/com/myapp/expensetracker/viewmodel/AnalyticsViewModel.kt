@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.myapp.expensetracker.CategorySpending
 import com.myapp.expensetracker.DailySpending
 import com.myapp.expensetracker.MonthlySpending
+import com.myapp.expensetracker.TagSpending
 import com.myapp.expensetracker.TransactionDao
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,6 +34,7 @@ data class AnalyticsState(
     val dailyAverage: Double = 0.0,
     val monthlySpending: List<MonthlySpending> = emptyList(),
     val categorySpending: List<CategorySpending> = emptyList(),
+    val tagSpending: List<TagSpending> = emptyList(),
     val dailySpending: List<DailySpending> = emptyList(),
     val topSpendingDay: DailySpending? = null,
     val topCategory: CategorySpending? = null,
@@ -107,13 +109,24 @@ class AnalyticsViewModel(private val dao: TransactionDao) : ViewModel() {
         dataCollectionJob = viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
 
-            combine(
+            // combine supports max 5 flows, so nest two combines
+            val baseFlow = combine(
                 dao.getTotalSpentInRange(startDate, endDate),
                 dao.getTransactionCountInRange(startDate, endDate),
                 dao.getMonthlySpending(startDate, endDate),
                 dao.getCategorySpending(startDate, endDate),
                 dao.getDailySpending(startDate, endDate)
             ) { totalSpent, txCount, monthly, categories, daily ->
+                Triple(Triple(totalSpent, txCount, monthly), categories, daily)
+            }
+
+            combine(
+                baseFlow,
+                dao.getTagSpending(startDate, endDate)
+            ) { base, tags ->
+                val (first, categories, daily) = base
+                val (totalSpent, txCount, monthly) = first
+
                 val spent = totalSpent ?: 0.0
                 val daysInRange =
                     ((endDate - startDate) / (1000L * 60 * 60 * 24)).coerceAtLeast(1)
@@ -139,6 +152,7 @@ class AnalyticsViewModel(private val dao: TransactionDao) : ViewModel() {
                     dailyAverage = dailyAverage,
                     monthlySpending = monthly,
                     categorySpending = categories,
+                    tagSpending = tags,
                     dailySpending = daily,
                     topSpendingDay = topDay,
                     topCategory = topCat,

@@ -115,8 +115,21 @@ interface TransactionDao {
     """
     )
     fun getDailySpending(startDate: Long, endDate: Long): Flow<List<DailySpending>>
+
+    @Query(
+        """
+        SELECT CASE WHEN tag IS NULL OR TRIM(tag) = '' THEN 'Untagged' ELSE tag END AS tagLabel,
+               SUM(ABS(amount)) AS total
+        FROM transactions
+        WHERE amount < 0 AND status != 'deleted' AND date >= :startDate AND date <= :endDate
+        GROUP BY tagLabel
+        ORDER BY total DESC
+    """
+    )
+    fun getTagSpending(startDate: Long, endDate: Long): Flow<List<TagSpending>>
 }
 
 data class MonthlySpending(val monthLabel: String, val total: Double)
 data class CategorySpending(val category: String, val total: Double)
 data class DailySpending(val dayLabel: String, val total: Double)
+data class TagSpending(val tagLabel: String, val total: Double)

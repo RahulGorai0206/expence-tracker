@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.myapp.expensetracker.CategorySpending
 import com.myapp.expensetracker.MonthlySpending
+import com.myapp.expensetracker.TagSpending
 import com.myapp.expensetracker.ui.components.getCategoryInfo
 import com.myapp.expensetracker.viewmodel.AnalyticsViewModel
 import com.myapp.expensetracker.viewmodel.DateRangePreset
@@ -195,6 +196,17 @@ fun AnalyticsScreen() {
                 EmptyChartPlaceholder("No category data for this period")
             } else {
                 CategoryDonutChart(categories = state.categorySpending)
+            }
+        }
+
+        // ── Tag Donut Chart ────────────────────────────────────────────
+        item {
+            SectionHeader(title = "Tag Breakdown", icon = Icons.Default.Label)
+            Spacer(modifier = Modifier.height(12.dp))
+            if (state.tagSpending.isEmpty()) {
+                EmptyChartPlaceholder("No tag data for this period")
+            } else {
+                TagDonutChart(tags = state.tagSpending)
             }
         }
 
@@ -559,6 +571,151 @@ private fun CategoryDonutChart(categories: List<CategorySpending>) {
                     )
                     Text(
                         "\u20B9%,.0f".format(cat.total),
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        "${"%.1f".format(percentage)}%",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        modifier = Modifier.width(48.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Tag Donut Chart (Canvas)
+// ═══════════════════════════════════════════════════════════════════════
+
+private val TagChartColors = listOf(
+    Color(0xFF26A69A),  // Teal
+    Color(0xFFEF5350),  // Red
+    Color(0xFFAB47BC),  // Purple
+    Color(0xFF42A5F5),  // Blue
+    Color(0xFFFFA726),  // Orange
+    Color(0xFF66BB6A),  // Green
+    Color(0xFFEC407A),  // Pink
+    Color(0xFF5C6BC0),  // Indigo
+    Color(0xFF8D6E63),  // Brown
+    Color(0xFF78909C),  // Blue Grey
+)
+
+private val UntaggedColor = Color(0xFF616161) // Muted grey for "Untagged"
+
+@Composable
+private fun TagDonutChart(tags: List<TagSpending>) {
+    val animatedSweep = remember { Animatable(0f) }
+    LaunchedEffect(tags) {
+        animatedSweep.snapTo(0f)
+        animatedSweep.animateTo(1f, animationSpec = tween(1000, easing = FastOutSlowInEasing))
+    }
+
+    val total = tags.sumOf { it.total }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        tonalElevation = 2.dp
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            // Donut
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Canvas(
+                    modifier = Modifier.size(180.dp)
+                ) {
+                    val strokeWidth = 36f
+                    val radius = (size.minDimension - strokeWidth) / 2
+                    val topLeft = Offset(
+                        (size.width - radius * 2) / 2,
+                        (size.height - radius * 2) / 2
+                    )
+                    val arcSize = Size(radius * 2, radius * 2)
+
+                    var startAngle = -90f
+                    tags.forEachIndexed { index, tag ->
+                        val sweep = (tag.total / total * 360f * animatedSweep.value).toFloat()
+                        val color = if (tag.tagLabel == "Untagged") UntaggedColor
+                        else TagChartColors[index % TagChartColors.size]
+                        drawArc(
+                            color = color,
+                            startAngle = startAngle,
+                            sweepAngle = sweep,
+                            useCenter = false,
+                            topLeft = topLeft,
+                            size = arcSize,
+                            style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                        )
+                        startAngle += sweep
+                    }
+                }
+
+                // Center text
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        "\u20B9%,.0f".format(total),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        "Total",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Legend
+            tags.forEachIndexed { index, tag ->
+                val percentage = if (total > 0) (tag.total / total * 100) else 0.0
+                val color = if (tag.tagLabel == "Untagged") UntaggedColor
+                else TagChartColors[index % TagChartColors.size]
+                val icon = if (tag.tagLabel == "Untagged") Icons.Default.LabelOff
+                else Icons.Default.Label
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(12.dp)
+                            .clip(CircleShape)
+                            .background(color)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Icon(
+                        icon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        tag.tagLabel,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        "\u20B9%,.0f".format(tag.total),
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
