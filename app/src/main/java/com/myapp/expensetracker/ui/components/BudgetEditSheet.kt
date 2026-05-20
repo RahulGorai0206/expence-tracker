@@ -70,7 +70,7 @@ fun BudgetEditSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp)
+                .padding(top = 16.dp, bottom = 32.dp)
         ) {
             // Header
             Row(
