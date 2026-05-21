@@ -79,9 +79,12 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
         val currentMonth = now.get(java.util.Calendar.MONTH)
         val currentYear = now.get(java.util.Calendar.YEAR)
 
+        // Cache Calendar instance inside the loop to avoid recreating it
+        val cal = java.util.Calendar.getInstance()
+
         transactions.filter { tx ->
             val inMonth = if (isMonthlyBudget.value) {
-                val cal = java.util.Calendar.getInstance().apply { timeInMillis = tx.date }
+                cal.timeInMillis = tx.date
                 cal.get(java.util.Calendar.MONTH) == currentMonth && cal.get(java.util.Calendar.YEAR) == currentYear
             } else true
             tx.amount < 0 && inMonth
@@ -97,7 +100,7 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
         budgetProgress <= 1.0f -> Color(0xFFFF5722)   // Red-orange — danger
         else -> Color(0xFFFF1744)                     // Bright red — exceeded
     }
-    
+
     val totalBalance = remember(transactions) { transactions.sumOf { it.amount } }
     val wholePart = remember(totalSpent) { totalSpent.toInt().toString() }
     val decimalPart =
@@ -130,17 +133,22 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
                         color = MaterialTheme.colorScheme.onBackground
                     )
                 }
-                
-                val sharedPrefs = remember { context.getSharedPreferences("prefs", Context.MODE_PRIVATE) }
-                val sheetUrl = sharedPrefs.getString("sheet_url", "") ?: ""
-                val scriptUrl = sharedPrefs.getString("script_url", "") ?: ""
-                val isSyncEnabled = sheetUrl.isNotBlank() && scriptUrl.isNotBlank()
-                
-                val pendingCount = transactions.count { it.syncStatus == "pending" }
-                val failedCount = transactions.count { it.syncStatus == "failed" }
+
+                val sheetUrl = remember { sharedPrefs.getString("sheet_url", "") ?: "" }
+                val scriptUrl = remember { sharedPrefs.getString("script_url", "") ?: "" }
+                val isSyncEnabled = remember(
+                    sheetUrl,
+                    scriptUrl
+                ) { sheetUrl.isNotBlank() && scriptUrl.isNotBlank() }
+
+                val pendingCount =
+                    remember(transactions) { transactions.count { it.syncStatus == "pending" } }
+                val failedCount =
+                    remember(transactions) { transactions.count { it.syncStatus == "failed" } }
 
                 val scope = rememberCoroutineScope()
-                val failedWithLocation = transactions.any { it.syncStatus == "failed" && it.latitude != null && it.longitude != null }
+                val failedWithLocation =
+                    remember(transactions) { transactions.any { it.syncStatus == "failed" && it.latitude != null && it.longitude != null } }
 
                 Surface(
                     onClick = {
@@ -151,7 +159,8 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
                             // Resync failed/pending
                             scope.launch {
                                 Toast.makeText(context, "Resyncing ${failedCount + pendingCount} transactions...", Toast.LENGTH_SHORT).show()
-                                transactions.filter { it.syncStatus == "failed" || it.syncStatus == "pending" }.forEach { 
+                                transactions.filter { it.syncStatus == "failed" || it.syncStatus == "pending" }
+                                    .forEach {
                                     GoogleSheetsLogger.logAsync(context, it, it.id.toLong())
                                 }
                             }
@@ -243,9 +252,9 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
                             letterSpacing = 2.sp,
                             fontWeight = FontWeight.ExtraBold
                         )
-                        
+
                         Spacer(modifier = Modifier.height(8.dp))
-                        
+
                         Row(verticalAlignment = Alignment.Bottom) {
                             Text(
                                 text = "\u20B9 ",
@@ -302,7 +311,7 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
                         }
                         Spacer(modifier = Modifier.height(12.dp))
                     }
-                    
+
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -342,7 +351,7 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
                                 )
                             }
                         }
-                        
+
                         Box(
                             modifier = Modifier
                                 .size(44.dp)
@@ -362,7 +371,7 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
             }
 
             Spacer(modifier = Modifier.height(36.dp))
-            
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -378,7 +387,7 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
                     Text("See All", fontWeight = FontWeight.Bold)
                 }
             }
-            
+
             Spacer(modifier = Modifier.height(12.dp))
 
             if (transactions.isEmpty()) {
@@ -389,12 +398,13 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
                     modifier = Modifier.padding(top = 40.dp)
                 )
             } else {
+                val recentTransactions = remember(transactions) { transactions.take(10) }
                 LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(bottom = 100.dp)
                 ) {
-                    items(transactions.take(10), key = { it.id }) { transaction ->
+                    items(recentTransactions, key = { it.id }) { transaction ->
                         Box(modifier = Modifier.animateItem()) {
                             TransactionListItem(
                                 transaction,

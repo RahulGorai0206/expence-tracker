@@ -347,6 +347,7 @@ fun TransactionScreen(onTransactionClick: (Transaction) -> Unit) {
                     transactions
                 } else {
                     val query = searchQuery.lowercase(Locale.getDefault())
+                    val dateFormat = SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault())
                     transactions.filter { tx ->
                         when (searchFilter) {
                             SearchFilter.ALL -> {
@@ -366,8 +367,7 @@ fun TransactionScreen(onTransactionClick: (Transaction) -> Unit) {
                             ).contains(query)
 
                             SearchFilter.DATE -> {
-                                val dateStr = SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault())
-                                    .format(Date(tx.date)).lowercase()
+                                val dateStr = dateFormat.format(Date(tx.date)).lowercase()
                                 dateStr.contains(query)
                             }
                         }
@@ -376,10 +376,12 @@ fun TransactionScreen(onTransactionClick: (Transaction) -> Unit) {
             }
 
             val grouped = remember(filteredTransactions) {
+                val now = Calendar.getInstance()
+                val target = Calendar.getInstance()
+                val dateFormat = SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault())
+
                 filteredTransactions.groupBy {
-                    val date = Date(it.date)
-                    val now = Calendar.getInstance()
-                    val target = Calendar.getInstance().apply { time = date }
+                    target.timeInMillis = it.date
 
                     if (now.get(Calendar.YEAR) == target.get(Calendar.YEAR) &&
                         now.get(Calendar.DAY_OF_YEAR) == target.get(Calendar.DAY_OF_YEAR)
@@ -390,8 +392,7 @@ fun TransactionScreen(onTransactionClick: (Transaction) -> Unit) {
                     ) {
                         "YESTERDAY"
                     } else {
-                        SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault()).format(date)
-                            .uppercase()
+                        dateFormat.format(Date(it.date)).uppercase()
                     }
                 }
             }

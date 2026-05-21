@@ -361,6 +361,40 @@ private fun MonthlyBarChart(data: List<MonthlySpending>) {
     val textColor = MaterialTheme.colorScheme.onSurface
     val gridColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
 
+    val paintWhite = remember {
+        android.graphics.Paint().apply {
+            color = textColor.toArgb()
+            textSize = 24f
+            textAlign = android.graphics.Paint.Align.CENTER
+            isAntiAlias = true
+            typeface = android.graphics.Typeface.create(
+                android.graphics.Typeface.DEFAULT,
+                android.graphics.Typeface.BOLD
+            )
+        }
+    }
+
+    val paintLabel = remember {
+        android.graphics.Paint().apply {
+            color = textColor.toArgb()
+            textSize = 22f
+            textAlign = android.graphics.Paint.Align.CENTER
+            isAntiAlias = true
+        }
+    }
+
+    val formattedMonths = remember(data) {
+        val inFormat = SimpleDateFormat("yyyy-MM", Locale.getDefault())
+        val outFormat = SimpleDateFormat("MMM", Locale.getDefault())
+        data.map { item ->
+            try {
+                outFormat.format(inFormat.parse(item.monthLabel)!!)
+            } catch (_: Exception) {
+                item.monthLabel.takeLast(2)
+            }
+        }
+    }
+
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
@@ -414,49 +448,21 @@ private fun MonthlyBarChart(data: List<MonthlySpending>) {
 
                 // Amount label above bar
                 if (animatedProgress.value > 0.8f) {
-                    drawContext.canvas.nativeCanvas.apply {
-                        val paint = android.graphics.Paint().apply {
-                            color = textColor.toArgb()
-                            textSize = 24f
-                            textAlign = android.graphics.Paint.Align.CENTER
-                            isAntiAlias = true
-                            typeface = android.graphics.Typeface.create(
-                                android.graphics.Typeface.DEFAULT,
-                                android.graphics.Typeface.BOLD
-                            )
-                        }
-                        drawText(
-                            "\u20B9%,.0f".format(item.total),
-                            x + barWidth / 2,
-                            chartHeight - barHeight - 12f,
-                            paint
-                        )
-                    }
+                    drawContext.canvas.nativeCanvas.drawText(
+                        "\u20B9%,.0f".format(item.total),
+                        x + barWidth / 2,
+                        chartHeight - barHeight - 12f,
+                        paintWhite
+                    )
                 }
 
                 // Month label
-                drawContext.canvas.nativeCanvas.apply {
-                    val paint = android.graphics.Paint().apply {
-                        color = textColor.toArgb()
-                        textSize = 22f
-                        textAlign = android.graphics.Paint.Align.CENTER
-                        isAntiAlias = true
-                    }
-                    // Format "2026-05" → "May"
-                    val monthName = try {
-                        val sdf = SimpleDateFormat("yyyy-MM", Locale.getDefault())
-                        val date = sdf.parse(item.monthLabel)
-                        SimpleDateFormat("MMM", Locale.getDefault()).format(date!!)
-                    } catch (_: Exception) {
-                        item.monthLabel.takeLast(2)
-                    }
-                    drawText(
-                        monthName,
-                        x + barWidth / 2,
-                        size.height - 4f,
-                        paint
-                    )
-                }
+                drawContext.canvas.nativeCanvas.drawText(
+                    formattedMonths[index],
+                    x + barWidth / 2,
+                    size.height - 4f,
+                    paintLabel
+                )
             }
         }
     }
