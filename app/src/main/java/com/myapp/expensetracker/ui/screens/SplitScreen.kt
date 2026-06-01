@@ -150,7 +150,7 @@ fun SplitScreen(onEventClick: (Long) -> Unit) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
+                Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
                         "Split",
                         style = MaterialTheme.typography.headlineLarge,
@@ -161,19 +161,6 @@ fun SplitScreen(onEventClick: (Long) -> Unit) {
                         "Events, shared expenses, and who owes whom.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                IconButton(
-                    onClick = { showCreateDialog = true },
-                    modifier = Modifier
-                        .size(50.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primaryContainer)
-                ) {
-                    Icon(
-                        Icons.Default.Add,
-                        contentDescription = "Create event",
-                        tint = MaterialTheme.colorScheme.primary
                     )
                 }
             }
@@ -219,12 +206,15 @@ fun SplitEventDetailScreen(eventId: Long, onBack: () -> Unit) {
     var showSplitDialog by remember { mutableStateOf(false) }
     var showDeleteEventDialog by remember { mutableStateOf(false) }
     var settlementToMarkPaid by remember { mutableStateOf<Settlement?>(null) }
+    var hasLoadedEvent by remember(eventId) { mutableStateOf(false) }
 
     BackHandler(onBack = onBack)
 
-    if (eventState.event == null) {
-        LaunchedEffect(eventState.event) {
-            if (eventState.event == null && eventState.members.isEmpty()) onBack()
+    LaunchedEffect(eventState.event) {
+        if (eventState.event != null) {
+            hasLoadedEvent = true
+        } else if (hasLoadedEvent) {
+            onBack()
         }
     }
 
