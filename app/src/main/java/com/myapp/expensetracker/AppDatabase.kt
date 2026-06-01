@@ -14,10 +14,23 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-@Database(entities = [Transaction::class, MonthlyBudget::class], version = 9, exportSchema = false)
+@Database(
+    entities = [
+        Transaction::class,
+        MonthlyBudget::class,
+        SplitEvent::class,
+        SplitMember::class,
+        SplitExpense::class,
+        SplitShare::class,
+        SplitPayment::class
+    ],
+    version = 10,
+    exportSchema = false
+)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun transactionDao(): TransactionDao
     abstract fun monthlyBudgetDao(): MonthlyBudgetDao
+    abstract fun splitDao(): SplitDao
 
     companion object {
         @Volatile
@@ -59,6 +72,86 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val migration9to10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS split_events (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        remoteId TEXT,
+                        name TEXT NOT NULL,
+                        createdAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS split_members (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        remoteId TEXT,
+                        eventId INTEGER NOT NULL,
+                        displayName TEXT NOT NULL,
+                        contactLookupKey TEXT,
+                        createdAt INTEGER NOT NULL,
+                        FOREIGN KEY(eventId) REFERENCES split_events(id) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_split_members_eventId ON split_members(eventId)")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS split_expenses (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        remoteId TEXT,
+                        eventId INTEGER NOT NULL,
+                        amount REAL NOT NULL,
+                        description TEXT NOT NULL,
+                        paidByMemberId INTEGER NOT NULL,
+                        splitMode TEXT NOT NULL,
+                        createdAt INTEGER NOT NULL,
+                        FOREIGN KEY(eventId) REFERENCES split_events(id) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_split_expenses_eventId ON split_expenses(eventId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_split_expenses_paidByMemberId ON split_expenses(paidByMemberId)")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS split_shares (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        remoteId TEXT,
+                        splitExpenseId INTEGER NOT NULL,
+                        memberId INTEGER NOT NULL,
+                        owedAmount REAL NOT NULL,
+                        percentage REAL NOT NULL,
+                        FOREIGN KEY(splitExpenseId) REFERENCES split_expenses(id) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_split_shares_splitExpenseId ON split_shares(splitExpenseId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_split_shares_memberId ON split_shares(memberId)")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS split_payments (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        remoteId TEXT,
+                        eventId INTEGER NOT NULL,
+                        fromMemberId INTEGER NOT NULL,
+                        toMemberId INTEGER NOT NULL,
+                        amount REAL NOT NULL,
+                        note TEXT NOT NULL,
+                        createdAt INTEGER NOT NULL,
+                        FOREIGN KEY(eventId) REFERENCES split_events(id) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_split_payments_eventId ON split_payments(eventId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_split_payments_fromMemberId ON split_payments(fromMemberId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_split_payments_toMemberId ON split_payments(toMemberId)")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -66,7 +159,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "expense_database"
                 )
-                    .addMigrations(createMigration7to8(context), migration8to9)
+                    .addMigrations(createMigration7to8(context), migration8to9, migration9to10)
                 .addCallback(object : RoomDatabase.Callback() {
                     override fun onOpen(db: SupportSQLiteDatabase) {
                         super.onOpen(db)

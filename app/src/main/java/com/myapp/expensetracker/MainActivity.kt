@@ -168,7 +168,7 @@ private fun MainAppContent(
     onFollowSystemThemeChange: (Boolean) -> Unit
 ) {
     val context = LocalContext.current
-    val pagerState = rememberPagerState(pageCount = { 4 })
+    val pagerState = rememberPagerState(pageCount = { 5 })
     val coroutineScope = rememberCoroutineScope()
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
 
@@ -187,6 +187,7 @@ private fun MainAppContent(
     }
 
     var selectedTransaction by remember { mutableStateOf<Transaction?>(null) }
+    var selectedSplitEventId by remember { mutableStateOf<Long?>(null) }
 
     // Keep reference to the last selected transaction for exit animation
     var lastSelectedTransaction by remember { mutableStateOf<Transaction?>(null) }
@@ -194,9 +195,11 @@ private fun MainAppContent(
         lastSelectedTransaction = selectedTransaction
     }
 
-    BackHandler(enabled = selectedTransaction != null || pagerState.currentPage != 0) {
+    BackHandler(enabled = selectedTransaction != null || selectedSplitEventId != null || pagerState.currentPage != 0) {
         if (selectedTransaction != null) {
             selectedTransaction = null
+        } else if (selectedSplitEventId != null) {
+            selectedSplitEventId = null
         } else if (pagerState.currentPage != 0) {
             coroutineScope.launch {
                 pagerState.animateScrollToPage(0, animationSpec = tween(400))
@@ -282,14 +285,15 @@ private fun MainAppContent(
                             },
                             onSettingsClick = {
                                 coroutineScope.launch {
-                                    pagerState.animateScrollToPage(3, animationSpec = tween(400))
+                                    pagerState.animateScrollToPage(4, animationSpec = tween(400))
                                 }
                             }
                         )
 
                         1 -> TransactionScreen(onTransactionClick = { selectedTransaction = it })
-                        2 -> AnalyticsScreen()
-                        3 -> SettingsScreen(
+                        2 -> SplitScreen(onEventClick = { selectedSplitEventId = it })
+                        3 -> AnalyticsScreen()
+                        4 -> SettingsScreen(
                             isDarkTheme = isDarkTheme,
                             onDarkThemeChange = onDarkThemeChange,
                             followSystemTheme = followSystemTheme,
@@ -332,8 +336,8 @@ private fun MainAppContent(
                         }
                         NavItem(
                             pagerState.targetPage == 2,
-                            Icons.Default.Analytics,
-                            "Analytics"
+                            Icons.Default.Groups,
+                            "Split"
                         ) {
                             coroutineScope.launch {
                                 pagerState.animateScrollToPage(2, animationSpec = tween(400))
@@ -341,11 +345,20 @@ private fun MainAppContent(
                         }
                         NavItem(
                             pagerState.targetPage == 3,
+                            Icons.Default.Analytics,
+                            "Analytics"
+                        ) {
+                            coroutineScope.launch {
+                                pagerState.animateScrollToPage(3, animationSpec = tween(400))
+                            }
+                        }
+                        NavItem(
+                            pagerState.targetPage == 4,
                             Icons.Default.Settings,
                             "Settings"
                         ) {
                             coroutineScope.launch {
-                                pagerState.animateScrollToPage(3, animationSpec = tween(400))
+                                pagerState.animateScrollToPage(4, animationSpec = tween(400))
                             }
                         }
                     }
@@ -366,6 +379,23 @@ private fun MainAppContent(
                     TransactionDetailScreen(
                         initialTransaction = transaction,
                         onBack = { selectedTransaction = null }
+                    )
+                }
+            }
+
+            AnimatedVisibility(
+                visible = selectedSplitEventId != null,
+                enter = slideInHorizontally(animationSpec = tween(500)) { it } + fadeIn(
+                    animationSpec = tween(500)
+                ),
+                exit = slideOutHorizontally(animationSpec = tween(500)) { it } + fadeOut(
+                    animationSpec = tween(500)
+                )
+            ) {
+                selectedSplitEventId?.let { eventId ->
+                    SplitEventDetailScreen(
+                        eventId = eventId,
+                        onBack = { selectedSplitEventId = null }
                     )
                 }
             }

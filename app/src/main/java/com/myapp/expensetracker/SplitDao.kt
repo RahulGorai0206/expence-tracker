@@ -1,0 +1,77 @@
+package com.myapp.expensetracker
+
+import androidx.room.Dao
+import androidx.room.Delete
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import androidx.room.Transaction
+import androidx.room.Update
+import kotlinx.coroutines.flow.Flow
+
+@Dao
+interface SplitDao {
+    @Query("SELECT * FROM split_events ORDER BY updatedAt DESC")
+    fun observeEvents(): Flow<List<SplitEvent>>
+
+    @Query("SELECT * FROM split_events WHERE id = :eventId")
+    fun observeEvent(eventId: Long): Flow<SplitEvent?>
+
+    @Query("SELECT * FROM split_members WHERE eventId = :eventId ORDER BY createdAt ASC")
+    fun observeMembers(eventId: Long): Flow<List<SplitMember>>
+
+    @Query("SELECT * FROM split_expenses WHERE eventId = :eventId ORDER BY createdAt DESC")
+    fun observeExpenses(eventId: Long): Flow<List<SplitExpense>>
+
+    @Query(
+        """
+        SELECT split_shares.* FROM split_shares
+        INNER JOIN split_expenses ON split_expenses.id = split_shares.splitExpenseId
+        WHERE split_expenses.eventId = :eventId
+        """
+    )
+    fun observeSharesForEvent(eventId: Long): Flow<List<SplitShare>>
+
+    @Query("SELECT * FROM split_payments WHERE eventId = :eventId ORDER BY createdAt DESC")
+    fun observePayments(eventId: Long): Flow<List<SplitPayment>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertEvent(event: SplitEvent): Long
+
+    @Update
+    suspend fun updateEvent(event: SplitEvent)
+
+    @Delete
+    suspend fun deleteEvent(event: SplitEvent)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMember(member: SplitMember): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertExpense(expense: SplitExpense): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertShares(shares: List<SplitShare>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertPayment(payment: SplitPayment): Long
+
+    @Query("DELETE FROM split_expenses WHERE id = :expenseId")
+    suspend fun deleteExpenseById(expenseId: Long)
+
+    @Query("SELECT * FROM split_events WHERE id = :eventId")
+    suspend fun getEvent(eventId: Long): SplitEvent?
+
+    @Transaction
+    suspend fun insertExpenseWithShares(expense: SplitExpense, shares: List<SplitShare>) {
+        val expenseId = insertExpense(expense)
+        insertShares(shares.map { it.copy(splitExpenseId = expenseId) })
+        getEvent(expense.eventId)?.let { updateEvent(it.copy(updatedAt = System.currentTimeMillis())) }
+    }
+
+    @Transaction
+    suspend fun insertPaymentAndTouchEvent(payment: SplitPayment) {
+        insertPayment(payment)
+        getEvent(payment.eventId)?.let { updateEvent(it.copy(updatedAt = System.currentTimeMillis())) }
+    }
+}

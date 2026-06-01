@@ -1,8 +1,10 @@
 package com.myapp.expensetracker.di
 
 import com.myapp.expensetracker.AppDatabase
+import com.myapp.expensetracker.SplitRepository
 import com.myapp.expensetracker.viewmodel.AnalyticsViewModel
 import com.myapp.expensetracker.viewmodel.HomeViewModel
+import com.myapp.expensetracker.viewmodel.SplitViewModel
 import com.myapp.expensetracker.viewmodel.TransactionViewModel
 import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.viewmodel.dsl.viewModel
@@ -12,9 +14,12 @@ val appModule = module {
     single { AppDatabase.getDatabase(androidContext()) }
     single { get<AppDatabase>().transactionDao() }
     single { get<AppDatabase>().monthlyBudgetDao() }
+    single { get<AppDatabase>().splitDao() }
+    single { SplitRepository(get()) }
 
     viewModel { HomeViewModel(get(), get()) }
     viewModel { TransactionViewModel(get()) }
     viewModel { AnalyticsViewModel(get()) }
+    viewModel { SplitViewModel(get()) }
 }
 
