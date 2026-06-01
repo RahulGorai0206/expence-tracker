@@ -141,4 +141,56 @@ class SplitCalculatorTest {
         )
         assertTrue(SplitCalculator.simplifySettlements(fullBalances).isEmpty())
     }
+
+    @Test
+    fun paymentsDoNotCreateBalancesAfterSettledSplitIsDeleted() {
+        val balances = SplitCalculator.computeBalances(
+            members = members,
+            expenses = emptyList(),
+            shares = emptyList(),
+            payments = listOf(
+                SplitPayment(eventId = 1, fromMemberId = 2, toMemberId = 1, amount = 100.0)
+            )
+        )
+
+        assertTrue(balances.all { it.netAmount == 0.0 })
+        assertTrue(SplitCalculator.simplifySettlements(balances).isEmpty())
+    }
+
+    @Test
+    fun paymentIsCappedWhenDeletingASplitReducesDebt() {
+        val expenses = listOf(
+            SplitExpense(
+                id = 10,
+                eventId = 1,
+                amount = 150.0,
+                description = "Dinner",
+                paidByMemberId = 1,
+                splitMode = "even"
+            )
+        )
+        val shares = listOf(
+            SplitShare(splitExpenseId = 10, memberId = 1, owedAmount = 50.0, percentage = 33.33),
+            SplitShare(splitExpenseId = 10, memberId = 2, owedAmount = 50.0, percentage = 33.33),
+            SplitShare(splitExpenseId = 10, memberId = 3, owedAmount = 50.0, percentage = 33.34)
+        )
+
+        val balances = SplitCalculator.computeBalances(
+            members = members,
+            expenses = expenses,
+            shares = shares,
+            payments = listOf(
+                SplitPayment(
+                    eventId = 1,
+                    fromMemberId = 2,
+                    toMemberId = 1,
+                    amount = 100.0
+                )
+            )
+        )
+        val settlements = SplitCalculator.simplifySettlements(balances)
+
+        assertTrue(settlements.none { it.fromMemberId == 2L })
+        assertEquals(50.0, settlements.first { it.fromMemberId == 3L }.amount, 0.001)
+    }
 }

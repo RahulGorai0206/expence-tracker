@@ -107,16 +107,42 @@ object SplitCalculator {
             .mapValues { entry -> entry.value.sumOf { it.amount.toCents() } }
         val owed = shares.groupBy { it.memberId }
             .mapValues { entry -> entry.value.sumOf { it.owedAmount.toCents() } }
-        val paymentCredits = payments.groupBy { it.fromMemberId }
-            .mapValues { entry -> entry.value.sumOf { it.amount.toCents() } }
-        val paymentDebits = payments.groupBy { it.toMemberId }
-            .mapValues { entry -> entry.value.sumOf { it.amount.toCents() } }
+
+        val baseNetByMember = members.associate { member ->
+            member.id to ((paid[member.id] ?: 0L) - (owed[member.id] ?: 0L))
+        }.toMutableMap()
+
+        val remainingDebtByPair = simplifySettlements(
+            members.map { member ->
+                MemberBalance(
+                    member.id,
+                    member.displayName,
+                    (baseNetByMember[member.id] ?: 0L).fromCents()
+                )
+            }
+        ).associate { settlement ->
+            (settlement.fromMemberId to settlement.toMemberId) to settlement.amount.toCents()
+        }.toMutableMap()
+
+        payments.sortedBy { it.createdAt }.forEach { payment ->
+            val pair = payment.fromMemberId to payment.toMemberId
+            val remainingDebt = remainingDebtByPair[pair] ?: 0L
+            val applied = minOf(payment.amount.toCents(), remainingDebt)
+            if (applied > 0L) {
+                remainingDebtByPair[pair] = remainingDebt - applied
+                baseNetByMember[payment.fromMemberId] =
+                    (baseNetByMember[payment.fromMemberId] ?: 0L) + applied
+                baseNetByMember[payment.toMemberId] =
+                    (baseNetByMember[payment.toMemberId] ?: 0L) - applied
+            }
+        }
+
         return members.map { member ->
-            val netCents = (paid[member.id] ?: 0L) -
-                    (owed[member.id] ?: 0L) +
-                    (paymentCredits[member.id] ?: 0L) -
-                    (paymentDebits[member.id] ?: 0L)
-            MemberBalance(member.id, member.displayName, netCents.fromCents())
+            MemberBalance(
+                member.id,
+                member.displayName,
+                (baseNetByMember[member.id] ?: 0L).fromCents()
+            )
         }
     }
 

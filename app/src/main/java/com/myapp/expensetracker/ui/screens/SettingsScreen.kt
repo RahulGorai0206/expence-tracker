@@ -171,26 +171,37 @@ fun TagsEditorDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                OutlinedTextField(
-                    value = newTag,
-                    onValueChange = { newTag = it },
-                    label = { Text("New tag") },
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.Label, null) },
-                    trailingIcon = {
-                        IconButton(
-                            onClick = {
-                                draftTags = normalized(draftTags + newTag)
-                                newTag = ""
-                            },
-                            enabled = newTag.isNotBlank()
-                        ) {
-                            Icon(Icons.Default.Add, contentDescription = "Add tag")
-                        }
-                    },
-                    shape = RoundedCornerShape(16.dp)
-                )
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        value = newTag,
+                        onValueChange = { newTag = it },
+                        label = { Text("New tag") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.Label, null) },
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                    LargeFloatingActionButton(
+                        onClick = {
+                            draftTags = normalized(draftTags + newTag)
+                            newTag = ""
+                        },
+                        modifier = Modifier.size(64.dp),
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        shape = RoundedCornerShape(24.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Add,
+                            contentDescription = "Add tag",
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+                }
 
                 if (draftTags.isEmpty()) {
                     Text(

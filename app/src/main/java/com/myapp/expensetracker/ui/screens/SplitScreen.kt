@@ -18,6 +18,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -70,6 +71,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.InputChip
+import androidx.compose.material3.LargeFloatingActionButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -119,6 +121,7 @@ import java.util.Date
 import java.util.Locale
 import kotlin.math.abs
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SplitScreen(onEventClick: (Long) -> Unit) {
     val viewModel: SplitViewModel = koinViewModel()
@@ -175,23 +178,30 @@ fun SplitScreen(onEventClick: (Long) -> Unit) {
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(events, key = { it.id }) { event ->
-                        SplitEventCard(event = event, onClick = { onEventClick(event.id) })
+                        Box(modifier = Modifier.animateItem()) {
+                            SplitEventCard(event = event, onClick = { onEventClick(event.id) })
+                        }
                     }
                     item { Spacer(modifier = Modifier.height(110.dp)) }
                 }
             }
         }
 
-        FloatingActionButton(
+        LargeFloatingActionButton(
             onClick = { showCreateDialog = true },
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .navigationBarsPadding()
                 .padding(bottom = 104.dp),
-            containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            shape = RoundedCornerShape(24.dp)
         ) {
-            Icon(Icons.Default.Add, contentDescription = "Create event")
+            Icon(
+                Icons.Default.Add,
+                contentDescription = "Create event",
+                modifier = Modifier.size(32.dp)
+            )
         }
     }
 }
@@ -308,12 +318,17 @@ fun SplitEventDetailScreen(eventId: Long, onBack: () -> Unit) {
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
+            LargeFloatingActionButton(
                 onClick = { showSplitDialog = true },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                shape = RoundedCornerShape(24.dp)
             ) {
-                Icon(Icons.Default.Payments, contentDescription = "Add split")
+                Icon(
+                    Icons.Default.Payments,
+                    contentDescription = "Add split",
+                    modifier = Modifier.size(30.dp)
+                )
             }
         }
     ) { padding ->
@@ -339,8 +354,20 @@ fun SplitEventDetailScreen(eventId: Long, onBack: () -> Unit) {
             AnimatedContent(
                 targetState = selectedTab,
                 transitionSpec = {
-                    (fadeIn(tween(180)) + slideInHorizontally(tween(220)) { it / 8 })
-                        .togetherWith(fadeOut(tween(120)) + slideOutHorizontally(tween(180)) { -it / 8 })
+                    val direction = if (targetState > initialState) 1 else -1
+                    (fadeIn(tween(220)) + slideInHorizontally(
+                        tween(
+                            320,
+                            easing = FastOutSlowInEasing
+                        )
+                    ) { direction * it / 4 })
+                        .togetherWith(
+                            fadeOut(tween(160)) + slideOutHorizontally(
+                                tween(
+                                    260,
+                                    easing = FastOutSlowInEasing
+                                )
+                            ) { -direction * it / 5 })
                         .using(SizeTransform(clip = false))
                 },
                 label = "SplitDetailTabs"
@@ -419,7 +446,7 @@ private fun SplitEventCard(event: SplitEvent, onClick: () -> Unit) {
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(26.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp, pressedElevation = 6.dp)
     ) {
         Row(
             modifier = Modifier.padding(18.dp),
@@ -481,6 +508,7 @@ private fun CreateSplitEventDialog(onDismiss: () -> Unit, onCreate: (String) -> 
     )
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun SplitListTab(
     state: SplitEventState,
@@ -522,12 +550,14 @@ private fun SplitListTab(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         items(state.expenses, key = { it.id }) { expense ->
-            SplitExpenseCard(
-                expense = expense,
-                members = state.members,
-                shares = state.shares.filter { it.splitExpenseId == expense.id },
-                onDelete = { onDeleteSplit(expense.id) }
-            )
+            Box(modifier = Modifier.animateItem()) {
+                SplitExpenseCard(
+                    expense = expense,
+                    members = state.members,
+                    shares = state.shares.filter { it.splitExpenseId == expense.id },
+                    onDelete = { onDeleteSplit(expense.id) }
+                )
+            }
         }
         item { Spacer(modifier = Modifier.height(96.dp)) }
     }
@@ -544,7 +574,8 @@ private fun SplitExpenseCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -591,6 +622,7 @@ private fun SplitExpenseCard(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun BalancesTab(
     state: SplitEventState,
@@ -628,7 +660,9 @@ private fun BalancesTab(
             }
         } else {
             items(state.settlements) { settlement ->
-                SettlementRow(settlement, onMarkPaid = { onMarkPaid(settlement) })
+                Box(modifier = Modifier.animateItem()) {
+                    SettlementRow(settlement, onMarkPaid = { onMarkPaid(settlement) })
+                }
             }
         }
 
@@ -641,25 +675,27 @@ private fun BalancesTab(
             )
         }
         items(state.balances, key = { it.memberId }) { balance ->
-            MemberBalanceCard(
-                balance = balance,
-                onShare = {
-                    val summary = onShareMember(balance.memberId) ?: return@MemberBalanceCard
-                    scope.launch {
-                        val uri = SplitShareImageRenderer.renderToCache(context, summary)
-                        val intent = Intent(Intent.ACTION_SEND).apply {
-                            type = "image/png"
-                            putExtra(Intent.EXTRA_STREAM, uri)
-                            putExtra(
-                                Intent.EXTRA_TEXT,
-                                "${summary.memberName}'s split for ${summary.eventName}"
-                            )
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            Box(modifier = Modifier.animateItem()) {
+                MemberBalanceCard(
+                    balance = balance,
+                    onShare = {
+                        val summary = onShareMember(balance.memberId) ?: return@MemberBalanceCard
+                        scope.launch {
+                            val uri = SplitShareImageRenderer.renderToCache(context, summary)
+                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                type = "image/png"
+                                putExtra(Intent.EXTRA_STREAM, uri)
+                                putExtra(
+                                    Intent.EXTRA_TEXT,
+                                    "${summary.memberName}'s split for ${summary.eventName}"
+                                )
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            context.startActivity(Intent.createChooser(intent, "Share split"))
                         }
-                        context.startActivity(Intent.createChooser(intent, "Share split"))
                     }
-                }
-            )
+                )
+            }
         }
         item { Spacer(modifier = Modifier.height(96.dp)) }
     }
@@ -892,13 +928,16 @@ private fun SplitCreateDialog(
                 AnimatedContent(
                     targetState = step,
                     transitionSpec = {
-                        (fadeIn(tween(180)) + slideInVertically(
-                            tween(
-                                220,
-                                easing = FastOutSlowInEasing
+                        val direction = if (targetState > initialState) 1 else -1
+                        (fadeIn(tween(220)) + slideInHorizontally(
+                            tween(300, easing = FastOutSlowInEasing)
+                        ) { direction * it / 3 })
+                            .togetherWith(
+                                fadeOut(tween(140)) + slideOutHorizontally(
+                                    tween(240, easing = FastOutSlowInEasing)
+                                ) { -direction * it / 4 }
                             )
-                        ) { it / 6 })
-                            .togetherWith(fadeOut(tween(120)) + slideOutVertically(tween(180)) { -it / 6 })
+                            .using(SizeTransform(clip = false))
                     },
                     label = "SplitCreateStep"
                 ) { targetStep ->

@@ -39,6 +39,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -317,7 +318,7 @@ private fun MainAppContent(
                         modifier = Modifier
                             .padding(vertical = 8.dp, horizontal = 8.dp)
                             .fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceAround,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         NavItem(pagerState.targetPage == 0, Icons.Default.Home, "Home") {
@@ -404,9 +405,9 @@ private fun MainAppContent(
 }
 
 @Composable
-fun NavItem(selected: Boolean, icon: ImageVector, label: String, onClick: () -> Unit) {
+fun RowScope.NavItem(selected: Boolean, icon: ImageVector, label: String, onClick: () -> Unit) {
     val scale by animateFloatAsState(
-        targetValue = if (selected) 1.0f else 0.9f,
+        targetValue = if (selected) 1.0f else 0.94f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessLow
@@ -434,33 +435,45 @@ fun NavItem(selected: Boolean, icon: ImageVector, label: String, onClick: () -> 
         label = "NavContainerColor"
     )
 
-    Column(
+    Box(
         modifier = Modifier
+            .weight(1f)
+            .height(58.dp)
+            .padding(horizontal = 1.dp)
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
             }
             .clip(RoundedCornerShape(100.dp))
             .background(containerColor)
-            .clickable(onClick = onClick)
-            .padding(vertical = 10.dp, horizontal = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
     ) {
-        Icon(
-            icon,
-            contentDescription = label,
-            tint = contentColor,
-            modifier = Modifier.size(24.dp)
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall.copy(
-                fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.Bold,
-                letterSpacing = 0.5.sp
-            ),
-            color = contentColor,
-            modifier = Modifier.padding(top = 4.dp)
-        )
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 2.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                icon,
+                contentDescription = label,
+                tint = contentColor,
+                modifier = Modifier.size(if (selected) 23.dp else 21.dp)
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.Bold,
+                    fontSize = 10.sp,
+                    letterSpacing = 0.sp
+                ),
+                color = contentColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 3.dp)
+            )
+        }
     }
 }
