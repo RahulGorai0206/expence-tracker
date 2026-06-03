@@ -25,6 +25,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -440,44 +441,69 @@ private fun SplitEmptyState(onCreate: () -> Unit) {
 @Composable
 private fun SplitEventCard(event: SplitEvent, onClick: () -> Unit) {
     val date = remember(event.updatedAt) {
-        SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(event.updatedAt))
+        SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(event.updatedAt))
     }
-    Card(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(26.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp, pressedElevation = 6.dp)
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        tonalElevation = 1.dp,
+        shadowElevation = 2.dp
     ) {
         Row(
-            modifier = Modifier.padding(18.dp),
+            modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(56.dp)
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.75f)),
+                    .size(52.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     Icons.Default.Group,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(26.dp)
                 )
             }
-            Spacer(modifier = Modifier.width(14.dp))
+            Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     event.name,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1
                 )
                 Text(
-                    "Updated $date",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    "SPLIT EVENT",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    letterSpacing = 1.sp
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                TinySplitChip(
+                    label = "LOCAL",
+                    color = MaterialTheme.colorScheme.primary,
+                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
+                )
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    "OPEN",
+                    style = MaterialTheme.typography.titleLarge.copy(fontSize = 18.sp),
+                    fontWeight = FontWeight.Black,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    date,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                 )
             }
         }
@@ -572,7 +598,7 @@ private fun SplitListTab(
     ) {
         items(state.expenses, key = { it.id }) { expense ->
             Box(modifier = Modifier.animateItem()) {
-                SplitExpenseCard(
+                SplitExpenseListItem(
                     expense = expense,
                     members = state.members,
                     shares = state.shares.filter { it.splitExpenseId == expense.id },
@@ -581,6 +607,202 @@ private fun SplitListTab(
             }
         }
         item { Spacer(modifier = Modifier.height(96.dp)) }
+    }
+}
+
+@Composable
+private fun SplitExpenseListItem(
+    expense: SplitExpense,
+    members: List<SplitMember>,
+    shares: List<SplitShare>,
+    onDelete: () -> Unit
+) {
+    val payer = members.firstOrNull { it.id == expense.paidByMemberId }?.displayName ?: "Someone"
+    SplitTransactionStyleRow(
+        icon = Icons.Default.Payments,
+        iconColor = MaterialTheme.colorScheme.secondary,
+        title = expense.description.ifBlank { "Shared expense" },
+        subtitle = "PAID BY ${payer.uppercase()}",
+        chips = listOf(
+            SplitRowChip(
+                SplitMode.fromDb(expense.splitMode).label.uppercase(),
+                MaterialTheme.colorScheme.secondary,
+                MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f)
+            ),
+            SplitRowChip(
+                "${shares.size} MEMBERS",
+                MaterialTheme.colorScheme.onSurfaceVariant,
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)
+            )
+        ),
+        amountText = rupee(expense.amount),
+        amountColor = MaterialTheme.colorScheme.onSurface,
+        action = {
+            IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = "Delete split",
+                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+    )
+}
+
+@Composable
+private fun SettlementListItem(settlement: Settlement, onMarkPaid: () -> Unit) {
+    SplitTransactionStyleRow(
+        icon = Icons.Default.SwapHoriz,
+        iconColor = MaterialTheme.colorScheme.tertiary,
+        title = settlement.fromMemberName,
+        subtitle = "OWES ${settlement.toMemberName.uppercase()}",
+        chips = listOf(
+            SplitRowChip(
+                "SETTLEMENT",
+                MaterialTheme.colorScheme.tertiary,
+                MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.2f)
+            )
+        ),
+        amountText = rupee(settlement.amount),
+        amountColor = MaterialTheme.colorScheme.onSurface,
+        action = {
+            TextButton(onClick = onMarkPaid) {
+                Text("Mark paid")
+            }
+        }
+    )
+}
+
+@Composable
+private fun MemberBalanceListItem(balance: MemberBalance, onShare: () -> Unit) {
+    val amountColor = when {
+        balance.netAmount > 0.005 -> Color(0xFF4CAF50)
+        balance.netAmount < -0.005 -> MaterialTheme.colorScheme.error
+        else -> MaterialTheme.colorScheme.onSurface
+    }
+    val label = when {
+        balance.netAmount > 0.005 -> "GETS BACK"
+        balance.netAmount < -0.005 -> "OWES"
+        else -> "SETTLED"
+    }
+    val amountText = when {
+        balance.netAmount > 0.005 -> "+${rupee(balance.netAmount)}"
+        balance.netAmount < -0.005 -> "-${rupee(abs(balance.netAmount))}"
+        else -> rupee(0.0)
+    }
+
+    SplitTransactionStyleRow(
+        icon = Icons.Default.Group,
+        iconColor = amountColor,
+        title = balance.memberName,
+        subtitle = "MEMBER BALANCE",
+        chips = listOf(SplitRowChip(label, amountColor, amountColor.copy(alpha = 0.12f))),
+        amountText = amountText,
+        amountColor = amountColor,
+        action = {
+            IconButton(onClick = onShare, modifier = Modifier.size(32.dp)) {
+                Icon(
+                    Icons.Default.Share,
+                    contentDescription = "Share ${balance.memberName}'s split",
+                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+    )
+}
+
+private data class SplitRowChip(
+    val label: String,
+    val color: Color,
+    val containerColor: Color
+)
+
+@Composable
+private fun SplitTransactionStyleRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    iconColor: Color,
+    title: String,
+    subtitle: String,
+    chips: List<SplitRowChip>,
+    amountText: String,
+    amountColor: Color,
+    action: @Composable ColumnScope.() -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        tonalElevation = 1.dp,
+        shadowElevation = 2.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(iconColor.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, null, tint = iconColor, modifier = Modifier.size(26.dp))
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    title,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1
+                )
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    letterSpacing = 1.sp,
+                    maxLines = 1
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    chips.forEach { chip ->
+                        TinySplitChip(chip.label, chip.color, chip.containerColor)
+                    }
+                }
+            }
+
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    amountText,
+                    fontWeight = FontWeight.Black,
+                    color = amountColor,
+                    style = MaterialTheme.typography.titleLarge.copy(fontSize = 18.sp)
+                )
+                action()
+            }
+        }
+    }
+}
+
+@Composable
+private fun TinySplitChip(label: String, color: Color, containerColor: Color) {
+    Surface(
+        color = containerColor,
+        shape = RoundedCornerShape(4.dp)
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp),
+            color = color,
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+            fontWeight = FontWeight.Bold,
+            maxLines = 1
+        )
     }
 }
 
@@ -682,7 +904,7 @@ private fun BalancesTab(
         } else {
             items(state.settlements) { settlement ->
                 Box(modifier = Modifier.animateItem()) {
-                    SettlementRow(settlement, onMarkPaid = { onMarkPaid(settlement) })
+                    SettlementListItem(settlement, onMarkPaid = { onMarkPaid(settlement) })
                 }
             }
         }
@@ -697,10 +919,11 @@ private fun BalancesTab(
         }
         items(state.balances, key = { it.memberId }) { balance ->
             Box(modifier = Modifier.animateItem()) {
-                MemberBalanceCard(
+                MemberBalanceListItem(
                     balance = balance,
                     onShare = {
-                        val summary = onShareMember(balance.memberId) ?: return@MemberBalanceCard
+                        val summary =
+                            onShareMember(balance.memberId) ?: return@MemberBalanceListItem
                         scope.launch {
                             val uri = SplitShareImageRenderer.renderToCache(context, summary)
                             val intent = Intent(Intent.ACTION_SEND).apply {
