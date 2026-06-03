@@ -15,11 +15,19 @@ object SplitCalculator {
     private const val CENTS_PER_UNIT = 100L
     private const val PERCENT_BASIS = 10_000L
 
-    fun equalShares(total: Double, members: List<SplitMember>): List<SplitShareDraft> {
+    fun equalShares(
+        total: Double,
+        members: List<SplitMember>,
+        remainderMemberId: Long? = null
+    ): List<SplitShareDraft> {
         val cents = total.toCents()
         val amounts = distribute(cents, members.size)
+        val orderedMembers = members.withRemainderMemberFirst(remainderMemberId)
+        val amountByMemberId = orderedMembers.mapIndexed { index, member ->
+            member.id to amounts.getOrElse(index) { 0L }
+        }.toMap()
         return members.mapIndexed { index, member ->
-            val amount = amounts.getOrElse(index) { 0L }
+            val amount = amountByMemberId[member.id] ?: 0L
             SplitShareDraft(
                 memberId = member.id,
                 memberName = member.displayName,
@@ -105,7 +113,25 @@ object SplitCalculator {
     ): List<MemberBalance> {
         val paid = expenses.groupBy { it.paidByMemberId }
             .mapValues { entry -> entry.value.sumOf { it.amount.toCents() } }
-        val owed = shares.groupBy { it.memberId }
+        val memberById = members.associateBy { it.id }
+        val sharesByExpenseId = shares.groupBy { it.splitExpenseId }
+        val effectiveShares = expenses.flatMap { expense ->
+            val expenseShares = sharesByExpenseId[expense.id].orEmpty()
+            if (SplitMode.fromDb(expense.splitMode) == SplitMode.EVEN && expenseShares.isNotEmpty()) {
+                val participatingMembers = expenseShares.mapNotNull { memberById[it.memberId] }
+                equalShares(expense.amount, participatingMembers, expense.paidByMemberId).map {
+                    SplitShare(
+                        splitExpenseId = expense.id,
+                        memberId = it.memberId,
+                        owedAmount = it.owedAmount,
+                        percentage = it.percentage
+                    )
+                }
+            } else {
+                expenseShares
+            }
+        }
+        val owed = effectiveShares.groupBy { it.memberId }
             .mapValues { entry -> entry.value.sumOf { it.owedAmount.toCents() } }
 
         val baseNetByMember = members.associate { member ->
@@ -220,6 +246,11 @@ object SplitCalculator {
         val base = total / count
         val remainder = total % count
         return List(count) { index -> base + if (index < remainder) 1 else 0 }
+    }
+
+    private fun List<SplitMember>.withRemainderMemberFirst(memberId: Long?): List<SplitMember> {
+        if (memberId == null || none { it.id == memberId }) return this
+        return sortedBy { if (it.id == memberId) 0 else 1 }
     }
 
     private fun Double.toCents(): Long = (this * CENTS_PER_UNIT).roundToLong()

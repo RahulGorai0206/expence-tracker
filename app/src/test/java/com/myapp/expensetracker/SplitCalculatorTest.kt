@@ -22,6 +22,15 @@ class SplitCalculatorTest {
     }
 
     @Test
+    fun evenSplitAssignsRoundingToPayerWhenProvided() {
+        val shares = SplitCalculator.equalShares(100.0, members, remainderMemberId = 2)
+
+        assertEquals(33.33, shares.first { it.memberId == 1L }.owedAmount, 0.001)
+        assertEquals(33.34, shares.first { it.memberId == 2L }.owedAmount, 0.001)
+        assertEquals(33.33, shares.first { it.memberId == 3L }.owedAmount, 0.001)
+    }
+
+    @Test
     fun amountSplitAutoAdjustsUneditedRows() {
         val initial = SplitCalculator.equalShares(300.0, members)
         val edited = initial.map {
@@ -192,5 +201,62 @@ class SplitCalculatorTest {
 
         assertTrue(settlements.none { it.fromMemberId == 2L })
         assertEquals(50.0, settlements.first { it.fromMemberId == 3L }.amount, 0.001)
+    }
+
+    @Test
+    fun equalSpendingByAllMembersSettlesToZero() {
+        val expenses = listOf(
+            SplitExpense(
+                id = 10,
+                eventId = 1,
+                amount = 100.0,
+                description = "A paid",
+                paidByMemberId = 1,
+                splitMode = "even"
+            ),
+            SplitExpense(
+                id = 11,
+                eventId = 1,
+                amount = 100.0,
+                description = "B paid",
+                paidByMemberId = 2,
+                splitMode = "even"
+            ),
+            SplitExpense(
+                id = 12,
+                eventId = 1,
+                amount = 100.0,
+                description = "C paid",
+                paidByMemberId = 3,
+                splitMode = "even"
+            )
+        )
+        val oldBiasedShares = expenses.flatMap { expense ->
+            listOf(
+                SplitShare(
+                    splitExpenseId = expense.id,
+                    memberId = 1,
+                    owedAmount = 33.34,
+                    percentage = 33.34
+                ),
+                SplitShare(
+                    splitExpenseId = expense.id,
+                    memberId = 2,
+                    owedAmount = 33.33,
+                    percentage = 33.33
+                ),
+                SplitShare(
+                    splitExpenseId = expense.id,
+                    memberId = 3,
+                    owedAmount = 33.33,
+                    percentage = 33.33
+                )
+            )
+        }
+
+        val balances = SplitCalculator.computeBalances(members, expenses, oldBiasedShares)
+
+        assertTrue(balances.all { it.netAmount == 0.0 })
+        assertTrue(SplitCalculator.simplifySettlements(balances).isEmpty())
     }
 }

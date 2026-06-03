@@ -882,9 +882,9 @@ private fun SplitCreateDialog(
         if (paidByMemberId !in currentIds) paidByMemberId = currentIds.firstOrNull()
     }
 
-    LaunchedEffect(selectedMembers, amount, mode) {
+    LaunchedEffect(selectedMembers, amount, mode, paidByMemberId) {
         if (amount > 0 && selectedMembers.isNotEmpty()) {
-            shares = SplitCalculator.equalShares(amount, selectedMembers)
+            shares = SplitCalculator.equalShares(amount, selectedMembers, paidByMemberId)
         } else {
             shares = emptyList()
         }
@@ -976,7 +976,11 @@ private fun SplitCreateDialog(
                             shares = shares,
                             onModeChange = {
                                 mode = it
-                                shares = SplitCalculator.equalShares(amount, selectedMembers)
+                                shares = SplitCalculator.equalShares(
+                                    amount,
+                                    selectedMembers,
+                                    paidByMemberId
+                                )
                             },
                             onAmountChange = { memberId, value ->
                                 val updated = shares.map {
