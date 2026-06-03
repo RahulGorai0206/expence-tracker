@@ -195,6 +195,10 @@ private fun MainAppContent(
     if (selectedTransaction != null) {
         lastSelectedTransaction = selectedTransaction
     }
+    var lastSelectedSplitEventId by remember { mutableStateOf<Long?>(null) }
+    if (selectedSplitEventId != null) {
+        lastSelectedSplitEventId = selectedSplitEventId
+    }
 
     BackHandler(enabled = selectedTransaction != null || selectedSplitEventId != null || pagerState.currentPage != 0) {
         if (selectedTransaction != null) {
@@ -393,7 +397,7 @@ private fun MainAppContent(
                     animationSpec = tween(500)
                 )
             ) {
-                selectedSplitEventId?.let { eventId ->
+                lastSelectedSplitEventId?.let { eventId ->
                     SplitEventDetailScreen(
                         eventId = eventId,
                         onBack = { selectedSplitEventId = null }
