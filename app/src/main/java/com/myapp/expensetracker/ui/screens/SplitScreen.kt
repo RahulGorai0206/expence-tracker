@@ -120,6 +120,7 @@ import com.myapp.expensetracker.viewmodel.SplitViewModel
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import kotlin.math.abs
@@ -562,6 +563,17 @@ private fun SplitListTab(
     onDeleteSplit: (Long) -> Unit,
     onCreate: () -> Unit
 ) {
+    var selectedExpense by remember { mutableStateOf<SplitExpense?>(null) }
+
+    selectedExpense?.let { expense ->
+        SplitExpenseDetailsSheet(
+            expense = expense,
+            members = state.members,
+            shares = state.shares.filter { it.splitExpenseId == expense.id },
+            onDismiss = { selectedExpense = null }
+        )
+    }
+
     if (state.expenses.isEmpty()) {
         Column(
             modifier = Modifier
@@ -590,23 +602,181 @@ private fun SplitListTab(
         return
     }
 
+    val groupedExpenses = remember(state.expenses) {
+        val now = Calendar.getInstance()
+        val target = Calendar.getInstance()
+        val dateFormat = SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault())
+
+        state.expenses.groupBy { expense ->
+            target.timeInMillis = expense.createdAt
+            if (now.get(Calendar.YEAR) == target.get(Calendar.YEAR) &&
+                now.get(Calendar.DAY_OF_YEAR) == target.get(Calendar.DAY_OF_YEAR)
+            ) {
+                "TODAY"
+            } else if (now.get(Calendar.YEAR) == target.get(Calendar.YEAR) &&
+                now.get(Calendar.DAY_OF_YEAR) - target.get(Calendar.DAY_OF_YEAR) == 1
+            ) {
+                "YESTERDAY"
+            } else {
+                dateFormat.format(Date(expense.createdAt)).uppercase()
+            }
+        }
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        items(state.expenses, key = { it.id }) { expense ->
-            Box(modifier = Modifier.animateItem()) {
-                SplitExpenseListItem(
-                    expense = expense,
-                    members = state.members,
-                    shares = state.shares.filter { it.splitExpenseId == expense.id },
-                    onDelete = { onDeleteSplit(expense.id) }
-                )
+        groupedExpenses.forEach { (date, expenses) ->
+            item(key = "date_$date") {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        date,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    HorizontalDivider(
+                        modifier = Modifier.weight(1f),
+                        thickness = 1.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    )
+                }
+            }
+            items(expenses, key = { it.id }) { expense ->
+                Box(modifier = Modifier.animateItem()) {
+                    SplitExpenseListItem(
+                        expense = expense,
+                        members = state.members,
+                        shares = state.shares.filter { it.splitExpenseId == expense.id },
+                        onClick = { selectedExpense = expense },
+                        onDelete = { onDeleteSplit(expense.id) }
+                    )
+                }
             }
         }
         item { Spacer(modifier = Modifier.height(96.dp)) }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SplitExpenseDetailsSheet(
+    expense: SplitExpense,
+    members: List<SplitMember>,
+    shares: List<SplitShare>,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val payer = members.firstOrNull { it.id == expense.paidByMemberId }?.displayName ?: "Someone"
+    val dateText = remember(expense.createdAt) {
+        SimpleDateFormat(
+            "MMMM dd, yyyy - hh:mm a",
+            Locale.getDefault()
+        ).format(Date(expense.createdAt))
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 40.dp)
+                .fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                expense.description.ifBlank { "Shared expense" },
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold
+            )
+
+            SplitDetailSummaryRow("TOTAL", rupee(expense.amount))
+            SplitDetailSummaryRow("PAID BY", payer)
+            SplitDetailSummaryRow("SPLIT MODE", SplitMode.fromDb(expense.splitMode).label)
+            SplitDetailSummaryRow("DATE", dateText)
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+
+            Text(
+                "Member shares",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+
+            shares.forEach { share ->
+                val member =
+                    members.firstOrNull { it.id == share.memberId }?.displayName ?: "Member"
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainer
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Group,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(member, fontWeight = FontWeight.ExtraBold, maxLines = 1)
+                            Text(
+                                "${"%.2f".format(share.percentage)}%",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
+                            )
+                        }
+                        Text(
+                            rupee(share.owedAmount),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Black
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SplitDetailSummaryRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
+            letterSpacing = 1.sp,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            value,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
     }
 }
 
@@ -615,6 +785,7 @@ private fun SplitExpenseListItem(
     expense: SplitExpense,
     members: List<SplitMember>,
     shares: List<SplitShare>,
+    onClick: () -> Unit,
     onDelete: () -> Unit
 ) {
     val payer = members.firstOrNull { it.id == expense.paidByMemberId }?.displayName ?: "Someone"
@@ -637,6 +808,7 @@ private fun SplitExpenseListItem(
         ),
         amountText = rupee(expense.amount),
         amountColor = MaterialTheme.colorScheme.onSurface,
+        onClick = onClick,
         action = {
             IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
                 Icon(
@@ -728,10 +900,13 @@ private fun SplitTransactionStyleRow(
     chips: List<SplitRowChip>,
     amountText: String,
     amountColor: Color,
+    onClick: (() -> Unit)? = null,
     action: @Composable ColumnScope.() -> Unit
 ) {
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
         shape = RoundedCornerShape(24.dp),
         color = MaterialTheme.colorScheme.surfaceContainer,
         tonalElevation = 1.dp,
