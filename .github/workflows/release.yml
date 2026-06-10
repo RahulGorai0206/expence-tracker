@@ -51,6 +51,24 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
+      - name: Rename APKs with version
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          cd app/build/outputs/apk/release
+          for file in *.apk; do
+            if [ -f "$file" ]; then
+              new_name=$(echo "$file" | sed -E "s/^app-(.*)-release\.apk$/app-v${VERSION}-\1.apk/")
+              if [ "$new_name" = "$file" ]; then
+                new_name=$(echo "$file" | sed -E "s/^app-release\.apk$/app-v${VERSION}.apk/")
+              fi
+              if [ "$new_name" = "$file" ]; then
+                new_name=$(echo "$file" | sed "s/\.apk$/-v${VERSION}.apk/")
+              fi
+              mv "$file" "$new_name"
+              echo "Renamed $file to $new_name"
+            fi
+          done
+
       - name: Create Release and Upload APK
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
