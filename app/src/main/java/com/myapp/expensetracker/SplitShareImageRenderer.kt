@@ -24,8 +24,12 @@ object SplitShareImageRenderer {
         paint.color = Color.WHITE
         canvas.drawRoundRect(RectF(86f, 86f, 994f, 1264f), 32f, 32f, paint)
 
-        drawText(canvas, paint, summary.eventName, 118f, 168f, 42f, Color.rgb(34, 40, 33), true)
-        drawText(canvas, paint, summary.memberName, 118f, 244f, 62f, Color.rgb(27, 34, 25), true)
+        val left = 118f
+        val right = 962f
+        val contentWidth = right - left
+
+        drawWrappedText(canvas, paint, summary.eventName, left, 168f, contentWidth, 42f, Color.rgb(34, 40, 33), true)
+        drawWrappedText(canvas, paint, summary.memberName, left, 244f, contentWidth, 62f, Color.rgb(27, 34, 25), true)
 
         val headline = when {
             summary.netAmount < -0.005 -> "You owe ${rupee(abs(summary.netAmount))}"
@@ -37,23 +41,32 @@ object SplitShareImageRenderer {
             summary.netAmount > 0.005 -> Color.rgb(51, 126, 68)
             else -> Color.rgb(72, 84, 66)
         }
-        drawText(canvas, paint, headline, 118f, 362f, 82f, headlineColor, true)
+        var y = drawWrappedText(
+            canvas = canvas,
+            paint = paint,
+            text = headline,
+            x = left,
+            y = 362f,
+            maxWidth = contentWidth,
+            size = 82f,
+            color = headlineColor,
+            bold = true
+        ) + 56f
 
-        var y = 470f
-        drawText(canvas, paint, "Your settlement", 118f, y, 34f, Color.rgb(82, 96, 74), true)
+        drawWrappedText(canvas, paint, "Your settlement", left, y, contentWidth, 34f, Color.rgb(82, 96, 74), true)
         y += 56f
         if (summary.involvedSettlements.isEmpty()) {
-            drawText(
+            y = drawWrappedText(
                 canvas,
                 paint,
                 "No payments needed.",
-                118f,
+                left,
                 y,
+                contentWidth,
                 36f,
                 Color.rgb(42, 47, 39),
                 false
-            )
-            y += 58f
+            ) + 14f
         } else {
             summary.involvedSettlements.forEach { settlement ->
                 val line = if (settlement.fromMemberId == summary.memberId) {
@@ -61,15 +74,14 @@ object SplitShareImageRenderer {
                 } else {
                     "Collect ${rupee(settlement.amount)} from ${settlement.fromMemberName}"
                 }
-                drawText(canvas, paint, line, 118f, y, 36f, Color.rgb(42, 47, 39), false)
-                y += 58f
+                y = drawWrappedText(canvas, paint, line, left, y, contentWidth, 36f, Color.rgb(42, 47, 39), false) + 14f
             }
         }
 
         y += 42f
         drawDivider(canvas, paint, y)
         y += 74f
-        drawText(canvas, paint, "Everyone's balance", 118f, y, 34f, Color.rgb(82, 96, 74), true)
+        drawWrappedText(canvas, paint, "Everyone's balance", left, y, contentWidth, 34f, Color.rgb(82, 96, 74), true)
         y += 58f
         summary.allBalances.forEach { balance ->
             val label = when {
@@ -77,25 +89,26 @@ object SplitShareImageRenderer {
                 balance.netAmount > 0.005 -> "gets ${rupee(balance.netAmount)}"
                 else -> "settled"
             }
-            drawText(
+            y = drawWrappedText(
                 canvas,
                 paint,
                 "${balance.memberName}: $label",
-                118f,
+                left,
                 y,
+                contentWidth,
                 32f,
                 Color.rgb(42, 47, 39),
                 false
-            )
-            y += 52f
+            ) + 12f
         }
 
-        drawText(
+        drawWrappedText(
             canvas,
             paint,
             "Shared via Expense Tracker",
-            118f,
+            left,
             1218f,
+            contentWidth,
             30f,
             Color.rgb(114, 124, 106),
             false
@@ -123,6 +136,48 @@ object SplitShareImageRenderer {
         paint.typeface =
             if (bold) android.graphics.Typeface.DEFAULT_BOLD else android.graphics.Typeface.DEFAULT
         canvas.drawText(text.take(34), x, y, paint)
+    }
+
+    private fun drawWrappedText(
+        canvas: Canvas,
+        paint: Paint,
+        text: String,
+        x: Float,
+        y: Float,
+        maxWidth: Float,
+        size: Float,
+        color: Int,
+        bold: Boolean
+    ): Float {
+        paint.color = color
+        paint.textSize = size
+        paint.typeface =
+            if (bold) android.graphics.Typeface.DEFAULT_BOLD else android.graphics.Typeface.DEFAULT
+
+        val lines = wrapText(text, paint, maxWidth)
+        val lineHeight = size * 1.22f
+        lines.forEachIndexed { index, line ->
+            canvas.drawText(line, x, y + (index * lineHeight), paint)
+        }
+        return y + ((lines.size - 1).coerceAtLeast(0) * lineHeight)
+    }
+
+    private fun wrapText(text: String, paint: Paint, maxWidth: Float): List<String> {
+        if (text.isBlank() || paint.measureText(text) <= maxWidth) return listOf(text)
+
+        val lines = mutableListOf<String>()
+        var current = ""
+        text.split(Regex("\\s+")).forEach { word ->
+            val candidate = if (current.isBlank()) word else "$current $word"
+            if (paint.measureText(candidate) <= maxWidth) {
+                current = candidate
+            } else {
+                if (current.isNotBlank()) lines += current
+                current = word
+            }
+        }
+        if (current.isNotBlank()) lines += current
+        return lines.ifEmpty { listOf(text) }
     }
 
     private fun drawDivider(canvas: Canvas, paint: Paint, y: Float) {
