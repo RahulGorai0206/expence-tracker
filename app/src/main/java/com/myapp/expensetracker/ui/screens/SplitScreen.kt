@@ -41,6 +41,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -97,8 +99,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -117,6 +122,7 @@ import com.myapp.expensetracker.SplitShareDraft
 import com.myapp.expensetracker.SplitShareImageRenderer
 import com.myapp.expensetracker.viewmodel.SplitEventState
 import com.myapp.expensetracker.viewmodel.SplitViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import java.text.SimpleDateFormat
@@ -216,7 +222,8 @@ fun SplitEventDetailScreen(eventId: Long, onBack: () -> Unit) {
     val viewModel: SplitViewModel = koinViewModel()
     val eventState by remember(eventId) { viewModel.eventState(eventId) }
         .collectAsState(initial = SplitEventState())
-    var selectedTab by remember { mutableIntStateOf(0) }
+    val pagerState = rememberPagerState(pageCount = { 2 })
+    val detailScope = rememberCoroutineScope()
     var showSplitDialog by remember { mutableStateOf(false) }
     var showDeleteEventDialog by remember { mutableStateOf(false) }
     var settlementToMarkPaid by remember { mutableStateOf<Settlement?>(null) }
@@ -342,48 +349,39 @@ fun SplitEventDetailScreen(eventId: Long, onBack: () -> Unit) {
                 .fillMaxSize()
         ) {
             TabRow(
-                selectedTabIndex = selectedTab,
+                selectedTabIndex = pagerState.currentPage,
                 containerColor = MaterialTheme.colorScheme.background
             ) {
                 Tab(
-                    selected = selectedTab == 0,
-                    onClick = { selectedTab = 0 },
+                    selected = pagerState.currentPage == 0,
+                    onClick = {
+                        detailScope.launch {
+                            pagerState.animateScrollToPage(0, animationSpec = tween(320))
+                        }
+                    },
                     text = { Text("Splits") })
                 Tab(
-                    selected = selectedTab == 1,
-                    onClick = { selectedTab = 1 },
+                    selected = pagerState.currentPage == 1,
+                    onClick = {
+                        detailScope.launch {
+                            pagerState.animateScrollToPage(1, animationSpec = tween(320))
+                        }
+                    },
                     text = { Text("Balances") })
             }
 
-            AnimatedContent(
-                targetState = selectedTab,
-                transitionSpec = {
-                    val direction = if (targetState > initialState) 1 else -1
-                    (fadeIn(tween(220)) + slideInHorizontally(
-                        tween(
-                            320,
-                            easing = FastOutSlowInEasing
-                        )
-                    ) { direction * it / 4 })
-                        .togetherWith(
-                            fadeOut(tween(160)) + slideOutHorizontally(
-                                tween(
-                                    260,
-                                    easing = FastOutSlowInEasing
-                                )
-                            ) { -direction * it / 5 })
-                        .using(SizeTransform(clip = false))
-                },
-                label = "SplitDetailTabs"
-            ) { tab ->
-                if (tab == 0) {
-                    SplitListTab(
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize()
+            ) { page ->
+                when (page) {
+                    0 -> SplitListTab(
                         state = eventState,
                         onDeleteSplit = viewModel::deleteSplit,
                         onCreate = { showSplitDialog = true }
                     )
-                } else {
-                    BalancesTab(
+
+                    1 -> BalancesTab(
                         state = eventState,
                         onMarkPaid = { settlementToMarkPaid = it },
                         onShareMember = { memberId ->
@@ -516,6 +514,14 @@ private fun SplitEventCard(event: SplitEvent, onClick: () -> Unit) {
 private fun CreateSplitEventDialog(onDismiss: () -> Unit, onCreate: (String) -> Unit) {
     var name by remember { mutableStateOf("") }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val focusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    LaunchedEffect(Unit) {
+        delay(260)
+        focusRequester.requestFocus()
+        keyboardController?.show()
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -538,7 +544,9 @@ private fun CreateSplitEventDialog(onDismiss: () -> Unit, onCreate: (String) -> 
                 onValueChange = { name = it },
                 label = { Text("Event name") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(focusRequester),
                 leadingIcon = { Icon(Icons.Default.Groups, contentDescription = null) }
             )
 
@@ -1309,151 +1317,153 @@ private fun SplitCreateDialog(
         }
     }
 
-    Dialog(
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        sheetState = sheetState
     ) {
-        Surface(
+        Column(
             modifier = Modifier
-                .fillMaxWidth(0.94f)
-                .wrapContentHeight()
-                .padding(vertical = 24.dp),
-            shape = RoundedCornerShape(30.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHigh
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 40.dp)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .padding(22.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            "New split",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Black
-                        )
-                        Text(
-                            "Step ${step + 1} of 4",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Delete, contentDescription = "Close")
-                    }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "New Split",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        "Step ${step + 1} of 4",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Default.Delete, contentDescription = "Close")
+                }
+            }
 
-                AnimatedContent(
-                    targetState = step,
-                    transitionSpec = {
-                        val direction = if (targetState > initialState) 1 else -1
-                        (fadeIn(tween(220)) + slideInHorizontally(
-                            tween(300, easing = FastOutSlowInEasing)
-                        ) { direction * it / 3 })
-                            .togetherWith(
-                                fadeOut(tween(140)) + slideOutHorizontally(
-                                    tween(240, easing = FastOutSlowInEasing)
-                                ) { -direction * it / 4 }
+            AnimatedContent(
+                targetState = step,
+                transitionSpec = {
+                    val direction = if (targetState > initialState) 1 else -1
+                    (fadeIn(tween(220)) + slideInHorizontally(
+                        tween(300, easing = FastOutSlowInEasing)
+                    ) { direction * it / 3 })
+                        .togetherWith(
+                            fadeOut(tween(140)) + slideOutHorizontally(
+                                tween(240, easing = FastOutSlowInEasing)
+                            ) { -direction * it / 4 }
+                        )
+                        .using(SizeTransform(clip = false))
+                },
+                label = "SplitCreateStep"
+            ) { targetStep ->
+                when (targetStep) {
+                    0 -> SplitAmountStep(
+                        amountText,
+                        description,
+                        { amountText = it },
+                        { description = it })
+
+                    1 -> SplitMembersStep(
+                        members = members,
+                        selectedIds = selectedMemberIds,
+                        manualMember = manualMember,
+                        onManualMemberChange = { manualMember = it },
+                        onToggle = { memberId ->
+                            selectedMemberIds =
+                                if (memberId in selectedMemberIds) selectedMemberIds - memberId else selectedMemberIds + memberId
+                        },
+                        onAddManual = {
+                            onAddMember(manualMember, null)
+                            manualMember = ""
+                        },
+                        onPickContact = { contactLauncher.launch(null) }
+                    )
+
+                    2 -> PayerStep(
+                        members = selectedMembers,
+                        paidByMemberId = paidByMemberId,
+                        onSelect = { paidByMemberId = it }
+                    )
+
+                    3 -> ShareStep(
+                        amount = amount,
+                        mode = mode,
+                        shares = shares,
+                        onModeChange = {
+                            mode = it
+                            shares = SplitCalculator.equalShares(
+                                amount,
+                                selectedMembers,
+                                paidByMemberId
                             )
-                            .using(SizeTransform(clip = false))
-                    },
-                    label = "SplitCreateStep"
-                ) { targetStep ->
-                    when (targetStep) {
-                        0 -> SplitAmountStep(
-                            amountText,
-                            description,
-                            { amountText = it },
-                            { description = it })
-
-                        1 -> SplitMembersStep(
-                            members = members,
-                            selectedIds = selectedMemberIds,
-                            manualMember = manualMember,
-                            onManualMemberChange = { manualMember = it },
-                            onToggle = { memberId ->
-                                selectedMemberIds =
-                                    if (memberId in selectedMemberIds) selectedMemberIds - memberId else selectedMemberIds + memberId
-                            },
-                            onAddManual = {
-                                onAddMember(manualMember, null)
-                                manualMember = ""
-                            },
-                            onPickContact = { contactLauncher.launch(null) }
-                        )
-
-                        2 -> PayerStep(
-                            members = selectedMembers,
-                            paidByMemberId = paidByMemberId,
-                            onSelect = { paidByMemberId = it }
-                        )
-
-                        3 -> ShareStep(
-                            amount = amount,
-                            mode = mode,
-                            shares = shares,
-                            onModeChange = {
-                                mode = it
-                                shares = SplitCalculator.equalShares(
-                                    amount,
-                                    selectedMembers,
-                                    paidByMemberId
-                                )
-                            },
-                            onAmountChange = { memberId, value ->
-                                val updated = shares.map {
-                                    if (it.memberId == memberId) it.copy(
-                                        owedAmount = value,
-                                        edited = true
-                                    ) else it
-                                }
-                                shares = SplitCalculator.rebalanceAmounts(amount, updated)
-                            },
-                            onPercentageChange = { memberId, value ->
-                                val updated = shares.map {
-                                    if (it.memberId == memberId) it.copy(
-                                        percentage = value,
-                                        edited = true
-                                    ) else it
-                                }
-                                shares = SplitCalculator.rebalancePercentages(amount, updated)
+                        },
+                        onAmountChange = { memberId, value ->
+                            val updated = shares.map {
+                                if (it.memberId == memberId) it.copy(
+                                    owedAmount = value,
+                                    edited = true
+                                ) else it
                             }
-                        )
-                    }
+                            shares = SplitCalculator.rebalanceAmounts(amount, updated)
+                        },
+                        onPercentageChange = { memberId, value ->
+                            val updated = shares.map {
+                                if (it.memberId == memberId) it.copy(
+                                    percentage = value,
+                                    edited = true
+                                ) else it
+                            }
+                            shares = SplitCalculator.rebalancePercentages(amount, updated)
+                        }
+                    )
                 }
+            }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(
+                    onClick = { if (step == 0) onDismiss() else step-- },
+                    modifier = Modifier.weight(1f)
                 ) {
-                    TextButton(onClick = { if (step == 0) onDismiss() else step-- }) {
-                        Text(if (step == 0) "Cancel" else "Back")
-                    }
-                    Button(
-                        onClick = {
-                            if (step < 3) {
-                                step++
-                            } else {
-                                onSave(
-                                    amount,
-                                    description,
-                                    paidByMemberId ?: selectedMembers.first().id,
-                                    mode,
-                                    shares
-                                )
-                            }
-                        },
-                        enabled = when (step) {
-                            0 -> amount > 0
-                            1 -> selectedMembers.size >= 2
-                            2 -> paidByMemberId != null && selectedMembers.any { it.id == paidByMemberId }
-                            else -> SplitCalculator.isBalanced(amount, shares, mode)
-                        },
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Text(if (step == 3) "Save split" else "Next")
-                    }
+                    Text(if (step == 0) "Cancel" else "Back")
+                }
+                Button(
+                    onClick = {
+                        if (step < 3) {
+                            step++
+                        } else {
+                            onSave(
+                                amount,
+                                description,
+                                paidByMemberId ?: selectedMembers.first().id,
+                                mode,
+                                shares
+                            )
+                        }
+                    },
+                    enabled = when (step) {
+                        0 -> amount > 0
+                        1 -> selectedMembers.size >= 2
+                        2 -> paidByMemberId != null && selectedMembers.any { it.id == paidByMemberId }
+                        else -> SplitCalculator.isBalanced(amount, shares, mode)
+                    },
+                    modifier = Modifier
+                        .weight(1.4f)
+                        .height(56.dp),
+                    shape = MaterialTheme.shapes.medium
+                ) {
+                    Text(if (step == 3) "Save split" else "Next")
                 }
             }
         }

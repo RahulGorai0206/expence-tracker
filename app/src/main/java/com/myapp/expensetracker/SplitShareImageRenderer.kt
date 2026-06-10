@@ -159,7 +159,7 @@ object SplitShareImageRenderer {
         lines.forEachIndexed { index, line ->
             canvas.drawText(line, x, y + (index * lineHeight), paint)
         }
-        return y + ((lines.size - 1).coerceAtLeast(0) * lineHeight)
+        return y + (lines.size * lineHeight)
     }
 
     private fun wrapText(text: String, paint: Paint, maxWidth: Float): List<String> {
