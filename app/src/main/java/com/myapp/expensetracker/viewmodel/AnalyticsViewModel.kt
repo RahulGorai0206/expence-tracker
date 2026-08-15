@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.myapp.expensetracker.CategorySpending
 import com.myapp.expensetracker.DailySpending
+import com.myapp.expensetracker.MonthToDatePeriods
 import com.myapp.expensetracker.MonthlySpending
 import com.myapp.expensetracker.TagSpending
 import com.myapp.expensetracker.TransactionDao
@@ -12,6 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.Calendar
 
@@ -38,8 +40,23 @@ data class AnalyticsState(
     val dailySpending: List<DailySpending> = emptyList(),
     val topSpendingDay: DailySpending? = null,
     val topCategory: CategorySpending? = null,
-    val monthOverMonthChange: Double? = null,  // Percentage change
+    /** This month so far vs the same stretch of days last month, as a %. */
+    val monthOverMonthChange: Double? = null,
     val isLoading: Boolean = true
+)
+
+/** Range-dependent metrics, kept separate from the range-independent comparison. */
+private data class RangeMetrics(
+    val totalSpent: Double,
+    val transactionCount: Int,
+    val spendingDays: Int,
+    val dailyAverage: Double,
+    val monthlySpending: List<MonthlySpending>,
+    val categorySpending: List<CategorySpending>,
+    val tagSpending: List<TagSpending>,
+    val dailySpending: List<DailySpending>,
+    val topSpendingDay: DailySpending?,
+    val topCategory: CategorySpending?
 )
 
 class AnalyticsViewModel(private val dao: TransactionDao) : ViewModel() {
@@ -48,9 +65,33 @@ class AnalyticsViewModel(private val dao: TransactionDao) : ViewModel() {
     val state: StateFlow<AnalyticsState> = _state.asStateFlow()
 
     private var dataCollectionJob: Job? = null
+    private var monthComparisonJob: Job? = null
 
     init {
         setPreset(DateRangePreset.SIX_MONTHS)
+        loadMonthComparison()
+    }
+
+    /**
+     * "vs last month" is deliberately independent of the selected range: it
+     * always compares this month so far against the same stretch of days last
+     * month, so the figure is like-for-like rather than a partial month held up
+     * against a complete one.
+     */
+    private fun loadMonthComparison() {
+        monthComparisonJob?.cancel()
+        monthComparisonJob = viewModelScope.launch {
+            val periods = MonthToDatePeriods.at(System.currentTimeMillis())
+
+            combine(
+                dao.getTotalSpentInRange(periods.currentStart, periods.currentEnd),
+                dao.getTotalSpentInRange(periods.previousStart, periods.previousEnd)
+            ) { current, previous ->
+                MonthToDatePeriods.percentChange(current ?: 0.0, previous ?: 0.0)
+            }.collect { change ->
+                _state.update { it.copy(monthOverMonthChange = change) }
+            }
+        }
     }
 
     fun setPreset(preset: DateRangePreset) {
@@ -138,14 +179,7 @@ class AnalyticsViewModel(private val dao: TransactionDao) : ViewModel() {
                 // Unique days that had spending
                 val uniqueSpendingDays = daily.size
 
-                // Month-over-month change
-                val momChange = if (monthly.size >= 2) {
-                    val current = monthly.last().total
-                    val previous = monthly[monthly.size - 2].total
-                    if (previous > 0) ((current - previous) / previous) * 100 else null
-                } else null
-
-                _state.value.copy(
+                RangeMetrics(
                     totalSpent = spent,
                     transactionCount = txCount,
                     spendingDays = uniqueSpendingDays,
@@ -155,12 +189,26 @@ class AnalyticsViewModel(private val dao: TransactionDao) : ViewModel() {
                     tagSpending = tags,
                     dailySpending = daily,
                     topSpendingDay = topDay,
-                    topCategory = topCat,
-                    monthOverMonthChange = momChange,
-                    isLoading = false
+                    topCategory = topCat
                 )
-            }.collect { newState ->
-                _state.value = newState
+            }.collect { metrics ->
+                // update{} rather than a plain assignment: the month comparison
+                // stream writes to the same state concurrently.
+                _state.update { current ->
+                    current.copy(
+                        totalSpent = metrics.totalSpent,
+                        transactionCount = metrics.transactionCount,
+                        spendingDays = metrics.spendingDays,
+                        dailyAverage = metrics.dailyAverage,
+                        monthlySpending = metrics.monthlySpending,
+                        categorySpending = metrics.categorySpending,
+                        tagSpending = metrics.tagSpending,
+                        dailySpending = metrics.dailySpending,
+                        topSpendingDay = metrics.topSpendingDay,
+                        topCategory = metrics.topCategory,
+                        isLoading = false
+                    )
+                }
             }
         }
     }
