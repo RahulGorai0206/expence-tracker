@@ -48,6 +48,7 @@ import com.myapp.expensetracker.MonthlyBudget
 import com.myapp.expensetracker.R
 import com.myapp.expensetracker.SmsMonitorService
 import com.myapp.expensetracker.ui.components.BackupProgressDialog
+import com.myapp.expensetracker.ui.components.SetupCelebration
 import com.myapp.expensetracker.ui.components.rememberBackupController
 import kotlinx.coroutines.launch
 import androidx.compose.ui.text.input.KeyboardType
@@ -80,29 +81,74 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
     var currentStep by remember { mutableIntStateOf(0) }
     var isRestoring by remember { mutableStateOf(false) }
 
-    // ── Restore from a local backup file ─────────────────────────────────────
+    // ── Restore from a local backup file (import step) ───────────────────────
     var backupMessage by remember { mutableStateOf<String?>(null) }
     var backupFailed by remember { mutableStateOf(false) }
-    var finishSetupAfterRestore by remember { mutableStateOf(false) }
+    var importedWithoutCloud by remember { mutableStateOf(false) }
+    var celebrate by remember { mutableStateOf(false) }
+
+    /** True once a restored backup carries usable Google Sheets credentials. */
+    fun hasRestoredCloudCredentials(): Boolean {
+        val restoredScriptUrl = sharedPrefs.getString("script_url", "").orEmpty()
+        val restoredApiKey = sharedPrefs.getString("api_key", "").orEmpty()
+        return restoredScriptUrl.isNotBlank() && restoredApiKey.isNotBlank()
+    }
+
+    /**
+     * Completes setup off the back of an import. The budget the user typed is
+     * only used when the backup didn't bring one of its own — restored data
+     * always wins over a value typed moments ago.
+     */
+    suspend fun finishFromImport() {
+        val db = AppDatabase.getDatabase(context)
+        val monthKey = SimpleDateFormat("yyyy-MM", Locale.getDefault()).format(Date())
+        val restoredBudget = db.monthlyBudgetDao().getEffectiveBudget(monthKey)
+
+        if (restoredBudget != null) {
+            sharedPrefs.edit().putFloat("budget", restoredBudget.amount.toFloat()).apply()
+        } else {
+            val typedBudget = budgetText.toFloatOrNull() ?: 0f
+            if (typedBudget > 0f) {
+                db.monthlyBudgetDao().upsert(MonthlyBudget(monthKey, typedBudget.toDouble()))
+                sharedPrefs.edit().putFloat("budget", typedBudget).apply()
+            }
+        }
+
+        sharedPrefs.edit().putBoolean("is_setup_complete", true).apply()
+        GoogleSheetsLogger.init(context)
+
+        if (ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.READ_SMS
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            SmsMonitorService.start(context)
+        }
+    }
 
     val backupController = rememberBackupController(scope) { result ->
         when (result) {
             is BackupResult.ImportSuccess -> {
                 backupFailed = false
-                finishSetupAfterRestore =
-                    sharedPrefs.getBoolean("is_setup_complete", false)
-                backupMessage = buildString {
-                    append(result.summary.toMessage())
-                    if (!finishSetupAfterRestore) {
-                        append("\n\nThat backup didn't include app settings, so finish the ")
-                        append("remaining setup steps to start tracking.")
+                // Gate on the file having actually carried settings, so stale
+                // prefs from an abandoned setup run can't short-circuit this.
+                if (result.summary.settingsApplied && hasRestoredCloudCredentials()) {
+                    // Nothing left to configure — send them straight in.
+                    scope.launch {
+                        finishFromImport()
+                        celebrate = true
                     }
+                } else {
+                    importedWithoutCloud = true
+                    backupMessage = result.summary.toMessage() +
+                            "\n\nThis backup didn't include cloud sync details, so let's set " +
+                            "those up on the next screen."
                 }
             }
 
             is BackupResult.Failure -> {
                 backupFailed = true
-                finishSetupAfterRestore = false
+                importedWithoutCloud = false
                 backupMessage = result.message
             }
 
@@ -110,8 +156,9 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
         }
     }
 
-    // Total steps: Welcome(0), Privacy(1), SMS(2), NotifAccess(3), Location(4), Notifications(5), Background(6), Budget(7), Cloud(8)
-    val totalSteps = 9
+    // Total steps: Welcome(0), Privacy(1), SMS(2), NotifAccess(3), Location(4),
+    // Notifications(5), Background(6), Budget(7), Import(8), Cloud(9)
+    val totalSteps = 10
 
     // Permission States
     var hasSmsPermission by remember { mutableStateOf(false) }
@@ -184,7 +231,7 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
         ActivityResultContracts.RequestPermission()
     ) { _ -> checkPermissions() }
 
-    BackHandler(enabled = currentStep > 0) {
+    BackHandler(enabled = currentStep > 0 && !celebrate) {
         currentStep--
     }
 
@@ -330,7 +377,11 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
                         }
                     )
 
-                    8 -> CloudSyncStep(
+                    8 -> ImportStep(
+                        onChooseFile = { backupController.startImport() }
+                    )
+
+                    9 -> CloudSyncStep(
                         isEnabled = isCloudSyncEnabled,
                         onToggle = { isCloudSyncEnabled = it },
                         sheetUrl = sheetUrl,
@@ -403,7 +454,10 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
                             }
                             }
 
-                            8 -> {
+                            // Import is optional — Continue simply moves on.
+                            8 -> currentStep = 9
+
+                            9 -> {
                                 if (isCloudSyncEnabled) {
                                     if (scriptUrl.isBlank() || apiKey.isBlank()) {
                                         Toast.makeText(
@@ -560,26 +614,10 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
                 }
             }
 
-            // Returning users (new phone, reinstall) can skip the wizard and
-            // restore straight from a backup file.
-            if (currentStep == 0) {
-                Spacer(modifier = Modifier.height(12.dp))
-                TextButton(
-                    onClick = { backupController.startImport() },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(
-                        Icons.Default.FileUpload,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        stringResource(R.string.setup_restore_from_file),
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
+        }
+
+        if (celebrate) {
+            SetupCelebration(onFinished = onSetupComplete)
         }
     }
 
@@ -597,7 +635,7 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
             },
             title = {
                 Text(
-                    if (backupFailed) "Restore failed" else "Restored",
+                    if (backupFailed) "Restore failed" else "Data restored",
                     fontWeight = FontWeight.Black
                 )
             },
@@ -605,20 +643,13 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
             confirmButton = {
                 Button(onClick = {
                     backupMessage = null
-                    // A full backup carries the completed-setup flag, so the
-                    // wizard has nothing left to ask for.
-                    if (finishSetupAfterRestore) {
-                        if (ContextCompat.checkSelfPermission(
-                                context,
-                                Manifest.permission.READ_SMS
-                            ) == PackageManager.PERMISSION_GRANTED
-                        ) {
-                            SmsMonitorService.start(context)
-                        }
-                        onSetupComplete()
+                    // Backup had no cloud credentials — carry on to the cloud step.
+                    if (importedWithoutCloud) {
+                        importedWithoutCloud = false
+                        currentStep = 9
                     }
                 }) {
-                    Text(if (finishSetupAfterRestore) "Continue to app" else "OK")
+                    Text(if (importedWithoutCloud) "Set up cloud sync" else "OK")
                 }
             },
             shape = RoundedCornerShape(28.dp)
@@ -752,6 +783,99 @@ fun WelcomeStep() {
             lineHeight = 26.sp,
             modifier = Modifier.padding(horizontal = 16.dp)
         )
+    }
+}
+
+@Composable
+fun ImportStep(onChooseFile: () -> Unit) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+    ) {
+        Surface(
+            modifier = Modifier.size(120.dp),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.tertiaryContainer
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    Icons.Default.SettingsBackupRestore,
+                    contentDescription = null,
+                    modifier = Modifier.size(64.dp),
+                    tint = MaterialTheme.colorScheme.onTertiaryContainer
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Text(
+            text = stringResource(R.string.setup_import_title),
+            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Black),
+            color = MaterialTheme.colorScheme.onBackground,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Text(
+            text = stringResource(R.string.setup_import_description),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+            textAlign = TextAlign.Center,
+            lineHeight = 24.sp,
+            modifier = Modifier.padding(horizontal = 8.dp)
+        )
+
+        Spacer(modifier = Modifier.height(28.dp))
+
+        Button(
+            onClick = onChooseFile,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.tertiary,
+                contentColor = MaterialTheme.colorScheme.onTertiary
+            )
+        ) {
+            Icon(Icons.Default.FileUpload, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                stringResource(R.string.setup_import_choose_file),
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp
+            )
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+        ) {
+            Row(
+                modifier = Modifier.padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Default.Info,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = stringResource(R.string.setup_import_skip_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }
 

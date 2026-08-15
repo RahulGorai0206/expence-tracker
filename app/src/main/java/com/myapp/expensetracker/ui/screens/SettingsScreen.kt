@@ -284,10 +284,8 @@ fun SettingsScreen(
 
     // ── Local file backup / restore ──────────────────────────────────────────
     var pendingExportScope by remember { mutableStateOf<BackupScope?>(null) }
-    var showImportConfirm by remember { mutableStateOf(false) }
     var backupMessage by remember { mutableStateOf<String?>(null) }
     var backupFailed by remember { mutableStateOf(false) }
-    var tagsRefreshKey by remember { mutableIntStateOf(0) }
 
     val backupController = rememberBackupController(scope) { result ->
         when (result) {
@@ -306,12 +304,8 @@ fun SettingsScreen(
                 }
             }
 
-            is BackupResult.ImportSuccess -> {
-                backupFailed = false
-                backupMessage = result.summary.toMessage()
-                // A full backup can carry saved tags; re-read them below.
-                tagsRefreshKey++
-            }
+            // Importing is offered during setup only, so this screen never sees it.
+            is BackupResult.ImportSuccess -> Unit
 
             is BackupResult.Failure -> {
                 backupFailed = true
@@ -379,32 +373,6 @@ fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { pendingExportScope = null }) { Text("Cancel") }
-            },
-            shape = RoundedCornerShape(28.dp)
-        )
-    }
-
-    if (showImportConfirm) {
-        AlertDialog(
-            onDismissRequest = { showImportConfirm = false },
-            icon = { Icon(Icons.Default.FileUpload, null) },
-            title = { Text("Import from File", fontWeight = FontWeight.Black) },
-            text = {
-                Text(
-                    "Pick a backup file to merge into this device. Nothing is deleted — entries " +
-                            "already present are skipped, so importing the same file twice is safe.\n\n" +
-                            "If the file includes settings, they will replace your current ones.",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            },
-            confirmButton = {
-                Button(onClick = {
-                    showImportConfirm = false
-                    backupController.startImport()
-                }) { Text("Choose File") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showImportConfirm = false }) { Text("Cancel") }
             },
             shape = RoundedCornerShape(28.dp)
         )
@@ -534,9 +502,7 @@ fun SettingsScreen(
         )
     }
     var backgroundMonitoring by remember { mutableStateOf(SmsMonitorService.isEnabled(context)) }
-    var savedTags by remember(tagsRefreshKey) {
-        mutableStateOf(CloudSettingsBackupManager.getSavedTags(context))
-    }
+    var savedTags by remember { mutableStateOf(CloudSettingsBackupManager.getSavedTags(context)) }
 
     var updateAvailable by remember {
         mutableStateOf(
@@ -1180,18 +1146,6 @@ fun SettingsScreen(
                 subtitle = "Adds budgets and every setting",
                 icon = Icons.Default.Backup,
                 onClick = { pendingExportScope = BackupScope.FULL }
-            )
-            HorizontalDivider(
-                modifier = Modifier.padding(vertical = 8.dp),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-            )
-            SettingsItem(
-                title = "Import from File",
-                subtitle = "Merge a backup into this device",
-                icon = Icons.Default.FileUpload,
-                iconColor = MaterialTheme.colorScheme.tertiary,
-                containerColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f),
-                onClick = { showImportConfirm = true }
             )
         }
 

@@ -5,7 +5,10 @@
     <string name="setup_grant">Grant Permission</string>
     <string name="setup_open_settings">Open Settings</string>
     <string name="setup_finish">Finish Setup</string>
-    <string name="setup_restore_from_file">Restore from a backup file</string>
+    <string name="setup_import_title">Have a backup?</string>
+    <string name="setup_import_description">Restore your transactions, splits and settings from a backup file you exported earlier.</string>
+    <string name="setup_import_choose_file">Choose Backup File</string>
+    <string name="setup_import_skip_hint">New here? Just tap Continue — you can export a backup any time from Settings.</string>
 
     <string name="setup_privacy_title">Your Privacy Matters</string>
     <string name="setup_privacy_description">Expense Tracker is designed to be a safe and private app. All your financial data is stored locally on your phone.\n\nNo data is sent outside of your phone unless you explicitly enable Cloud Sync. Even then, your data is stored only on your own private Google Sheet — there are no intermediate servers.</string>
