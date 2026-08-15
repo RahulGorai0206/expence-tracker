@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.app.AlarmManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
@@ -289,7 +288,8 @@ class SmsMonitorService : Service() {
                                     .checkDuplicate(
                                         transaction.date,
                                         transaction.amount,
-                                        transaction.bodyHash
+                                        transaction.bodyHash,
+                                        TransactionDedup.DB_DEDUP_WINDOW_MS
                                     )
                             if (existsInDb > 0) {
                                 Log.d(
@@ -333,7 +333,10 @@ class SmsMonitorService : Service() {
                                 )
 
                                 // Use the same notification flow as SmsReceiver
-                                showTransactionNotification(withLocation)
+                                TransactionApproval.requestApproval(
+                                    this@SmsMonitorService,
+                                    withLocation
+                                )
                             }
                         }
                     } catch (e: Exception) {
@@ -355,73 +358,6 @@ class SmsMonitorService : Service() {
     }
 
     // ── Notification (replicates SmsReceiver logic) ───────────────────
-
-    private fun showTransactionNotification(transaction: Transaction) {
-        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val channelId = "transaction_alerts"
-
-        val channel = NotificationChannel(
-            channelId,
-            "Transaction Alerts",
-            NotificationManager.IMPORTANCE_HIGH
-        )
-        notificationManager.createNotificationChannel(channel)
-
-        val notificationId = (transaction.date % Int.MAX_VALUE).toInt()
-
-        fun createTransactionIntent(action: String): Intent {
-            return Intent(this, NotificationReceiver::class.java).apply {
-                this.action = action
-                putExtra("notificationId", notificationId)
-                putExtra("sender", transaction.sender)
-                putExtra("amount", transaction.amount)
-                putExtra("date", transaction.date)
-                putExtra("body", transaction.body)
-                putExtra("category", transaction.category)
-                putExtra("latitude", transaction.latitude ?: 0.0)
-                putExtra("longitude", transaction.longitude ?: 0.0)
-            }
-        }
-
-        val acceptPendingIntent = PendingIntent.getBroadcast(this, notificationId, createTransactionIntent("ACCEPT_TRANSACTION"), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        val denyPendingIntent = PendingIntent.getBroadcast(this, notificationId + 1, Intent(this, NotificationReceiver::class.java).apply {
-            action = "DENY_TRANSACTION"
-            putExtra("notificationId", notificationId)
-        }, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-
-        val triggerAt = System.currentTimeMillis() + 30000
-        val timeoutPendingIntent = PendingIntent.getBroadcast(this, notificationId + 2, createTransactionIntent("TIMEOUT_TRANSACTION"), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-
-        val notification = NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentTitle("New Transaction: \u20B9${"%,.2f".format(transaction.amount)}")
-            .setContentText("From ${transaction.sender}")
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setAutoCancel(true)
-            .setUsesChronometer(true)
-            .setChronometerCountDown(true)
-            .setWhen(triggerAt)
-            .addAction(android.R.drawable.ic_input_add, "Accept", acceptPendingIntent)
-            .addAction(android.R.drawable.ic_delete, "Deny", denyPendingIntent)
-            .build()
-
-        notificationManager.notify(notificationId, notification)
-
-        val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        if (alarmManager.canScheduleExactAlarms()) {
-            alarmManager.setExactAndAllowWhileIdle(
-                AlarmManager.RTC_WAKEUP,
-                triggerAt,
-                timeoutPendingIntent
-            )
-        } else {
-            alarmManager.setAndAllowWhileIdle(
-                AlarmManager.RTC_WAKEUP,
-                triggerAt,
-                timeoutPendingIntent
-            )
-        }
-    }
 
     // ── Foreground notification ───────────────────────────────────────
 

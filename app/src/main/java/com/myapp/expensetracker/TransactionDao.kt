@@ -21,11 +21,30 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions ORDER BY date DESC")
     suspend fun getAllTransactionsList(): List<Transaction>
 
-    @Query("SELECT COUNT(id) FROM transactions WHERE (bodyHash = :bodyHash OR (ABS(date - :date) < 60000 AND ABS(amount - :amount) < 0.001))")
-    suspend fun checkDuplicate(date: Long, amount: Double, bodyHash: Int): Int
+    /**
+     * Both arms are time-bounded on purpose. Bank SMS for repeat payments are
+     * frequently byte-identical (same amount, same merchant, no reference in the
+     * visible body), so an unbounded bodyHash match would silently swallow next
+     * month's rent or the second metro top-up of the day.
+     */
+    @Query(
+        "SELECT COUNT(id) FROM transactions WHERE " +
+                "(bodyHash = :bodyHash AND ABS(date - :date) < :windowMs) " +
+                "OR (ABS(date - :date) < 60000 AND ABS(amount - :amount) < 0.001)"
+    )
+    suspend fun checkDuplicate(date: Long, amount: Double, bodyHash: Int, windowMs: Long): Int
 
-    @Query("SELECT * FROM transactions WHERE bodyHash = :bodyHash OR (ABS(date - :date) < 60000 AND ABS(amount - :amount) < 0.001) LIMIT 1")
-    suspend fun findExistingTransaction(date: Long, amount: Double, bodyHash: Int): Transaction?
+    @Query(
+        "SELECT * FROM transactions WHERE " +
+                "(bodyHash = :bodyHash AND ABS(date - :date) < :windowMs) " +
+                "OR (ABS(date - :date) < 60000 AND ABS(amount - :amount) < 0.001) LIMIT 1"
+    )
+    suspend fun findExistingTransaction(
+        date: Long,
+        amount: Double,
+        bodyHash: Int,
+        windowMs: Long
+    ): Transaction?
 
 
     @Query("SELECT * FROM transactions WHERE id = :id")

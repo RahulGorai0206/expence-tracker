@@ -22,15 +22,17 @@ import java.util.Locale
         SplitMember::class,
         SplitExpense::class,
         SplitShare::class,
-        SplitPayment::class
+        SplitPayment::class,
+        PendingTransaction::class
     ],
-    version = 10,
-    exportSchema = false
+    version = 11,
+    exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun transactionDao(): TransactionDao
     abstract fun monthlyBudgetDao(): MonthlyBudgetDao
     abstract fun splitDao(): SplitDao
+    abstract fun pendingTransactionDao(): PendingTransactionDao
 
     companion object {
         @Volatile
@@ -152,6 +154,32 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val migration10to11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS pending_transactions (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        notificationId INTEGER NOT NULL,
+                        sender TEXT NOT NULL,
+                        amount REAL NOT NULL,
+                        date INTEGER NOT NULL,
+                        body TEXT NOT NULL,
+                        bodyHash INTEGER NOT NULL,
+                        category TEXT NOT NULL,
+                        latitude REAL,
+                        longitude REAL,
+                        createdAt INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                // Probed on every incoming SMS by the dedup check.
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_transactions_bodyHash ON transactions(bodyHash)"
+                )
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -159,7 +187,12 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "expense_database"
                 )
-                    .addMigrations(createMigration7to8(context), migration8to9, migration9to10)
+                    .addMigrations(
+                        createMigration7to8(context),
+                        migration8to9,
+                        migration9to10,
+                        migration10to11
+                    )
                 .addCallback(object : RoomDatabase.Callback() {
                     override fun onOpen(db: SupportSQLiteDatabase) {
                         super.onOpen(db)
@@ -170,7 +203,9 @@ abstract class AppDatabase : RoomDatabase() {
                         }
                     }
                 })
-                    .fallbackToDestructiveMigration()
+                // No fallbackToDestructiveMigration: a forgotten migration must
+                // fail loudly at launch rather than silently wipe every
+                // transaction, budget and split.
                 .build()
                 INSTANCE = instance
                 instance

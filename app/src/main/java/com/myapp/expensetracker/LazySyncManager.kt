@@ -85,7 +85,8 @@ class LazySyncManager(private val context: Context) {
                     val duplicateCount = database.transactionDao().checkDuplicate(
                         transaction.date,
                         transaction.amount,
-                        transaction.bodyHash
+                        transaction.bodyHash,
+                        TransactionDedup.DB_DEDUP_WINDOW_MS
                     )
                     if (duplicateCount > 0) {
                         Log.d("LazySync", "Duplicate skipped after AI scan")

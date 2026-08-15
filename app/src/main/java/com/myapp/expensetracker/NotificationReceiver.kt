@@ -1,8 +1,6 @@
 package com.myapp.expensetracker
 
-import android.app.AlarmManager
 import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -17,95 +15,33 @@ class NotificationReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val pendingResult = goAsync()
         val action = intent.action
-        val notificationId = intent.getIntExtra("notificationId", 0)
-        
-        val body = intent.getStringExtra("body") ?: ""
-        Log.d("NotificationReceiver", "Action: $action, ID: $notificationId, Body: $body")
+        val notificationId = intent.getIntExtra(TransactionApproval.EXTRA_NOTIFICATION_ID, 0)
+        val pendingId = intent.getLongExtra(TransactionApproval.EXTRA_PENDING_ID, -1L)
 
-        // Dismiss notification immediately
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        Log.d("NotificationReceiver", "Action: $action, notificationId: $notificationId, pendingId: $pendingId")
+
+        // Dismiss immediately so the UI feels responsive; the pipeline below
+        // cancels the timeout alarm and clears the durable row.
+        val notificationManager =
+            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.cancel(notificationId)
 
         scope.launch {
             try {
-                // Cancel the timeout alarm if the user took action (Accept or Deny)
-                if (action == "ACCEPT_TRANSACTION" || action == "DENY_TRANSACTION") {
-                    val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-                    val timeoutIntent = Intent(context, NotificationReceiver::class.java).apply {
-                        this.action = "TIMEOUT_TRANSACTION"
+                when (action) {
+                    TransactionApproval.ACTION_DENY -> {
+                        if (pendingId > 0) {
+                            TransactionApproval.discard(context, pendingId, notificationId)
+                        }
                     }
-                    val timeoutPendingIntent = PendingIntent.getBroadcast(
-                        context, 
-                        notificationId + 2, 
-                        timeoutIntent, 
-                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                    )
-                    alarmManager.cancel(timeoutPendingIntent)
-                }
 
-                if (action == "ACCEPT_TRANSACTION" || action == "TIMEOUT_TRANSACTION") {
-                    val sender = intent.getStringExtra("sender") ?: "Unknown"
-                    val amount = intent.getDoubleExtra("amount", 0.0)
-                    val date = intent.getLongExtra("date", System.currentTimeMillis())
-                    val categoryFromIntent = intent.getStringExtra("category") ?: "Other"
-                    val latitudeFromIntent = intent.getDoubleExtra("latitude", 0.0).takeIf { it != 0.0 }
-                    val longitudeFromIntent = intent.getDoubleExtra("longitude", 0.0).takeIf { it != 0.0 }
-
-                    if (amount != 0.0) {
-                        val db = AppDatabase.getDatabase(context)
-                        val txnBody = intent.getStringExtra("body") ?: ""
-                        val bodyHash = txnBody.hashCode()
-
-                        // DB-level dedup: last line of defense against duplicate entries
-                        // We check for exact bodyHash OR (near date AND exact amount)
-                        val existing =
-                            db.transactionDao().findExistingTransaction(date, amount, bodyHash)
-
-                        if (existing != null) {
-                            Log.d(
-                                "NotificationReceiver",
-                                "Duplicate or previously handled transaction detected in DB (ID: ${existing.id}, Status: ${existing.status}) — skipping insert for $amount from $sender"
-                            )
+                    TransactionApproval.ACTION_ACCEPT,
+                    TransactionApproval.ACTION_TIMEOUT -> {
+                        val autoCleared = action == TransactionApproval.ACTION_TIMEOUT
+                        if (pendingId > 0) {
+                            TransactionApproval.commit(context, pendingId, autoCleared)
                         } else {
-                            val transaction = Transaction(
-                                sender = sender,
-                                amount = amount,
-                                date = date,
-                                body = txnBody,
-                                bodyHash = bodyHash,
-                                category = categoryFromIntent,
-                                status = if (action == "TIMEOUT_TRANSACTION") "Auto-Cleared" else "Cleared",
-                                type = "automated",
-                                latitude = latitudeFromIntent,
-                                longitude = longitudeFromIntent,
-                                syncStatus = "pending"
-                            )
-
-                            val localId = db.transactionDao().insertAndReturnId(transaction)
-                            Log.d(
-                                "NotificationReceiver",
-                                "Saved transaction locally: $amount from $sender"
-                            )
-
-                            // Update widget
-                            enqueueWidgetUpdate(context)
-
-                            scope.launch(Dispatchers.IO) {
-                                try {
-                                    val remoteId = GoogleSheetsLogger.log(transaction)
-                                    if (remoteId != null) {
-                                        db.transactionDao()
-                                            .updateSyncStatus(localId.toInt(), remoteId, "synced")
-                                    } else {
-                                        db.transactionDao()
-                                            .updateSyncStatus(localId.toInt(), null, "failed")
-                                    }
-                                } catch (e: Exception) {
-                                    db.transactionDao()
-                                        .updateSyncStatus(localId.toInt(), null, "failed")
-                                    e.printStackTrace()
-                                }
-                            }
+                            commitFromLegacyExtras(context, intent, autoCleared)
                         }
                     }
                 }
@@ -115,5 +51,37 @@ class NotificationReceiver : BroadcastReceiver() {
                 pendingResult.finish()
             }
         }
+    }
+
+    /**
+     * Notifications posted by a build before pending_transactions existed carry
+     * the whole payload in extras. Honour them so an in-flight upgrade doesn't
+     * drop a transaction the user is looking at.
+     */
+    private suspend fun commitFromLegacyExtras(
+        context: Context,
+        intent: Intent,
+        autoCleared: Boolean
+    ) {
+        val amount = intent.getDoubleExtra("amount", 0.0)
+        if (amount == 0.0) return
+
+        val body = intent.getStringExtra("body").orEmpty()
+        val transaction = Transaction(
+            sender = intent.getStringExtra("sender") ?: "Unknown",
+            amount = amount,
+            date = intent.getLongExtra("date", System.currentTimeMillis()),
+            body = body,
+            bodyHash = body.hashCode(),
+            category = intent.getStringExtra("category") ?: "Other",
+            status = if (autoCleared) "Auto-Cleared" else "Cleared",
+            type = "automated",
+            latitude = intent.getDoubleExtra("latitude", 0.0).takeIf { it != 0.0 },
+            longitude = intent.getDoubleExtra("longitude", 0.0).takeIf { it != 0.0 },
+            syncStatus = "pending"
+        )
+
+        Log.d("NotificationReceiver", "Committing via legacy extras path")
+        TransactionApproval.commitLegacy(context, transaction)
     }
 }

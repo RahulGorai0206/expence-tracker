@@ -18,6 +18,14 @@ object TransactionDedup {
     private const val TAG = "TransactionDedup"
     private const val DEDUP_WINDOW_MS = 3_600_000L // 1 hour
 
+    /**
+     * Window used by the database-level dedup queries when matching on bodyHash.
+     * Wide enough to absorb the timestamp skew between detection layers (an RCS
+     * notification arrives with the post time, not the SMS time), narrow enough
+     * that a genuinely repeated payment later on is still recorded.
+     */
+    const val DB_DEDUP_WINDOW_MS = 3_600_000L // 1 hour
+
     // Maps message body hash → timestamp when it was first processed
     private val recentlyProcessed = LinkedHashMap<Int, Long>(64, 0.75f, true)
 

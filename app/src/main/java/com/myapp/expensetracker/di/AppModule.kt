@@ -15,6 +15,7 @@ val appModule = module {
     single { get<AppDatabase>().transactionDao() }
     single { get<AppDatabase>().monthlyBudgetDao() }
     single { get<AppDatabase>().splitDao() }
+    single { get<AppDatabase>().pendingTransactionDao() }
     single { SplitRepository(get()) }
 
     viewModel { HomeViewModel(get(), get()) }

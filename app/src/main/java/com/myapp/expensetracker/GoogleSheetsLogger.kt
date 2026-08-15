@@ -2,6 +2,7 @@ package com.myapp.expensetracker
 
 import android.content.Context
 import android.util.Log
+import androidx.room.withTransaction
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -234,47 +235,51 @@ object GoogleSheetsLogger {
             if (response.success && response.records != null) {
                 val db = AppDatabase.getDatabase(context)
                 val dao = db.transactionDao()
-                
-                val rawRecords = response.records.filter { 
-                    !it.id.isNullOrBlank() && it.amount != null && it.amount != 0.0 && it.status != "deleted"
+
+                val rawRecords = response.records.filter {
+                    !it.id.isNullOrBlank() && it.amount != null && it.amount != 0.0
                 }
-                
+
                 val total = rawRecords.size
                 if (total > 0) {
                     onProgress(0, total)
-                    dao.deleteAllTransactions()
-                    rawRecords.forEachIndexed { index, remote ->
-                        val remoteAmount = remote.amount ?: 0.0
-                        val remoteType = remote.type ?: "automated"
 
-                        // Ensure amount is negative for debits (matching app's internal logic)
-                        // If it's a debit (type is not typically 'credit' in logic, but here we can check)
-                        // Actually, app logic uses amount < 0 for spent.
-                        // Google Sheets might store absolute values or negative.
-                        val isDebit = remoteType.lowercase() != "credit" &&
-                                !(remote.body?.lowercase()?.contains("credited") ?: false)
+                    // Merge, never replace. The old implementation wiped the
+                    // table first and re-inserted row by row outside any
+                    // transaction: a crash mid-loop truncated the ledger for
+                    // good, and rows that had never been uploaded (syncStatus
+                    // 'failed'/'pending') were destroyed rather than kept.
+                    db.withTransaction {
+                        val matcher = LocalTransactionMatcher(dao.getAllTransactionsList())
 
-                        val normalizedAmount =
-                            if (isDebit && remoteAmount > 0) -remoteAmount else remoteAmount
+                        rawRecords.forEachIndexed { index, remote ->
+                            val incoming = remote.toTransaction()
+                            val existing = matcher.match(remote.id, incoming)
 
-                        val transaction = Transaction(
-                            remoteId = remote.id,
-                            sender = remote.sender ?: "",
-                            amount = normalizedAmount,
-                            date = remote.date ?: System.currentTimeMillis(),
-                            body = remote.body ?: "",
-                            category = remote.category ?: "Other",
-                            tag = remote.tag.orEmpty(),
-                            status = remote.status ?: "Cleared",
-                            type = remoteType,
-                            latitude = remote.latitude,
-                            longitude = remote.longitude,
-                            syncStatus = "synced"
-                        )
-                        dao.insert(transaction)
-                        onProgress(index + 1, total)
-                        kotlinx.coroutines.delay(20) // Give UI time to breathe
+                            when {
+                                // Remote tombstone: mirror it onto the local row.
+                                remote.status == "deleted" -> {
+                                    if (existing != null) {
+                                        dao.insert(
+                                            existing.copy(
+                                                remoteId = remote.id,
+                                                status = "deleted",
+                                                syncStatus = "synced"
+                                            )
+                                        )
+                                    }
+                                }
+
+                                // Known row — update in place, keeping its local id.
+                                existing != null -> dao.insert(incoming.copy(id = existing.id))
+
+                                // New to this device.
+                                else -> dao.insert(incoming)
+                            }
+                            onProgress(index + 1, total)
+                        }
                     }
+
                     enqueueWidgetUpdate(context)
                     null // Success
                 } else {
@@ -287,6 +292,35 @@ object GoogleSheetsLogger {
             e.printStackTrace()
             "Connection error: ${e.localizedMessage}"
         }
+    }
+
+    /**
+     * The sheet may store debits as positive numbers; the app's internal
+     * convention is that spending is negative.
+     */
+    private fun RemoteTransaction.toTransaction(): Transaction {
+        val remoteAmount = amount ?: 0.0
+        val remoteType = type ?: "automated"
+        val isDebit = remoteType.lowercase() != "credit" &&
+                !(body?.lowercase()?.contains("credited") ?: false)
+        val normalizedAmount = if (isDebit && remoteAmount > 0) -remoteAmount else remoteAmount
+        val safeBody = body.orEmpty()
+
+        return Transaction(
+            remoteId = id,
+            sender = sender.orEmpty(),
+            amount = normalizedAmount,
+            date = date ?: System.currentTimeMillis(),
+            body = safeBody,
+            bodyHash = safeBody.hashCode(),
+            category = category ?: "Other",
+            tag = tag.orEmpty(),
+            status = status ?: "Cleared",
+            type = remoteType,
+            latitude = latitude,
+            longitude = longitude,
+            syncStatus = "synced"
+        )
     }
 
     fun logAsync(context: Context, transaction: Transaction, localId: Long) {

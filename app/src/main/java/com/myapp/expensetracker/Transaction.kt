@@ -1,9 +1,12 @@
 package com.myapp.expensetracker
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "transactions")
+// bodyHash is probed on every incoming SMS by the dedup check — without this
+// index that is a full table scan per message.
+@Entity(tableName = "transactions", indices = [Index(value = ["bodyHash"])])
 data class Transaction(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val remoteId: String? = null,

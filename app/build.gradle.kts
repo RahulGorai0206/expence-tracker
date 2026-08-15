@@ -122,6 +122,12 @@ kotlin {
     jvmToolchain(17)
 }
 
+// Room schema JSONs are committed so migrations can be diffed in review and
+// exercised by MigrationTestHelper.
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.core.splashscreen)
