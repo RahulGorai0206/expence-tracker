@@ -35,6 +35,23 @@ interface SplitDao {
     @Query("SELECT * FROM split_payments WHERE eventId = :eventId ORDER BY createdAt DESC")
     fun observePayments(eventId: Long): Flow<List<SplitPayment>>
 
+    // ── One-shot reads (backup export) ──────────────────────────────────────
+
+    @Query("SELECT * FROM split_events ORDER BY createdAt ASC")
+    suspend fun getAllEvents(): List<SplitEvent>
+
+    @Query("SELECT * FROM split_members WHERE eventId = :eventId ORDER BY createdAt ASC")
+    suspend fun getMembersForEvent(eventId: Long): List<SplitMember>
+
+    @Query("SELECT * FROM split_expenses WHERE eventId = :eventId ORDER BY createdAt ASC")
+    suspend fun getExpensesForEvent(eventId: Long): List<SplitExpense>
+
+    @Query("SELECT * FROM split_shares WHERE splitExpenseId = :expenseId")
+    suspend fun getSharesForExpense(expenseId: Long): List<SplitShare>
+
+    @Query("SELECT * FROM split_payments WHERE eventId = :eventId ORDER BY createdAt ASC")
+    suspend fun getPaymentsForEvent(eventId: Long): List<SplitPayment>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertEvent(event: SplitEvent): Long
 

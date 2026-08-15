@@ -32,6 +32,10 @@ interface MonthlyBudgetDao {
     @Query("SELECT * FROM monthly_budgets ORDER BY monthKey DESC LIMIT 1")
     suspend fun getLatestBudget(): MonthlyBudget?
 
+    /** Full budget history, oldest first — used by backup export. */
+    @Query("SELECT * FROM monthly_budgets ORDER BY monthKey ASC")
+    suspend fun getAllBudgets(): List<MonthlyBudget>
+
     /** Insert or update a month's budget. */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(budget: MonthlyBudget)

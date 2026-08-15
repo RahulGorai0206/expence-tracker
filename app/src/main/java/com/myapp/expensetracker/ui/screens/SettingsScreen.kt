@@ -42,6 +42,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.myapp.expensetracker.AppDatabase
+import com.myapp.expensetracker.BackupResult
+import com.myapp.expensetracker.BackupScope
 import com.myapp.expensetracker.CloudSettingsBackupManager
 import com.myapp.expensetracker.GoogleSheetsLogger
 import com.myapp.expensetracker.LazySyncManager
@@ -66,7 +68,9 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.myapp.expensetracker.ui.components.BackupProgressDialog
 import com.myapp.expensetracker.ui.components.BudgetEditSheet
+import com.myapp.expensetracker.ui.components.rememberBackupController
 import com.myapp.expensetracker.viewmodel.HomeViewModel
 import org.koin.androidx.compose.koinViewModel
 
@@ -278,6 +282,158 @@ fun SettingsScreen(
     var showBudgetEdit by remember { mutableStateOf(false) }
     var showTagsDialog by remember { mutableStateOf(false) }
 
+    // ── Local file backup / restore ──────────────────────────────────────────
+    var pendingExportScope by remember { mutableStateOf<BackupScope?>(null) }
+    var showImportConfirm by remember { mutableStateOf(false) }
+    var backupMessage by remember { mutableStateOf<String?>(null) }
+    var backupFailed by remember { mutableStateOf(false) }
+    var tagsRefreshKey by remember { mutableIntStateOf(0) }
+
+    val backupController = rememberBackupController(scope) { result ->
+        when (result) {
+            is BackupResult.ExportSuccess -> {
+                backupFailed = false
+                backupMessage = buildString {
+                    append("Saved ${result.transactions} transaction")
+                    if (result.transactions != 1) append("s")
+                    append(" and ${result.splitEvents} split event")
+                    if (result.splitEvents != 1) append("s")
+                    if (result.scope == BackupScope.FULL) append(", plus budgets and settings")
+                    append(".")
+                    if (result.scope == BackupScope.FULL) {
+                        append("\n\nThis file contains your Google Sheets API key — keep it private.")
+                    }
+                }
+            }
+
+            is BackupResult.ImportSuccess -> {
+                backupFailed = false
+                backupMessage = result.summary.toMessage()
+                // A full backup can carry saved tags; re-read them below.
+                tagsRefreshKey++
+            }
+
+            is BackupResult.Failure -> {
+                backupFailed = true
+                backupMessage = result.message
+            }
+        }
+    }
+
+    BackupProgressDialog(backupController)
+
+    pendingExportScope?.let { exportScope ->
+        val isFull = exportScope == BackupScope.FULL
+        AlertDialog(
+            onDismissRequest = { pendingExportScope = null },
+            icon = { Icon(if (isFull) Icons.Default.Backup else Icons.Default.FileDownload, null) },
+            title = {
+                Text(
+                    if (isFull) "Export All App Data" else "Export Expense Data",
+                    fontWeight = FontWeight.Black
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        if (isFull) {
+                            "Creates a single file with your transaction history, splits, budget history and every app setting."
+                        } else {
+                            "Creates a single file with your transaction history and all split events."
+                        },
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    if (isFull) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f)
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.WarningAmber,
+                                    null,
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    "Includes your cloud sync API key in plain text. Store the file somewhere private.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    pendingExportScope = null
+                    backupController.startExport(exportScope)
+                }) { Text("Choose Location") }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingExportScope = null }) { Text("Cancel") }
+            },
+            shape = RoundedCornerShape(28.dp)
+        )
+    }
+
+    if (showImportConfirm) {
+        AlertDialog(
+            onDismissRequest = { showImportConfirm = false },
+            icon = { Icon(Icons.Default.FileUpload, null) },
+            title = { Text("Import from File", fontWeight = FontWeight.Black) },
+            text = {
+                Text(
+                    "Pick a backup file to merge into this device. Nothing is deleted — entries " +
+                            "already present are skipped, so importing the same file twice is safe.\n\n" +
+                            "If the file includes settings, they will replace your current ones.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    showImportConfirm = false
+                    backupController.startImport()
+                }) { Text("Choose File") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showImportConfirm = false }) { Text("Cancel") }
+            },
+            shape = RoundedCornerShape(28.dp)
+        )
+    }
+
+    backupMessage?.let { message ->
+        AlertDialog(
+            onDismissRequest = { backupMessage = null },
+            icon = {
+                Icon(
+                    if (backupFailed) Icons.Default.ErrorOutline else Icons.Default.CheckCircle,
+                    null,
+                    tint = if (backupFailed) MaterialTheme.colorScheme.error else Color(0xFF4CAF50)
+                )
+            },
+            title = {
+                Text(
+                    if (backupFailed) "Something went wrong" else "Done",
+                    fontWeight = FontWeight.Black
+                )
+            },
+            text = { Text(message, style = MaterialTheme.typography.bodyMedium) },
+            confirmButton = {
+                Button(onClick = { backupMessage = null }) { Text("OK") }
+            },
+            shape = RoundedCornerShape(28.dp)
+        )
+    }
+
     if (showBudgetEdit) {
         BudgetEditSheet(
             currentBudget = budget,
@@ -378,7 +534,9 @@ fun SettingsScreen(
         )
     }
     var backgroundMonitoring by remember { mutableStateOf(SmsMonitorService.isEnabled(context)) }
-    var savedTags by remember { mutableStateOf(CloudSettingsBackupManager.getSavedTags(context)) }
+    var savedTags by remember(tagsRefreshKey) {
+        mutableStateOf(CloudSettingsBackupManager.getSavedTags(context))
+    }
 
     var updateAvailable by remember {
         mutableStateOf(
@@ -1003,6 +1161,38 @@ fun SettingsScreen(
                     }
                 }
             }
+        }
+
+        // --- BACKUP & RESTORE (local file) ---
+        SettingsCategory("BACKUP & RESTORE") {
+            SettingsItem(
+                title = "Export Expense Data",
+                subtitle = "Transaction history and splits",
+                icon = Icons.Default.FileDownload,
+                onClick = { pendingExportScope = BackupScope.DATA }
+            )
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 8.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            )
+            SettingsItem(
+                title = "Export All App Data",
+                subtitle = "Adds budgets and every setting",
+                icon = Icons.Default.Backup,
+                onClick = { pendingExportScope = BackupScope.FULL }
+            )
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 8.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            )
+            SettingsItem(
+                title = "Import from File",
+                subtitle = "Merge a backup into this device",
+                icon = Icons.Default.FileUpload,
+                iconColor = MaterialTheme.colorScheme.tertiary,
+                containerColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f),
+                onClick = { showImportConfirm = true }
+            )
         }
 
         // --- AI & INTELLIGENCE ---

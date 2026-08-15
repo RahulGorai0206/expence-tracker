@@ -42,10 +42,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import com.myapp.expensetracker.AppDatabase
+import com.myapp.expensetracker.BackupResult
 import com.myapp.expensetracker.GoogleSheetsLogger
 import com.myapp.expensetracker.MonthlyBudget
 import com.myapp.expensetracker.R
 import com.myapp.expensetracker.SmsMonitorService
+import com.myapp.expensetracker.ui.components.BackupProgressDialog
+import com.myapp.expensetracker.ui.components.rememberBackupController
 import kotlinx.coroutines.launch
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -76,6 +79,36 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
     var isTestingConnection by remember { mutableStateOf(false) }
     var currentStep by remember { mutableIntStateOf(0) }
     var isRestoring by remember { mutableStateOf(false) }
+
+    // ── Restore from a local backup file ─────────────────────────────────────
+    var backupMessage by remember { mutableStateOf<String?>(null) }
+    var backupFailed by remember { mutableStateOf(false) }
+    var finishSetupAfterRestore by remember { mutableStateOf(false) }
+
+    val backupController = rememberBackupController(scope) { result ->
+        when (result) {
+            is BackupResult.ImportSuccess -> {
+                backupFailed = false
+                finishSetupAfterRestore =
+                    sharedPrefs.getBoolean("is_setup_complete", false)
+                backupMessage = buildString {
+                    append(result.summary.toMessage())
+                    if (!finishSetupAfterRestore) {
+                        append("\n\nThat backup didn't include app settings, so finish the ")
+                        append("remaining setup steps to start tracking.")
+                    }
+                }
+            }
+
+            is BackupResult.Failure -> {
+                backupFailed = true
+                finishSetupAfterRestore = false
+                backupMessage = result.message
+            }
+
+            is BackupResult.ExportSuccess -> Unit // not reachable during setup
+        }
+    }
 
     // Total steps: Welcome(0), Privacy(1), SMS(2), NotifAccess(3), Location(4), Notifications(5), Background(6), Budget(7), Cloud(8)
     val totalSteps = 9
@@ -526,8 +559,72 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
                     }
                 }
             }
+
+            // Returning users (new phone, reinstall) can skip the wizard and
+            // restore straight from a backup file.
+            if (currentStep == 0) {
+                Spacer(modifier = Modifier.height(12.dp))
+                TextButton(
+                    onClick = { backupController.startImport() },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        Icons.Default.FileUpload,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        stringResource(R.string.setup_restore_from_file),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
         }
     }
+
+    BackupProgressDialog(backupController)
+
+    backupMessage?.let { message ->
+        AlertDialog(
+            onDismissRequest = { backupMessage = null },
+            icon = {
+                Icon(
+                    if (backupFailed) Icons.Default.ErrorOutline else Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    tint = if (backupFailed) MaterialTheme.colorScheme.error else Color(0xFF4CAF50)
+                )
+            },
+            title = {
+                Text(
+                    if (backupFailed) "Restore failed" else "Restored",
+                    fontWeight = FontWeight.Black
+                )
+            },
+            text = { Text(message, style = MaterialTheme.typography.bodyMedium) },
+            confirmButton = {
+                Button(onClick = {
+                    backupMessage = null
+                    // A full backup carries the completed-setup flag, so the
+                    // wizard has nothing left to ask for.
+                    if (finishSetupAfterRestore) {
+                        if (ContextCompat.checkSelfPermission(
+                                context,
+                                Manifest.permission.READ_SMS
+                            ) == PackageManager.PERMISSION_GRANTED
+                        ) {
+                            SmsMonitorService.start(context)
+                        }
+                        onSetupComplete()
+                    }
+                }) {
+                    Text(if (finishSetupAfterRestore) "Continue to app" else "OK")
+                }
+            },
+            shape = RoundedCornerShape(28.dp)
+        )
+    }
+
     if (isRestoring) {
         AlertDialog(
             onDismissRequest = {},
