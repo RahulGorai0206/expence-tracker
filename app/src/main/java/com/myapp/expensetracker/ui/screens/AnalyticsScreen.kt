@@ -33,6 +33,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.myapp.expensetracker.CategorySpending
+import com.myapp.expensetracker.ui.components.animatedCount
+import com.myapp.expensetracker.ui.components.animatedAmount
 import com.myapp.expensetracker.MonthlySpending
 import com.myapp.expensetracker.TagSpending
 import com.myapp.expensetracker.ui.components.getCategoryInfo
@@ -285,7 +287,7 @@ private fun SpendingSummaryCard(
                     modifier = Modifier.padding(bottom = 4.dp)
                 )
                 Text(
-                    "%,.0f".format(totalSpent),
+                    "%,.0f".format(animatedAmount(totalSpent)),
                     style = MaterialTheme.typography.displaySmall.copy(
                         fontSize = 38.sp,
                         fontWeight = FontWeight.Black,
@@ -303,8 +305,8 @@ private fun SpendingSummaryCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                SummaryMetric("Daily Avg", "\u20B9%,.0f".format(dailyAverage))
-                SummaryMetric("Spending Days", transactionDays.toString())
+                SummaryMetric("Daily Avg", "\u20B9%,.0f".format(animatedAmount(dailyAverage)))
+                SummaryMetric("Spending Days", animatedCount(transactionDays).toString())
                 if (monthOverMonth != null) {
                     val isUp = monthOverMonth > 0
                     SummaryMetric(

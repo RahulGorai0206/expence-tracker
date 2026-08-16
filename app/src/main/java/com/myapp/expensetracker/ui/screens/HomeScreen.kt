@@ -29,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.myapp.expensetracker.GoogleSheetsLogger
+import com.myapp.expensetracker.ui.components.animatedAmount
 import com.myapp.expensetracker.CloudSettingsBackupManager
 import com.myapp.expensetracker.viewmodel.HomeViewModel
 import org.koin.androidx.compose.koinViewModel
@@ -102,9 +103,14 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
     }
 
     val totalBalance = remember(transactions) { transactions.sumOf { it.amount } }
-    val wholePart = remember(totalSpent) { totalSpent.toInt().toString() }
-    val decimalPart =
-        remember(totalSpent) { "%.2f".format(totalSpent % 1).removePrefix("0").removePrefix("-0") }
+
+    // The headline figure counts up to its new value; the paise track it so the
+    // two halves never disagree mid-animation.
+    val animatedSpent = animatedAmount(totalSpent)
+    val wholePart = remember(animatedSpent) { animatedSpent.toInt().toString() }
+    val decimalPart = remember(animatedSpent) {
+        "%.2f".format(animatedSpent % 1).removePrefix("0").removePrefix("-0")
+    }
 
     Box(modifier = Modifier
         .fillMaxSize()
