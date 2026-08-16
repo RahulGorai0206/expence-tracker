@@ -21,8 +21,15 @@ object GoogleSheetsLogger {
     private var apiKey: String? = null
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
+    // BODY logs the full form-encoded request — SMS text, GPS, api_key — and on
+    // a cloud restore the entire transaction history comes back in the response.
+    // Debug builds only; release must emit nothing so bug reports stay shareable.
     private val logging = HttpLoggingInterceptor().apply {
-        level = HttpLoggingInterceptor.Level.BODY
+        level = if (BuildConfig.DEBUG) {
+            HttpLoggingInterceptor.Level.BODY
+        } else {
+            HttpLoggingInterceptor.Level.NONE
+        }
     }
 
     private val client = OkHttpClient.Builder()

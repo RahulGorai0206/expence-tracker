@@ -76,7 +76,8 @@ object CloudSettingsBackupManager {
     }
 
     suspend fun apply(context: Context, backup: CloudSettingsBackup) {
-        android.util.Log.d("CloudBackup", "Applying backup: $backup")
+        // Deliberately not logging `backup` itself: its generated toString()
+        // contains api_key, script_url and sheet_url.
         val prefs = context.getSharedPreferences("prefs", Context.MODE_PRIVATE)
 
         prefs.edit(commit = true) {
@@ -108,17 +109,15 @@ object CloudSettingsBackupManager {
                 android.util.Log.d("CloudBackup", "Setting is_setup_complete: $it")
                 putBoolean("is_setup_complete", it)
             }
+            // Values below are credential material — restored silently.
             backup.sheet_url?.let {
-                android.util.Log.d("CloudBackup", "Setting sheet_url: $it")
                 putString("sheet_url", it)
             }
             backup.script_url?.let {
-                android.util.Log.d("CloudBackup", "Setting script_url: $it")
                 putString("script_url", it)
                 GoogleSheetsLogger.updateUrl(it)
             }
             backup.api_key?.let {
-                android.util.Log.d("CloudBackup", "Setting api_key: $it")
                 putString("api_key", it)
                 GoogleSheetsLogger.updateApiKey(it)
             }

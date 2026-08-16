@@ -74,11 +74,11 @@ class LazySyncManager(private val context: Context) {
                             ?: return@forEachIndexed
 
                     if (ignoreCcBills && extractor.isCreditCardBill(sms.body)) {
-                        Log.d("LazySync", "Ignoring CC bill after AI check: ${sms.body}")
+                        AppLog.d("LazySync") { "Ignoring CC bill after AI check: ${sms.body}" }
                         return@forEachIndexed
                     }
                     if (trackOnlyDebits && transaction.amount >= 0) {
-                        Log.d("LazySync", "Skipping credit due to Track Only Debits: ${sms.body}")
+                        AppLog.d("LazySync") { "Skipping credit due to Track Only Debits: ${sms.body}" }
                         return@forEachIndexed
                     }
 

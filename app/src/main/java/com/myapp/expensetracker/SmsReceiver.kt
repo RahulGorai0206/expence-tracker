@@ -34,7 +34,7 @@ class SmsReceiver : BroadcastReceiver() {
                     val sender = firstSms.displayOriginatingAddress ?: "Unknown"
                     val timestamp = firstSms.timestampMillis
 
-                    Log.d("SmsReceiver", "Processing SMS from $sender: $fullBody")
+                    AppLog.d("SmsReceiver") { "Processing SMS from $sender: $fullBody" }
 
                     val sharedPrefs = context.getSharedPreferences("prefs", Context.MODE_PRIVATE)
                     val ignoreCcBills = sharedPrefs.getBoolean("ignore_cc_bills", false)
