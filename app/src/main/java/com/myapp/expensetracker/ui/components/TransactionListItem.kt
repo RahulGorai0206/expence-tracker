@@ -118,6 +118,7 @@ fun TransactionListItem(
             
             Box(
                 modifier = Modifier
+                    .sharedCategoryBadge(transaction.id, isDetail = false)
                     .size(52.dp)
                     .clip(RoundedCornerShape(16.dp))
                     .background(color.copy(alpha = 0.15f)),

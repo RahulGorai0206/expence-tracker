@@ -13,6 +13,11 @@ import com.myapp.expensetracker.ui.components.rememberHaptics
 import com.myapp.expensetracker.ui.components.isAppLockEnabled
 import com.myapp.expensetracker.ui.components.promptForUnlock
 import androidx.activity.compose.BackHandler
+import com.myapp.expensetracker.ui.components.LocalOpenTransactionId
+import com.myapp.expensetracker.ui.components.LocalDetailAnimatedScope
+import com.myapp.expensetracker.ui.components.LocalSharedTransitionScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
 import kotlin.coroutines.cancellation.CancellationException
 import androidx.compose.animation.core.Animatable
 import androidx.activity.compose.PredictiveBackHandler
@@ -346,6 +351,13 @@ private fun MainAppContent(
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0, 0, 0, 0) // Force drawing behind bars
     ) { _ ->
+        // Hosts the list -> detail shared element. Must enclose BOTH the pager
+        // (where the row lives) and the detail overlay for the badge to morph.
+        SharedTransitionLayout {
+        CompositionLocalProvider(
+            LocalSharedTransitionScope provides this@SharedTransitionLayout,
+            LocalOpenTransactionId provides selectedTransaction?.id
+        ) {
         Box(modifier = Modifier.fillMaxSize()) {
             // === Layer 1: Main content — ALWAYS in composition tree ===
             // This ensures scroll position, data state, etc. are never lost
@@ -475,11 +487,15 @@ private fun MainAppContent(
                     animationSpec = tween(500)
                 )
             ) {
-                lastSelectedTransaction?.let { transaction ->
-                    TransactionDetailScreen(
-                        initialTransaction = transaction,
-                        onBack = { selectedTransaction = null }
-                    )
+                CompositionLocalProvider(
+                    LocalDetailAnimatedScope provides this@AnimatedVisibility
+                ) {
+                    lastSelectedTransaction?.let { transaction ->
+                        TransactionDetailScreen(
+                            initialTransaction = transaction,
+                            onBack = { selectedTransaction = null }
+                        )
+                    }
                 }
             }
 
@@ -508,6 +524,8 @@ private fun MainAppContent(
                     )
                 }
             }
+        }
+        }
         }
     }
 }

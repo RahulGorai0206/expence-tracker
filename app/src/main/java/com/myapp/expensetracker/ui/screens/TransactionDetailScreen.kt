@@ -40,6 +40,7 @@ import com.myapp.expensetracker.AppDatabase
 import com.myapp.expensetracker.CloudSettingsBackupManager
 import com.myapp.expensetracker.Transaction
 import com.myapp.expensetracker.ui.components.getCategoryInfo
+import com.myapp.expensetracker.ui.components.sharedCategoryBadge
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -228,6 +229,7 @@ fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit)
 
             Box(
                 modifier = Modifier
+                    .sharedCategoryBadge(currentTransaction.id, isDetail = true)
                     .size(96.dp)
                     .clip(RoundedCornerShape(28.dp))
                     .background(color.copy(alpha = 0.15f)),
