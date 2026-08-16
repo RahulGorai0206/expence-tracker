@@ -9,11 +9,20 @@ import com.myapp.expensetracker.TransactionDao
 import com.myapp.expensetracker.enqueueWidgetUpdate
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 
 class TransactionViewModel(private val dao: TransactionDao) : ViewModel() {
+    private val _hasLoaded = MutableStateFlow(false)
+    /** False until Room delivers its first emission — lets the UI show a
+     *  skeleton instead of an empty state that isn't true yet. */
+    val hasLoaded: StateFlow<Boolean> = _hasLoaded.asStateFlow()
+
     val transactions: StateFlow<List<Transaction>> = dao.getAllTransactions()
+        .onEach { _hasLoaded.value = true }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),

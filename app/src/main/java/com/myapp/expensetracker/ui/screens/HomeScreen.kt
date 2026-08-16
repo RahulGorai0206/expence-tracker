@@ -36,6 +36,7 @@ import org.koin.androidx.compose.koinViewModel
 import com.myapp.expensetracker.Transaction
 import com.myapp.expensetracker.ui.components.BudgetEditSheet
 import com.myapp.expensetracker.ui.components.EmptyState
+import com.myapp.expensetracker.ui.components.TransactionListSkeleton
 import com.myapp.expensetracker.ui.components.ManualTransactionBottomSheet
 import com.myapp.expensetracker.ui.components.TransactionListItem
 import kotlinx.coroutines.launch
@@ -47,6 +48,7 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
     val context = LocalContext.current
     val viewModel: HomeViewModel = koinViewModel()
     val transactions by viewModel.transactions.collectAsState()
+    val hasLoaded by viewModel.hasLoaded.collectAsState()
     val budget by viewModel.currentBudget.collectAsState()
     val smartSuggestions by viewModel.smartSuggestions.collectAsState()
     var showManualLog by remember { mutableStateOf(false) }
@@ -396,7 +398,9 @@ fun HomeScreen(onTransactionClick: (Transaction) -> Unit, onSeeAllClick: () -> U
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            if (transactions.isEmpty()) {
+            if (!hasLoaded) {
+                TransactionListSkeleton(rows = 4)
+            } else if (transactions.isEmpty()) {
                 EmptyState(
                     icon = Icons.AutoMirrored.Filled.ReceiptLong,
                     title = "No Recent Activity",

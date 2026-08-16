@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import com.myapp.expensetracker.Transaction
 import com.myapp.expensetracker.ui.components.rememberHaptics
 import com.myapp.expensetracker.ui.components.EmptyState
+import com.myapp.expensetracker.ui.components.TransactionListSkeleton
 import com.myapp.expensetracker.ui.components.TransactionListItem
 import com.myapp.expensetracker.viewmodel.TransactionViewModel
 import org.koin.androidx.compose.koinViewModel
@@ -56,6 +57,7 @@ fun TransactionScreen(onTransactionClick: (Transaction) -> Unit) {
     val viewModel: TransactionViewModel = koinViewModel()
     val transactions by viewModel.transactions.collectAsState()
     val deletedSyncTransactions by viewModel.deletedSyncTransactions.collectAsState()
+    val hasLoaded by viewModel.hasLoaded.collectAsState()
 
     val haptics = rememberHaptics()
     var selectedIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
@@ -341,7 +343,9 @@ fun TransactionScreen(onTransactionClick: (Transaction) -> Unit) {
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        if (transactions.isEmpty() && deletedSyncTransactions.isEmpty()) {
+        if (!hasLoaded) {
+            TransactionListSkeleton(modifier = Modifier.weight(1f))
+        } else if (transactions.isEmpty() && deletedSyncTransactions.isEmpty()) {
             EmptyState(
                 icon = Icons.AutoMirrored.Filled.ReceiptLong,
                 title = "No Transactions Yet",

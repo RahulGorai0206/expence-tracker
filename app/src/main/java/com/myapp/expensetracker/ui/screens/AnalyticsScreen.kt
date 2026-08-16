@@ -35,6 +35,8 @@ import androidx.compose.ui.unit.sp
 import com.myapp.expensetracker.CategorySpending
 import com.myapp.expensetracker.ui.components.animatedCount
 import com.myapp.expensetracker.ui.components.animatedAmount
+import com.myapp.expensetracker.ui.components.ChartSkeleton
+import com.myapp.expensetracker.ui.components.SummaryCardSkeleton
 import com.myapp.expensetracker.MonthlySpending
 import com.myapp.expensetracker.TagSpending
 import com.myapp.expensetracker.ui.components.getCategoryInfo
@@ -171,7 +173,9 @@ fun AnalyticsScreen() {
 
         // ── Spending Summary Card ──────────────────────────────────────
         item {
-            SpendingSummaryCard(
+            if (state.isLoading) {
+                SummaryCardSkeleton()
+            } else SpendingSummaryCard(
                 totalSpent = state.totalSpent,
                 dailyAverage = state.dailyAverage,
                 transactionDays = state.spendingDays,
@@ -183,7 +187,9 @@ fun AnalyticsScreen() {
         item {
             SectionHeader(title = "Monthly Spending", icon = Icons.Default.BarChart)
             Spacer(modifier = Modifier.height(12.dp))
-            if (state.monthlySpending.isEmpty()) {
+            if (state.isLoading) {
+                ChartSkeleton()
+            } else if (state.monthlySpending.isEmpty()) {
                 EmptyChartPlaceholder("No spending data for this period")
             } else {
                 MonthlyBarChart(data = state.monthlySpending)
@@ -194,7 +200,9 @@ fun AnalyticsScreen() {
         item {
             SectionHeader(title = "Category Breakdown", icon = Icons.Default.DonutLarge)
             Spacer(modifier = Modifier.height(12.dp))
-            if (state.categorySpending.isEmpty()) {
+            if (state.isLoading) {
+                ChartSkeleton(circular = true)
+            } else if (state.categorySpending.isEmpty()) {
                 EmptyChartPlaceholder("No category data for this period")
             } else {
                 CategoryDonutChart(categories = state.categorySpending)
@@ -205,7 +213,9 @@ fun AnalyticsScreen() {
         item {
             SectionHeader(title = "Tag Breakdown", icon = Icons.Default.Label)
             Spacer(modifier = Modifier.height(12.dp))
-            if (state.tagSpending.isEmpty()) {
+            if (state.isLoading) {
+                ChartSkeleton(circular = true)
+            } else if (state.tagSpending.isEmpty()) {
                 EmptyChartPlaceholder("No tag data for this period")
             } else {
                 TagDonutChart(tags = state.tagSpending)
