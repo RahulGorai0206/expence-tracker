@@ -87,11 +87,22 @@ class MainActivity : FragmentActivity() {
                 mutableStateOf(savedInstanceState == null)
             }
 
-            LaunchedEffect(showBrandedSplash) {
-                if (showBrandedSplash) {
-                    delay(1700)
-                    showBrandedSplash = false
-                }
+            LaunchedEffect(Unit) {
+                if (!showBrandedSplash) return@LaunchedEffect
+
+                // Hold the brand only until the app has actually drawn a frame,
+                // with a short floor so it doesn't flash past on fast devices.
+                //
+                // This replaced a flat delay(1700), which blocked every cold
+                // start for 1.7s regardless of whether the UI was ready — by far
+                // the largest source of perceived slowness in the app.
+                val minimumVisibleMs = 450L
+                val startedAt = System.currentTimeMillis()
+                withFrameNanos { /* resumes once the first frame is produced */ }
+                val remaining = minimumVisibleMs - (System.currentTimeMillis() - startedAt)
+                if (remaining > 0) delay(remaining)
+
+                showBrandedSplash = false
             }
             
             // App lock: gate the whole UI until the user authenticates. Re-armed
