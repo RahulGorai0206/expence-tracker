@@ -1529,23 +1529,29 @@ fun SettingsScreen(
                 icon = Icons.Default.Update,
                 iconColor = if (updateAvailable) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary,
                 trailing = {
-                    if (isCheckingUpdates) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        IconButton(onClick = {
+                    // Keep the IconButton mounted and swap only its content. A
+                    // bare CircularProgressIndicator measures 24dp against the
+                    // button's 48dp, which shrank the row and made the card jump.
+                    IconButton(
+                        enabled = !isCheckingUpdates,
+                        onClick = {
                             isCheckingUpdates = true
                             UpdateCheckWorker.checkNow(context)
-                            // We don't have a callback from WorkManager here easily, 
+                            // We don't have a callback from WorkManager here easily,
                             // but the listener above will update the UI when prefs change.
                             // Let's add a small delay to show it's working
                             scope.launch {
                                 kotlinx.coroutines.delay(2000)
                                 isCheckingUpdates = false
                             }
-                        }) {
+                        }
+                    ) {
+                        if (isCheckingUpdates) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
                             Icon(Icons.Default.Refresh, contentDescription = "Check for updates")
                         }
                     }
@@ -1586,13 +1592,9 @@ fun SettingsScreen(
                         if (rulesAreCustom) " · updated" else " · bundled",
                 icon = Icons.Default.FilterAlt,
                 trailing = {
-                    if (isUpdatingRules) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        IconButton(onClick = {
+                    IconButton(
+                        enabled = !isUpdatingRules,
+                        onClick = {
                             isUpdatingRules = true
                             scope.launch {
                                 val outcome = ExtractionRulesRepository.update(context)
@@ -1609,7 +1611,14 @@ fun SettingsScreen(
                                         "Filter update failed: ${outcome.reason}"
                                 }
                             }
-                        }) {
+                        }
+                    ) {
+                        if (isUpdatingRules) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
                             Icon(Icons.Default.Refresh, contentDescription = "Update filters")
                         }
                     }
@@ -1642,13 +1651,12 @@ fun SettingsScreen(
                 subtitle = if (scriptIsUpdated) "Updated from repo" else "Bundled with this build",
                 icon = Icons.Default.Code,
                 trailing = {
-                    if (isUpdatingScript) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        IconButton(onClick = {
+                    // The IconButton stays mounted and only its content swaps —
+                    // replacing it with a bare indicator changes the row height
+                    // and makes the card twitch.
+                    IconButton(
+                        enabled = !isUpdatingScript,
+                        onClick = {
                             isUpdatingScript = true
                             scope.launch {
                                 val outcome = AppsScriptProvider.update(context)
@@ -1665,8 +1673,18 @@ fun SettingsScreen(
                                         "Script update failed: ${outcome.reason}"
                                 }
                             }
-                        }) {
-                            Icon(Icons.Default.Refresh, contentDescription = "Update Apps Script")
+                        }
+                    ) {
+                        if (isUpdatingScript) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(
+                                Icons.Default.Refresh,
+                                contentDescription = "Update Apps Script"
+                            )
                         }
                     }
                 }
