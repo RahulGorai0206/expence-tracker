@@ -87,8 +87,12 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
-            isShrinkResources = false
+            // Requires app/proguard-rules.pro to keep everything reached by
+            // reflection — Gson models, WorkManager workers, MediaPipe JNI,
+            // ML Kit and Fused Location. Without those, the app compiles and
+            // installs fine but silently loses SMS detection, GPS and the AI.
+            isMinifyEnabled = true
+            isShrinkResources = true
             signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
