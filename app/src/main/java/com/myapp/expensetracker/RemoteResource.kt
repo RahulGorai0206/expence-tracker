@@ -80,11 +80,10 @@ object RemoteResourceLoader {
                 if (!response.isSuccessful) {
                     error("Server returned ${response.code}")
                 }
-                val bodyLength = response.body?.contentLength() ?: -1L
-                if (bodyLength > MAX_BYTES) {
+                if (response.body.contentLength() > MAX_BYTES) {
                     error("File is unexpectedly large")
                 }
-                val text = response.body?.string().orEmpty()
+                val text = response.body.string()
                 if (text.isBlank()) error("Downloaded file was empty")
                 if (!validate(text)) error("Downloaded file failed validation")
                 text

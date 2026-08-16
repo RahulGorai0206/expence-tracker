@@ -1,3 +1,4 @@
+import java.io.File
 import java.util.Properties
 
 plugins {
@@ -133,22 +134,44 @@ ksp {
 // repo so they can be updated without shipping a new APK. They are also copied
 // into assets at build time as the offline fallback, which keeps exactly one
 // copy in version control.
-val remoteResourceAssetsDir =
-    layout.buildDirectory.dir("generated/remoteResources/assets").get().asFile
+abstract class BundleRemoteResourcesTask : DefaultTask() {
+    @get:InputFiles
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val sourceFiles: ConfigurableFileCollection
 
-val bundleRemoteResources = tasks.register<Copy>("bundleRemoteResources") {
-    from(rootProject.file("scripts/apps-script.gs"))
-    from(rootProject.file("rules/extraction-rules.json"))
-    into(remoteResourceAssetsDir)
+    @get:OutputDirectory
+    abstract val outputDir: DirectoryProperty
+
+    @TaskAction
+    fun bundle() {
+        val target = outputDir.get().asFile
+        target.deleteRecursively()
+        target.mkdirs()
+        sourceFiles.files.forEach { source ->
+            source.copyTo(File(target, source.name), overwrite = true)
+        }
+    }
 }
 
-// srcDir needs a resolved File — AGP rejects Providers here.
-android.sourceSets.getByName("main") {
-    assets.srcDir(remoteResourceAssetsDir)
+val bundleRemoteResources = tasks.register<BundleRemoteResourcesTask>("bundleRemoteResources") {
+    sourceFiles.from(
+        rootProject.file("scripts/apps-script.gs"),
+        rootProject.file("rules/extraction-rules.json")
+    )
 }
 
-tasks.matching { it.name.startsWith("merge") && it.name.endsWith("Assets") }
-    .configureEach { dependsOn(bundleRemoteResources) }
+// Registered through the Variant API rather than sourceSets.assets.srcDir():
+// AGP then wires the task dependency into every consumer (asset merging, lint
+// model generation, …). Declaring it only on merge*Assets left lint reading the
+// directory without a declared dependency, which Gradle 9 fails the build over.
+androidComponents {
+    onVariants { variant ->
+        variant.sources.assets?.addGeneratedSourceDirectory(
+            bundleRemoteResources,
+            BundleRemoteResourcesTask::outputDir
+        )
+    }
+}
 
 dependencies {
     implementation(libs.androidx.core.ktx)

@@ -27,6 +27,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Label
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -1669,7 +1670,7 @@ fun SettingsScreen(
             SettingsItem(
                 title = "View Source",
                 subtitle = "Read the rules and script on GitHub",
-                icon = Icons.Default.OpenInNew,
+                icon = Icons.AutoMirrored.Filled.OpenInNew,
                 onClick = {
                     context.startActivity(
                         Intent(

@@ -18,15 +18,17 @@ data class ExtractionRulesFile(
     val version: Int? = null,
     val releasedAt: String? = null,
     val notes: String? = null,
-    val spendKeywords: List<String>? = null,
-    val receiveKeywords: List<String>? = null,
-    val otpPhrases: List<String>? = null,
-    val nonTransactionalPhrases: List<String>? = null,
-    val txnDisqualifiers: List<String>? = null,
-    val creditCardBillPhrases: List<String>? = null,
-    val amountPatterns: List<String>? = null,
+    val spendKeywords: List<String?>? = null,
+    val receiveKeywords: List<String?>? = null,
+    val otpPhrases: List<String?>? = null,
+    val nonTransactionalPhrases: List<String?>? = null,
+    val txnDisqualifiers: List<String?>? = null,
+    val creditCardBillPhrases: List<String?>? = null,
+    val amountPatterns: List<String?>? = null,
     val balanceLookback: Int? = null,
-    val categories: Map<String, List<String>>? = null
+    // Element types are nullable throughout: Gson bypasses Kotlin's null checks,
+    // so a hand-edited `[null]` in the published file would otherwise NPE here.
+    val categories: Map<String, List<String?>?>? = null
 )
 
 /** A validated, ready-to-use rule set. */
@@ -125,7 +127,7 @@ object ExtractionRulesParser {
         )
     }
 
-    private fun List<String>?.clean(): List<String> =
+    private fun List<String?>?.clean(): List<String> =
         orEmpty().mapNotNull { it?.trim()?.takeIf { t -> t.isNotBlank() } }
             .take(MAX_TERMS_PER_LIST)
 }
