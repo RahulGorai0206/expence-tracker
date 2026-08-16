@@ -135,6 +135,11 @@ kotlin {
 //   *-composables.txt — per-composable, with the reason it can't be skipped
 //   *-classes.txt     — per-class stability verdict
 composeCompiler {
+    // Applied to every build, not just metric runs — it changes codegen.
+    stabilityConfigurationFiles.add(
+        layout.projectDirectory.file("compose_stability.conf")
+    )
+
     if (project.findProperty("composeMetrics") == "true") {
         metricsDestination = layout.buildDirectory.dir("compose_compiler")
         reportsDestination = layout.buildDirectory.dir("compose_compiler")
