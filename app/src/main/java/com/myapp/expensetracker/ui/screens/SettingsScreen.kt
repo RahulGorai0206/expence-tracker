@@ -20,6 +20,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -905,286 +906,304 @@ fun SettingsScreen(
         )
     }
 
-    Column(
+    LazyColumn(
         modifier = Modifier
-            .padding(horizontal = 20.dp)
-            .verticalScroll(rememberScrollState())
+            .fillMaxSize()
+            .padding(horizontal = 20.dp),
+        // Replaces the two trailing spacer items; also clears the floating nav bar.
+        contentPadding = PaddingValues(bottom = 132.dp)
     ) {
-        Text(
-            "Settings",
-            style = MaterialTheme.typography.headlineLarge,
-            fontWeight = FontWeight.Black,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-        Text(
-            "Manage your preferences and backup.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        item {
+            Text(
+                "Settings",
+                style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.Black,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+        }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        item {
+            Text(
+                "Manage your preferences and backup.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
 
         // --- QUICK ACTIONS ---
-        SettingsCategory("QUICK ACTIONS") {
-            SettingsItem(
-                title = "Sync Now",
-                subtitle = "Update local and cloud ledger",
-                icon = Icons.Default.Sync,
-                onClick = {
-                    if (isCloudSaved) {
-                        scope.launch {
-                            Toast.makeText(context, "Syncing with cloud...", Toast.LENGTH_SHORT).show()
-                            GoogleSheetsLogger.syncFromCloud(context)
-                            Toast.makeText(context, "Sync complete", Toast.LENGTH_SHORT).show()
-                        }
-                    } else {
-                        Toast.makeText(context, "Cloud Sync not configured", Toast.LENGTH_SHORT)
-                            .show()
-                        isCloudExpanded = true
-                    }
-                }
-            )
+        item {
+            Spacer(modifier = Modifier.height(32.dp))
         }
 
         // --- BUDGETING ---
-        SettingsCategory("BUDGETING") {
-            SettingsItem(
-                title = "Monthly Target Budget",
-                subtitle = if (budget > 0) "\u20B9 ${"%,.0f".format(budget)}" else "Not set",
-                icon = Icons.Default.AccountBalanceWallet,
-                onClick = { showBudgetEdit = true },
-                trailing = {
-                    Icon(
-                        Icons.Default.Edit,
-                        contentDescription = "Edit Budget",
-                        modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-            )
-            HorizontalDivider(
-                modifier = Modifier.padding(vertical = 16.dp),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-            )
-            SettingsItem(
-                title = "Current Month Only",
-                subtitle = "Track only this month's spending",
-                icon = Icons.Default.CalendarMonth,
-                trailing = {
-                    Switch(checked = isMonthlyBudget, onCheckedChange = {
-                        isMonthlyBudget = it
-                        sharedPrefs.edit().putBoolean("budget_monthly", it).apply()
-                        com.myapp.expensetracker.enqueueWidgetUpdate(context)
-                    })
-                }
-            )
+        item {
+            SettingsCategory("QUICK ACTIONS") {
+                SettingsItem(
+                    title = "Sync Now",
+                    subtitle = "Update local and cloud ledger",
+                    icon = Icons.Default.Sync,
+                    onClick = {
+                        if (isCloudSaved) {
+                            scope.launch {
+                                Toast.makeText(context, "Syncing with cloud...", Toast.LENGTH_SHORT).show()
+                                GoogleSheetsLogger.syncFromCloud(context)
+                                Toast.makeText(context, "Sync complete", Toast.LENGTH_SHORT).show()
+                            }
+                        } else {
+                            Toast.makeText(context, "Cloud Sync not configured", Toast.LENGTH_SHORT)
+                                .show()
+                            isCloudExpanded = true
+                        }
+                    }
+                )
+            }
         }
 
         // --- TAGS ---
-        SettingsCategory("TAGS") {
-            SettingsItem(
-                title = "Saved Tags",
-                subtitle = if (savedTags.isEmpty()) "No tags saved" else savedTags.joinToString(", "),
-                icon = Icons.AutoMirrored.Filled.Label,
-                onClick = { showTagsDialog = true },
-                trailing = {
-                    Icon(
-                        Icons.Default.Edit,
-                        contentDescription = "Edit Tags",
-                        modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-            )
+        item {
+            SettingsCategory("BUDGETING") {
+                SettingsItem(
+                    title = "Monthly Target Budget",
+                    subtitle = if (budget > 0) "\u20B9 ${"%,.0f".format(budget)}" else "Not set",
+                    icon = Icons.Default.AccountBalanceWallet,
+                    onClick = { showBudgetEdit = true },
+                    trailing = {
+                        Icon(
+                            Icons.Default.Edit,
+                            contentDescription = "Edit Budget",
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                )
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 16.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+                SettingsItem(
+                    title = "Current Month Only",
+                    subtitle = "Track only this month's spending",
+                    icon = Icons.Default.CalendarMonth,
+                    trailing = {
+                        Switch(checked = isMonthlyBudget, onCheckedChange = {
+                            isMonthlyBudget = it
+                            sharedPrefs.edit().putBoolean("budget_monthly", it).apply()
+                            com.myapp.expensetracker.enqueueWidgetUpdate(context)
+                        })
+                    }
+                )
+            }
         }
 
         // --- CLOUD & BACKUP ---
-        SettingsCategory("CLOUD & BACKUP") {
-            SettingsItem(
-                title = "Google Sheets Sync",
-                subtitle = if (isCloudSaved) "Connected & Synchronized" else "Configure cloud backup",
-                icon = Icons.Default.CloudSync,
-                iconColor = if (isCloudSaved) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary,
-                onClick = { isCloudExpanded = !isCloudExpanded },
-                trailing = {
-                    val rotation by animateFloatAsState(if (isCloudExpanded) 180f else 0f)
-                    Icon(
-                        Icons.Default.KeyboardArrowDown,
-                        null,
-                        modifier = Modifier.graphicsLayer(rotationZ = rotation)
-                    )
-                }
-            )
-
-            AnimatedVisibility(visible = isCloudExpanded) {
-                Column(modifier = Modifier.padding(top = 16.dp)) {
-                    // Instructions Card
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(
-                                alpha = 0.3f
-                            )
-                        ),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                "Setup Guide",
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            listOf(
-                                R.string.setup_step_1, R.string.setup_step_2, R.string.setup_step_3,
-                                R.string.setup_step_4, R.string.setup_step_5, R.string.setup_step_6,
-                                R.string.setup_step_7, R.string.setup_step_8, R.string.setup_step_9,
-                                R.string.setup_step_10, R.string.setup_step_11
-                            ).forEach { stepRes ->
-                                Text(
-                                    "• ${stringResource(stepRes)}",
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Button(
-                                onClick = {
-                                    val clipboard =
-                                        context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                    clipboard.setPrimaryClip(
-                                        ClipData.newPlainText(
-                                            "Apps Script",
-                                            scriptCode
-                                        )
-                                    )
-                                    Toast.makeText(context, "Code copied", Toast.LENGTH_SHORT)
-                                        .show()
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Icon(
-                                    Icons.Default.ContentCopy,
-                                    null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Copy Script Code")
-                            }
-                        }
+        item {
+            SettingsCategory("TAGS") {
+                SettingsItem(
+                    title = "Saved Tags",
+                    subtitle = if (savedTags.isEmpty()) "No tags saved" else savedTags.joinToString(", "),
+                    icon = Icons.AutoMirrored.Filled.Label,
+                    onClick = { showTagsDialog = true },
+                    trailing = {
+                        Icon(
+                            Icons.Default.Edit,
+                            contentDescription = "Edit Tags",
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                     }
+                )
+            }
+        }
 
-                    OutlinedTextField(
-                        value = sheetUrl,
-                        onValueChange = { sheetUrl = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !isCloudSaved || isCloudEditing,
-                        label = { Text("Google Sheet URL") },
-                        shape = RoundedCornerShape(16.dp)
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = apiKey,
-                        onValueChange = { apiKey = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !isCloudSaved || isCloudEditing,
-                        label = { Text("API Security Key") },
-                        shape = RoundedCornerShape(16.dp),
-                        readOnly = true,
-                        trailingIcon = {
-                            if (!isCloudSaved || isCloudEditing) {
-                                TextButton(onClick = {
-                                    apiKey = UUID.randomUUID().toString().replace("-", "").take(32)
-                                }) { Text("Generate") }
+        // --- BACKUP & RESTORE (local file) ---
+        item {
+            SettingsCategory("CLOUD & BACKUP") {
+                SettingsItem(
+                    title = "Google Sheets Sync",
+                    subtitle = if (isCloudSaved) "Connected & Synchronized" else "Configure cloud backup",
+                    icon = Icons.Default.CloudSync,
+                    iconColor = if (isCloudSaved) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary,
+                    onClick = { isCloudExpanded = !isCloudExpanded },
+                    trailing = {
+                        val rotation by animateFloatAsState(if (isCloudExpanded) 180f else 0f)
+                        Icon(
+                            Icons.Default.KeyboardArrowDown,
+                            null,
+                            modifier = Modifier.graphicsLayer(rotationZ = rotation)
+                        )
+                    }
+                )
+
+                AnimatedVisibility(visible = isCloudExpanded) {
+                    Column(modifier = Modifier.padding(top = 16.dp)) {
+                        // Instructions Card
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 16.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(
+                                    alpha = 0.3f
+                                )
+                            ),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(
+                                    "Setup Guide",
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                listOf(
+                                    R.string.setup_step_1, R.string.setup_step_2, R.string.setup_step_3,
+                                    R.string.setup_step_4, R.string.setup_step_5, R.string.setup_step_6,
+                                    R.string.setup_step_7, R.string.setup_step_8, R.string.setup_step_9,
+                                    R.string.setup_step_10, R.string.setup_step_11
+                                ).forEach { stepRes ->
+                                    Text(
+                                        "• ${stringResource(stepRes)}",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Button(
+                                    onClick = {
+                                        val clipboard =
+                                            context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                        clipboard.setPrimaryClip(
+                                            ClipData.newPlainText(
+                                                "Apps Script",
+                                                scriptCode
+                                            )
+                                        )
+                                        Toast.makeText(context, "Code copied", Toast.LENGTH_SHORT)
+                                            .show()
+                                    },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Icon(
+                                        Icons.Default.ContentCopy,
+                                        null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Copy Script Code")
+                                }
                             }
                         }
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = scriptUrl,
-                        onValueChange = { scriptUrl = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !isCloudSaved || isCloudEditing,
-                        label = { Text("Web App URL") },
-                        shape = RoundedCornerShape(16.dp)
-                    )
 
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        if (isCloudSaved && !isCloudEditing) {
-                            Button(
-                                onClick = { showRestoreDialog = true },
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
-                            ) {
-                                Icon(
-                                    Icons.Default.CloudDownload,
-                                    null,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Restore")
+                        OutlinedTextField(
+                            value = sheetUrl,
+                            onValueChange = { sheetUrl = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !isCloudSaved || isCloudEditing,
+                            label = { Text("Google Sheet URL") },
+                            shape = RoundedCornerShape(16.dp)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = apiKey,
+                            onValueChange = { apiKey = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !isCloudSaved || isCloudEditing,
+                            label = { Text("API Security Key") },
+                            shape = RoundedCornerShape(16.dp),
+                            readOnly = true,
+                            trailingIcon = {
+                                if (!isCloudSaved || isCloudEditing) {
+                                    TextButton(onClick = {
+                                        apiKey = UUID.randomUUID().toString().replace("-", "").take(32)
+                                    }) { Text("Generate") }
+                                }
                             }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            TextButton(onClick = { isCloudEditing = true }) { Text("Edit") }
-                            TextButton(onClick = {
-                                isCloudSaved = false
-                                sheetUrl = ""; scriptUrl = ""; apiKey = ""
-                                sharedPrefs.edit().remove("sheet_url").remove("script_url")
-                                    .remove("api_key").apply()
-                                GoogleSheetsLogger.updateUrl(""); GoogleSheetsLogger.updateApiKey("")
-                            }) { Text("Reset", color = MaterialTheme.colorScheme.error) }
-                        } else {
-                            if (isCloudEditing) {
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = scriptUrl,
+                            onValueChange = { scriptUrl = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !isCloudSaved || isCloudEditing,
+                            label = { Text("Web App URL") },
+                            shape = RoundedCornerShape(16.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            if (isCloudSaved && !isCloudEditing) {
+                                Button(
+                                    onClick = { showRestoreDialog = true },
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                                ) {
+                                    Icon(
+                                        Icons.Default.CloudDownload,
+                                        null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Restore")
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                TextButton(onClick = { isCloudEditing = true }) { Text("Edit") }
                                 TextButton(onClick = {
-                                    isCloudEditing = false
-                                    sheetUrl = sharedPrefs.getString("sheet_url", "") ?: ""
-                                    scriptUrl = sharedPrefs.getString("script_url", "") ?: ""
-                                    apiKey = sharedPrefs.getString("api_key", "") ?: ""
-                                }) { Text("Cancel") }
-                                Spacer(modifier = Modifier.width(8.dp))
-                            }
-                            Button(
-                                enabled = !isTestingConnection,
-                                onClick = {
-                                    if (scriptUrl.isNotBlank() && apiKey.isNotBlank()) {
-                                        scope.launch {
-                                            isTestingConnection = true
-                                            val error =
-                                                GoogleSheetsLogger.testConnection(scriptUrl, apiKey)
-                                            if (error == null) {
-                                                sharedPrefs.edit().putString("sheet_url", sheetUrl)
-                                                    .putString("script_url", scriptUrl)
-                                                    .putString("api_key", apiKey).apply()
-                                                GoogleSheetsLogger.updateUrl(scriptUrl)
-                                                GoogleSheetsLogger.updateApiKey(apiKey)
-                                                val backupError =
-                                                    GoogleSheetsLogger.backupSettings(context)
-                                                isCloudSaved = true; isCloudEditing =
-                                                    false; isCloudExpanded = false
-                                                Toast.makeText(
-                                                    context,
-                                                    if (backupError == null) "Connected! Settings backup updated." else "Connected, but settings backup failed: $backupError",
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
-                                            } else {
-                                                Toast.makeText(context, error, Toast.LENGTH_LONG)
-                                                    .show()
+                                    isCloudSaved = false
+                                    sheetUrl = ""; scriptUrl = ""; apiKey = ""
+                                    sharedPrefs.edit().remove("sheet_url").remove("script_url")
+                                        .remove("api_key").apply()
+                                    GoogleSheetsLogger.updateUrl(""); GoogleSheetsLogger.updateApiKey("")
+                                }) { Text("Reset", color = MaterialTheme.colorScheme.error) }
+                            } else {
+                                if (isCloudEditing) {
+                                    TextButton(onClick = {
+                                        isCloudEditing = false
+                                        sheetUrl = sharedPrefs.getString("sheet_url", "") ?: ""
+                                        scriptUrl = sharedPrefs.getString("script_url", "") ?: ""
+                                        apiKey = sharedPrefs.getString("api_key", "") ?: ""
+                                    }) { Text("Cancel") }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                }
+                                Button(
+                                    enabled = !isTestingConnection,
+                                    onClick = {
+                                        if (scriptUrl.isNotBlank() && apiKey.isNotBlank()) {
+                                            scope.launch {
+                                                isTestingConnection = true
+                                                val error =
+                                                    GoogleSheetsLogger.testConnection(scriptUrl, apiKey)
+                                                if (error == null) {
+                                                    sharedPrefs.edit().putString("sheet_url", sheetUrl)
+                                                        .putString("script_url", scriptUrl)
+                                                        .putString("api_key", apiKey).apply()
+                                                    GoogleSheetsLogger.updateUrl(scriptUrl)
+                                                    GoogleSheetsLogger.updateApiKey(apiKey)
+                                                    val backupError =
+                                                        GoogleSheetsLogger.backupSettings(context)
+                                                    isCloudSaved = true; isCloudEditing =
+                                                        false; isCloudExpanded = false
+                                                    Toast.makeText(
+                                                        context,
+                                                        if (backupError == null) "Connected! Settings backup updated." else "Connected, but settings backup failed: $backupError",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+                                                } else {
+                                                    Toast.makeText(context, error, Toast.LENGTH_LONG)
+                                                        .show()
+                                                }
+                                                isTestingConnection = false
                                             }
-                                            isTestingConnection = false
                                         }
                                     }
+                                ) {
+                                    if (isTestingConnection) CircularProgressIndicator(
+                                        modifier = Modifier.size(
+                                            18.dp
+                                        ), strokeWidth = 2.dp
+                                    )
+                                    else Text(if (isCloudEditing) "Update" else "Connect")
                                 }
-                            ) {
-                                if (isTestingConnection) CircularProgressIndicator(
-                                    modifier = Modifier.size(
-                                        18.dp
-                                    ), strokeWidth = 2.dp
-                                )
-                                else Text(if (isCloudEditing) "Update" else "Connect")
                             }
                         }
                     }
@@ -1192,253 +1211,267 @@ fun SettingsScreen(
             }
         }
 
-        // --- BACKUP & RESTORE (local file) ---
-        SettingsCategory("BACKUP & RESTORE") {
-            SettingsItem(
-                title = "Export Expense Data",
-                subtitle = "Transaction history and splits",
-                icon = Icons.Default.FileDownload,
-                onClick = { pendingExportScope = BackupScope.DATA }
-            )
-            HorizontalDivider(
-                modifier = Modifier.padding(vertical = 8.dp),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-            )
-            SettingsItem(
-                title = "Export All App Data",
-                subtitle = "Adds budgets and every setting",
-                icon = Icons.Default.Backup,
-                onClick = { pendingExportScope = BackupScope.FULL }
-            )
-        }
-
         // --- AI & INTELLIGENCE ---
-        SettingsCategory("AI & INTELLIGENCE") {
-            SettingsItem(
-                title = "Lazy Sync (Historical)",
-                subtitle = "Scan SMS history using AI",
-                icon = Icons.Default.AutoFixHigh,
-                iconColor = if (isModelDownloaded) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                    alpha = 0.5f
-                ),
-                onClick = {
-                    if (isModelDownloaded) {
-                        showLazySyncDialog = true
-                    } else {
-                        Toast.makeText(context, "Download AI model first", Toast.LENGTH_SHORT)
-                            .show()
-                    }
-                }
-            )
-
-            HorizontalDivider(
-                modifier = Modifier.padding(vertical = 16.dp),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-            )
-
-            SettingsItem(
-                title = "Download AI Model",
-                subtitle = when {
-                    isDownloadingModel -> modelDownloadProgress
-                    isModelDownloaded -> "Gemma 2B Model • 1.2 GB (Downloaded)"
-                    else -> "Download Gemma 2B (approx. 1.2 GB)"
-                },
-                icon = if (isModelDownloaded) Icons.Default.CheckCircle else Icons.Default.FileDownload,
-                iconColor = if (isModelDownloaded) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary,
-                onClick = {
-                    if (!isModelDownloaded && !isDownloadingModel) {
-                        isDownloadingModel = true
-                        scope.launch {
-                            val success = lazySyncManager.downloadModelOnly { progress ->
-                                modelDownloadProgress = progress
-                            }
-                            isModelDownloaded = lazySyncManager.isModelDownloaded()
-                            isDownloadingModel = false
-                            if (!success) {
-                                Toast.makeText(context, "Download failed", Toast.LENGTH_SHORT)
-                                    .show()
-                            }
-                        }
-                    }
-                }
-            )
-
-            if (isModelDownloaded && !isDownloadingModel) {
+        item {
+            SettingsCategory("BACKUP & RESTORE") {
                 SettingsItem(
-                    title = "Repair AI Model",
-                    subtitle = "Delete and redownload model",
-                    icon = Icons.Default.Build,
-                    iconColor = MaterialTheme.colorScheme.secondary,
-                    onClick = {
-                        isDownloadingModel = true
-                        scope.launch {
-                            val success = lazySyncManager.repairModel { progress ->
-                                modelDownloadProgress = progress
-                            }
-                            isModelDownloaded = lazySyncManager.isModelDownloaded()
-                            isDownloadingModel = false
-                            if (success) {
-                                Toast.makeText(context, "Repair complete", Toast.LENGTH_SHORT)
-                                    .show()
-                            } else {
-                                Toast.makeText(context, "Repair failed", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    }
+                    title = "Export Expense Data",
+                    subtitle = "Transaction history and splits",
+                    icon = Icons.Default.FileDownload,
+                    onClick = { pendingExportScope = BackupScope.DATA }
                 )
-
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 8.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
                 SettingsItem(
-                    title = "Delete AI Model",
-                    subtitle = "Free up 1.2 GB of storage",
-                    icon = Icons.Default.Delete,
-                    iconColor = MaterialTheme.colorScheme.error,
-                    onClick = {
-                        if (lazySyncManager.deleteModel()) {
-                            isModelDownloaded = false
-                            Toast.makeText(context, "AI Model deleted", Toast.LENGTH_SHORT).show()
-                        }
-                    }
+                    title = "Export All App Data",
+                    subtitle = "Adds budgets and every setting",
+                    icon = Icons.Default.Backup,
+                    onClick = { pendingExportScope = BackupScope.FULL }
                 )
             }
         }
 
         // --- AUTOMATED TRACKING ---
-        SettingsCategory("AUTOMATED TRACKING") {
-            SettingsItem(
-                title = "Background Monitoring",
-                subtitle = if (backgroundMonitoring) "Active & Listening" else "Disabled",
-                icon = Icons.Default.RadioButtonChecked,
-                iconColor = if (backgroundMonitoring) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant,
-                trailing = {
-                    Switch(checked = backgroundMonitoring, onCheckedChange = {
-                        backgroundMonitoring = it
-                        SmsMonitorService.setEnabled(context, it)
-                    })
-                }
-            )
+        item {
+            SettingsCategory("AI & INTELLIGENCE") {
+                SettingsItem(
+                    title = "Lazy Sync (Historical)",
+                    subtitle = "Scan SMS history using AI",
+                    icon = Icons.Default.AutoFixHigh,
+                    iconColor = if (isModelDownloaded) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                        alpha = 0.5f
+                    ),
+                    onClick = {
+                        if (isModelDownloaded) {
+                            showLazySyncDialog = true
+                        } else {
+                            Toast.makeText(context, "Download AI model first", Toast.LENGTH_SHORT)
+                                .show()
+                        }
+                    }
+                )
 
-            if (backgroundMonitoring && !isIgnoringBatteryOptimizations) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp)
-                        .clickable {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                context.startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                                    data = Uri.parse("package:${context.packageName}")
-                                })
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 16.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+
+                SettingsItem(
+                    title = "Download AI Model",
+                    subtitle = when {
+                        isDownloadingModel -> modelDownloadProgress
+                        isModelDownloaded -> "Gemma 2B Model • 1.2 GB (Downloaded)"
+                        else -> "Download Gemma 2B (approx. 1.2 GB)"
+                    },
+                    icon = if (isModelDownloaded) Icons.Default.CheckCircle else Icons.Default.FileDownload,
+                    iconColor = if (isModelDownloaded) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary,
+                    onClick = {
+                        if (!isModelDownloaded && !isDownloadingModel) {
+                            isDownloadingModel = true
+                            scope.launch {
+                                val success = lazySyncManager.downloadModelOnly { progress ->
+                                    modelDownloadProgress = progress
+                                }
+                                isModelDownloaded = lazySyncManager.isModelDownloaded()
+                                isDownloadingModel = false
+                                if (!success) {
+                                    Toast.makeText(context, "Download failed", Toast.LENGTH_SHORT)
+                                        .show()
+                                }
                             }
-                        },
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer.copy(
-                            alpha = 0.4f
-                        )
+                        }
+                    }
+                )
+
+                if (isModelDownloaded && !isDownloadingModel) {
+                    SettingsItem(
+                        title = "Repair AI Model",
+                        subtitle = "Delete and redownload model",
+                        icon = Icons.Default.Build,
+                        iconColor = MaterialTheme.colorScheme.secondary,
+                        onClick = {
+                            isDownloadingModel = true
+                            scope.launch {
+                                val success = lazySyncManager.repairModel { progress ->
+                                    modelDownloadProgress = progress
+                                }
+                                isModelDownloaded = lazySyncManager.isModelDownloaded()
+                                isDownloadingModel = false
+                                if (success) {
+                                    Toast.makeText(context, "Repair complete", Toast.LENGTH_SHORT)
+                                        .show()
+                                } else {
+                                    Toast.makeText(context, "Repair failed", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
                     )
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.WarningAmber,
-                            null,
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            "Disable Battery Optimization for reliable tracking.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onErrorContainer
-                        )
-                    }
+
+                    SettingsItem(
+                        title = "Delete AI Model",
+                        subtitle = "Free up 1.2 GB of storage",
+                        icon = Icons.Default.Delete,
+                        iconColor = MaterialTheme.colorScheme.error,
+                        onClick = {
+                            if (lazySyncManager.deleteModel()) {
+                                isModelDownloaded = false
+                                Toast.makeText(context, "AI Model deleted", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    )
                 }
             }
-
-            if (!isNotificationListenerEnabled) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp)
-                        .clickable {
-                            context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
-                        },
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0))
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.Notifications, null, tint = Color(0xFFE65100))
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            "Enable Notification Access for RCS/WhatsApp tracking.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFFE65100)
-                        )
-                    }
-                }
-            }
-
-            HorizontalDivider(
-                modifier = Modifier.padding(vertical = 8.dp),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-            )
-            SettingsItem(
-                title = "Track Only Debits",
-                subtitle = "Skip income/refund alerts",
-                icon = Icons.Default.Payment,
-                trailing = {
-                    Switch(checked = trackOnlyDebits, onCheckedChange = {
-                        trackOnlyDebits = it
-                        sharedPrefs.edit().putBoolean("track_only_debits", it).apply()
-                    })
-                }
-            )
-            HorizontalDivider(
-                modifier = Modifier.padding(vertical = 8.dp),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-            )
-            SettingsItem(
-                title = "Ignore CC Bills",
-                subtitle = "Skip credit card statements",
-                icon = Icons.Default.CreditCardOff,
-                trailing = {
-                    Switch(checked = ignoreCcBills, onCheckedChange = {
-                        ignoreCcBills = it
-                        sharedPrefs.edit().putBoolean("ignore_cc_bills", it).apply()
-                    })
-                }
-            )
         }
 
         // --- HOME SCREEN WIDGET ---
-        SettingsCategory("HOME SCREEN WIDGET") {
-            SettingsItem(
-                title = "Add Widget to Home Screen",
-                subtitle = "Pin the expense tracker to your home screen",
-                icon = Icons.Default.Widgets,
-                onClick = {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        val appWidgetManager =
-                            context.getSystemService(AppWidgetManager::class.java)
-                        val myProvider = ComponentName(context, ExpenseWidgetReceiver::class.java)
+        item {
+            SettingsCategory("AUTOMATED TRACKING") {
+                SettingsItem(
+                    title = "Background Monitoring",
+                    subtitle = if (backgroundMonitoring) "Active & Listening" else "Disabled",
+                    icon = Icons.Default.RadioButtonChecked,
+                    iconColor = if (backgroundMonitoring) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant,
+                    trailing = {
+                        Switch(checked = backgroundMonitoring, onCheckedChange = {
+                            backgroundMonitoring = it
+                            SmsMonitorService.setEnabled(context, it)
+                        })
+                    }
+                )
 
-                        if (appWidgetManager != null && appWidgetManager.isRequestPinAppWidgetSupported) {
-                            val successCallback = PendingIntent.getBroadcast(
-                                context,
-                                0,
-                                Intent(context, PinnedWidgetReceiver::class.java),
-                                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                if (backgroundMonitoring && !isIgnoringBatteryOptimizations) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
+                            .clickable {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                    context.startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                                        data = Uri.parse("package:${context.packageName}")
+                                    })
+                                }
+                            },
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer.copy(
+                                alpha = 0.4f
                             )
-
-                            val pinned = appWidgetManager.requestPinAppWidget(
-                                myProvider,
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.WarningAmber,
                                 null,
-                                successCallback
+                                tint = MaterialTheme.colorScheme.error
                             )
-                            if (!pinned) {
-                                // Some launchers (OnePlus, Realme) silently reject.
-                                // Fallback: guide user to the manual widget picker.
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                "Disable Battery Optimization for reliable tracking.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                    }
+                }
+
+                if (!isNotificationListenerEnabled) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
+                            .clickable {
+                                context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                            },
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Notifications, null, tint = Color(0xFFE65100))
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                "Enable Notification Access for RCS/WhatsApp tracking.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFFE65100)
+                            )
+                        }
+                    }
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 8.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+                SettingsItem(
+                    title = "Track Only Debits",
+                    subtitle = "Skip income/refund alerts",
+                    icon = Icons.Default.Payment,
+                    trailing = {
+                        Switch(checked = trackOnlyDebits, onCheckedChange = {
+                            trackOnlyDebits = it
+                            sharedPrefs.edit().putBoolean("track_only_debits", it).apply()
+                        })
+                    }
+                )
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 8.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+                SettingsItem(
+                    title = "Ignore CC Bills",
+                    subtitle = "Skip credit card statements",
+                    icon = Icons.Default.CreditCardOff,
+                    trailing = {
+                        Switch(checked = ignoreCcBills, onCheckedChange = {
+                            ignoreCcBills = it
+                            sharedPrefs.edit().putBoolean("ignore_cc_bills", it).apply()
+                        })
+                    }
+                )
+            }
+        }
+
+        // --- INTERFACE ---
+        item {
+            SettingsCategory("HOME SCREEN WIDGET") {
+                SettingsItem(
+                    title = "Add Widget to Home Screen",
+                    subtitle = "Pin the expense tracker to your home screen",
+                    icon = Icons.Default.Widgets,
+                    onClick = {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            val appWidgetManager =
+                                context.getSystemService(AppWidgetManager::class.java)
+                            val myProvider = ComponentName(context, ExpenseWidgetReceiver::class.java)
+
+                            if (appWidgetManager != null && appWidgetManager.isRequestPinAppWidgetSupported) {
+                                val successCallback = PendingIntent.getBroadcast(
+                                    context,
+                                    0,
+                                    Intent(context, PinnedWidgetReceiver::class.java),
+                                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                                )
+
+                                val pinned = appWidgetManager.requestPinAppWidget(
+                                    myProvider,
+                                    null,
+                                    successCallback
+                                )
+                                if (!pinned) {
+                                    // Some launchers (OnePlus, Realme) silently reject.
+                                    // Fallback: guide user to the manual widget picker.
+                                    Toast.makeText(
+                                        context,
+                                        "Long-press your home screen → Widgets → Expense Tracker",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            } else {
                                 Toast.makeText(
                                     context,
                                     "Long-press your home screen → Widgets → Expense Tracker",
@@ -1452,324 +1485,328 @@ fun SettingsScreen(
                                 Toast.LENGTH_LONG
                             ).show()
                         }
-                    } else {
-                        Toast.makeText(
-                            context,
-                            "Long-press your home screen → Widgets → Expense Tracker",
-                            Toast.LENGTH_LONG
-                        ).show()
                     }
-                }
-            )
-        }
-
-        // --- INTERFACE ---
-        SettingsCategory("INTERFACE") {
-            SettingsItem(
-                title = "Follow System Theme",
-                subtitle = "Match device dark/light mode",
-                icon = Icons.Default.SettingsSuggest,
-                trailing = {
-                    Switch(
-                        checked = followSystemTheme,
-                        onCheckedChange = onFollowSystemThemeChange
-                    )
-                }
-            )
-            HorizontalDivider(
-                modifier = Modifier.padding(vertical = 8.dp),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-            )
-            SettingsItem(
-                title = "Dark Mode",
-                subtitle = "Premium dark theme",
-                icon = Icons.Default.NightsStay,
-                trailing = {
-                    Switch(
-                        checked = isDarkTheme,
-                        onCheckedChange = onDarkThemeChange,
-                        enabled = !followSystemTheme
-                    )
-                }
-            )
-        }
-
-        // --- UPDATES ---
-        SettingsCategory("UPDATES") {
-            SettingsItem(
-                title = "Check for Updates",
-                subtitle = if (updateAvailable) "New version $latestVersion available!" else "You are on the latest version",
-                icon = Icons.Default.Update,
-                iconColor = if (updateAvailable) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary,
-                trailing = {
-                    // Keep the IconButton mounted and swap only its content. A
-                    // bare CircularProgressIndicator measures 24dp against the
-                    // button's 48dp, which shrank the row and made the card jump.
-                    IconButton(
-                        enabled = !isCheckingUpdates,
-                        onClick = {
-                            isCheckingUpdates = true
-                            UpdateCheckWorker.checkNow(context)
-                            // We don't have a callback from WorkManager here easily,
-                            // but the listener above will update the UI when prefs change.
-                            // Let's add a small delay to show it's working
-                            scope.launch {
-                                kotlinx.coroutines.delay(2000)
-                                isCheckingUpdates = false
-                            }
-                        }
-                    ) {
-                        if (isCheckingUpdates) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            Icon(Icons.Default.Refresh, contentDescription = "Check for updates")
-                        }
-                    }
-                }
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Button(
-                onClick = {
-                    val url = sharedPrefs.getString(
-                        "latest_release_url",
-                        "https://github.com/RahulGorai0206/expense-tracker/releases"
-                    )
-                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = updateAvailable,
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (updateAvailable) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                    contentColor = if (updateAvailable) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                        alpha = 0.38f
-                    )
                 )
-            ) {
-                Icon(Icons.Default.Download, null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Download Update")
             }
         }
 
-        // --- DETECTION RULES ---
-        SettingsCategory("DETECTION RULES") {
-            SettingsItem(
-                title = "SMS Filters & Extraction",
-                subtitle = "v${activeRules.version} · ${activeRules.releasedAt}" +
-                        if (rulesAreCustom) " · updated" else " · bundled",
-                icon = Icons.Default.FilterAlt,
-                trailing = {
-                    IconButton(
-                        enabled = !isUpdatingRules,
-                        onClick = {
-                            isUpdatingRules = true
-                            scope.launch {
-                                val outcome = ExtractionRulesRepository.update(context)
-                                isUpdatingRules = false
-                                rulesRefreshKey++
-                                remoteResourceMessage = when (outcome) {
-                                    is ExtractionRulesRepository.UpdateOutcome.Updated ->
-                                        "Filters updated from v${outcome.from} to v${outcome.to} (${outcome.releasedAt})."
-
-                                    is ExtractionRulesRepository.UpdateOutcome.AlreadyCurrent ->
-                                        "Already on the latest filters (v${outcome.version})."
-
-                                    is ExtractionRulesRepository.UpdateOutcome.Failed ->
-                                        "Filter update failed: ${outcome.reason}"
-                                }
-                            }
-                        }
-                    ) {
-                        if (isUpdatingRules) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            Icon(Icons.Default.Refresh, contentDescription = "Update filters")
-                        }
+        // --- UPDATES ---
+        item {
+            SettingsCategory("INTERFACE") {
+                SettingsItem(
+                    title = "Follow System Theme",
+                    subtitle = "Match device dark/light mode",
+                    icon = Icons.Default.SettingsSuggest,
+                    trailing = {
+                        Switch(
+                            checked = followSystemTheme,
+                            onCheckedChange = onFollowSystemThemeChange
+                        )
                     }
-                }
-            )
-
-            if (rulesAreCustom) {
+                )
                 HorizontalDivider(
                     modifier = Modifier.padding(vertical = 8.dp),
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                 )
                 SettingsItem(
-                    title = "Revert to Bundled Filters",
-                    subtitle = "Undo the downloaded update",
-                    icon = Icons.Default.SettingsBackupRestore,
-                    onClick = {
-                        ExtractionRulesRepository.revert(context)
-                        rulesRefreshKey++
-                        remoteResourceMessage = "Reverted to the filters bundled with this build."
+                    title = "Dark Mode",
+                    subtitle = "Premium dark theme",
+                    icon = Icons.Default.NightsStay,
+                    trailing = {
+                        Switch(
+                            checked = isDarkTheme,
+                            onCheckedChange = onDarkThemeChange,
+                            enabled = !followSystemTheme
+                        )
                     }
                 )
             }
+        }
 
-            HorizontalDivider(
-                modifier = Modifier.padding(vertical = 8.dp),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-            )
-            SettingsItem(
-                title = "Apps Script",
-                subtitle = if (scriptIsUpdated) "Updated from repo" else "Bundled with this build",
-                icon = Icons.Default.Code,
-                trailing = {
-                    // The IconButton stays mounted and only its content swaps —
-                    // replacing it with a bare indicator changes the row height
-                    // and makes the card twitch.
-                    IconButton(
-                        enabled = !isUpdatingScript,
-                        onClick = {
-                            isUpdatingScript = true
-                            scope.launch {
-                                val outcome = AppsScriptProvider.update(context)
-                                isUpdatingScript = false
-                                rulesRefreshKey++
-                                remoteResourceMessage = when (outcome) {
-                                    AppsScriptProvider.UpdateOutcome.Updated ->
-                                        "Apps Script updated. Re-copy it into your spreadsheet and redeploy."
-
-                                    AppsScriptProvider.UpdateOutcome.AlreadyCurrent ->
-                                        "Apps Script is already up to date."
-
-                                    is AppsScriptProvider.UpdateOutcome.Failed ->
-                                        "Script update failed: ${outcome.reason}"
+        // --- DETECTION RULES ---
+        item {
+            SettingsCategory("UPDATES") {
+                SettingsItem(
+                    title = "Check for Updates",
+                    subtitle = if (updateAvailable) "New version $latestVersion available!" else "You are on the latest version",
+                    icon = Icons.Default.Update,
+                    iconColor = if (updateAvailable) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary,
+                    trailing = {
+                        // Keep the IconButton mounted and swap only its content. A
+                        // bare CircularProgressIndicator measures 24dp against the
+                        // button's 48dp, which shrank the row and made the card jump.
+                        IconButton(
+                            enabled = !isCheckingUpdates,
+                            onClick = {
+                                isCheckingUpdates = true
+                                UpdateCheckWorker.checkNow(context)
+                                // We don't have a callback from WorkManager here easily,
+                                // but the listener above will update the UI when prefs change.
+                                // Let's add a small delay to show it's working
+                                scope.launch {
+                                    kotlinx.coroutines.delay(2000)
+                                    isCheckingUpdates = false
                                 }
                             }
-                        }
-                    ) {
-                        if (isUpdatingScript) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            Icon(
-                                Icons.Default.Refresh,
-                                contentDescription = "Update Apps Script"
-                            )
+                        ) {
+                            if (isCheckingUpdates) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Icon(Icons.Default.Refresh, contentDescription = "Check for updates")
+                            }
                         }
                     }
-                }
-            )
+                )
 
-            HorizontalDivider(
-                modifier = Modifier.padding(vertical = 8.dp),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-            )
-            SettingsItem(
-                title = "View Source",
-                subtitle = "Read the rules and script on GitHub",
-                icon = Icons.AutoMirrored.Filled.OpenInNew,
-                onClick = {
-                    context.startActivity(
-                        Intent(
-                            Intent.ACTION_VIEW,
-                            Uri.parse(RemoteResourceLoader.rawUrl(RemoteResource.EXTRACTION_RULES))
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Button(
+                    onClick = {
+                        val url = sharedPrefs.getString(
+                            "latest_release_url",
+                            "https://github.com/RahulGorai0206/expense-tracker/releases"
+                        )
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = updateAvailable,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (updateAvailable) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = if (updateAvailable) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                            alpha = 0.38f
                         )
                     )
+                ) {
+                    Icon(Icons.Default.Download, null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Download Update")
                 }
-            )
+            }
         }
 
         // --- PRIVACY & SECURITY ---
-        SettingsCategory("PRIVACY & SECURITY") {
-            val deviceCanAuthenticate = remember { canAuthenticate(context) }
-            SettingsItem(
-                title = "App Lock",
-                subtitle = when {
-                    !deviceCanAuthenticate -> "Set a screen lock on your device first"
-                    appLockEnabled -> "Unlock required to open the app"
-                    else -> "Protect your ledger with biometrics or PIN"
-                },
-                icon = if (appLockEnabled) Icons.Default.Lock else Icons.Default.LockOpen,
-                iconColor = if (appLockEnabled) {
-                    Color(0xFF4CAF50)
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-                trailing = {
-                    Switch(
-                        checked = appLockEnabled,
-                        enabled = deviceCanAuthenticate,
-                        onCheckedChange = { enabled ->
-                            appLockEnabled = enabled
-                            setAppLockEnabled(context, enabled)
+        item {
+            SettingsCategory("DETECTION RULES") {
+                SettingsItem(
+                    title = "SMS Filters & Extraction",
+                    subtitle = "v${activeRules.version} · ${activeRules.releasedAt}" +
+                            if (rulesAreCustom) " · updated" else " · bundled",
+                    icon = Icons.Default.FilterAlt,
+                    trailing = {
+                        IconButton(
+                            enabled = !isUpdatingRules,
+                            onClick = {
+                                isUpdatingRules = true
+                                scope.launch {
+                                    val outcome = ExtractionRulesRepository.update(context)
+                                    isUpdatingRules = false
+                                    rulesRefreshKey++
+                                    remoteResourceMessage = when (outcome) {
+                                        is ExtractionRulesRepository.UpdateOutcome.Updated ->
+                                            "Filters updated from v${outcome.from} to v${outcome.to} (${outcome.releasedAt})."
+
+                                        is ExtractionRulesRepository.UpdateOutcome.AlreadyCurrent ->
+                                            "Already on the latest filters (v${outcome.version})."
+
+                                        is ExtractionRulesRepository.UpdateOutcome.Failed ->
+                                            "Filter update failed: ${outcome.reason}"
+                                    }
+                                }
+                            }
+                        ) {
+                            if (isUpdatingRules) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Icon(Icons.Default.Refresh, contentDescription = "Update filters")
+                            }
+                        }
+                    }
+                )
+
+                if (rulesAreCustom) {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 8.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    )
+                    SettingsItem(
+                        title = "Revert to Bundled Filters",
+                        subtitle = "Undo the downloaded update",
+                        icon = Icons.Default.SettingsBackupRestore,
+                        onClick = {
+                            ExtractionRulesRepository.revert(context)
+                            rulesRefreshKey++
+                            remoteResourceMessage = "Reverted to the filters bundled with this build."
                         }
                     )
                 }
-            )
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 8.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+                SettingsItem(
+                    title = "Apps Script",
+                    subtitle = if (scriptIsUpdated) "Updated from repo" else "Bundled with this build",
+                    icon = Icons.Default.Code,
+                    trailing = {
+                        // The IconButton stays mounted and only its content swaps —
+                        // replacing it with a bare indicator changes the row height
+                        // and makes the card twitch.
+                        IconButton(
+                            enabled = !isUpdatingScript,
+                            onClick = {
+                                isUpdatingScript = true
+                                scope.launch {
+                                    val outcome = AppsScriptProvider.update(context)
+                                    isUpdatingScript = false
+                                    rulesRefreshKey++
+                                    remoteResourceMessage = when (outcome) {
+                                        AppsScriptProvider.UpdateOutcome.Updated ->
+                                            "Apps Script updated. Re-copy it into your spreadsheet and redeploy."
+
+                                        AppsScriptProvider.UpdateOutcome.AlreadyCurrent ->
+                                            "Apps Script is already up to date."
+
+                                        is AppsScriptProvider.UpdateOutcome.Failed ->
+                                            "Script update failed: ${outcome.reason}"
+                                    }
+                                }
+                            }
+                        ) {
+                            if (isUpdatingScript) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Icon(
+                                    Icons.Default.Refresh,
+                                    contentDescription = "Update Apps Script"
+                                )
+                            }
+                        }
+                    }
+                )
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 8.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+                SettingsItem(
+                    title = "View Source",
+                    subtitle = "Read the rules and script on GitHub",
+                    icon = Icons.AutoMirrored.Filled.OpenInNew,
+                    onClick = {
+                        context.startActivity(
+                            Intent(
+                                Intent.ACTION_VIEW,
+                                Uri.parse(RemoteResourceLoader.rawUrl(RemoteResource.EXTRACTION_RULES))
+                            )
+                        )
+                    }
+                )
+            }
         }
 
         // --- DIAGNOSTICS ---
-        SettingsCategory("DIAGNOSTICS") {
-            SettingsItem(
-                title = "Crash Reports",
-                subtitle = if (crashCount > 0) {
-                    "$crashCount crash${if (crashCount == 1) "" else "es"} recorded on this device"
-                } else {
-                    "No crashes recorded"
-                },
-                icon = Icons.Default.BugReport,
-                iconColor = if (crashCount > 0) {
-                    MaterialTheme.colorScheme.error
-                } else {
-                    MaterialTheme.colorScheme.primary
-                },
-                containerColor = if (crashCount > 0) {
-                    MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f)
-                } else {
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
-                },
-                onClick = { if (crashCount > 0) showCrashDialog = true }
-            )
+        item {
+            SettingsCategory("PRIVACY & SECURITY") {
+                val deviceCanAuthenticate = remember { canAuthenticate(context) }
+                SettingsItem(
+                    title = "App Lock",
+                    subtitle = when {
+                        !deviceCanAuthenticate -> "Set a screen lock on your device first"
+                        appLockEnabled -> "Unlock required to open the app"
+                        else -> "Protect your ledger with biometrics or PIN"
+                    },
+                    icon = if (appLockEnabled) Icons.Default.Lock else Icons.Default.LockOpen,
+                    iconColor = if (appLockEnabled) {
+                        Color(0xFF4CAF50)
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    trailing = {
+                        Switch(
+                            checked = appLockEnabled,
+                            enabled = deviceCanAuthenticate,
+                            onCheckedChange = { enabled ->
+                                appLockEnabled = enabled
+                                setAppLockEnabled(context, enabled)
+                            }
+                        )
+                    }
+                )
+            }
         }
 
         // --- ABOUT ---
-        SettingsCategory(stringResource(R.string.settings_category_about)) {
-            SettingsItem(
-                title = stringResource(R.string.settings_privacy_policy),
-                subtitle = stringResource(R.string.settings_privacy_policy_desc),
-                icon = Icons.Default.PrivacyTip,
-                onClick = { showPrivacyDialog = true }
-            )
-            HorizontalDivider(
-                modifier = Modifier.padding(vertical = 8.dp),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-            )
-            SettingsItem(
-                title = stringResource(R.string.settings_app_version),
-                subtitle = stringResource(
-                    R.string.settings_app_version_desc,
-                    com.myapp.expensetracker.BuildConfig.VERSION_NAME
-                ),
-                icon = Icons.Default.Info
-            )
+        item {
+            SettingsCategory("DIAGNOSTICS") {
+                SettingsItem(
+                    title = "Crash Reports",
+                    subtitle = if (crashCount > 0) {
+                        "$crashCount crash${if (crashCount == 1) "" else "es"} recorded on this device"
+                    } else {
+                        "No crashes recorded"
+                    },
+                    icon = Icons.Default.BugReport,
+                    iconColor = if (crashCount > 0) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.primary
+                    },
+                    containerColor = if (crashCount > 0) {
+                        MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f)
+                    } else {
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                    },
+                    onClick = { if (crashCount > 0) showCrashDialog = true }
+                )
+            }
         }
 
         // --- DANGER ZONE ---
-        SettingsCategory("DANGER ZONE") {
-            SettingsItem(
-                title = "Clear All Transactions",
-                subtitle = "Reset local database to zero",
-                icon = Icons.Default.DeleteForever,
-                iconColor = MaterialTheme.colorScheme.error,
-                containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f),
-                onClick = { showDeleteDialog = true }
-            )
+        item {
+            SettingsCategory(stringResource(R.string.settings_category_about)) {
+                SettingsItem(
+                    title = stringResource(R.string.settings_privacy_policy),
+                    subtitle = stringResource(R.string.settings_privacy_policy_desc),
+                    icon = Icons.Default.PrivacyTip,
+                    onClick = { showPrivacyDialog = true }
+                )
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 8.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+                SettingsItem(
+                    title = stringResource(R.string.settings_app_version),
+                    subtitle = stringResource(
+                        R.string.settings_app_version_desc,
+                        com.myapp.expensetracker.BuildConfig.VERSION_NAME
+                    ),
+                    icon = Icons.Default.Info
+                )
+            }
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
-        Spacer(modifier = Modifier.height(100.dp))
+        item {
+            SettingsCategory("DANGER ZONE") {
+                SettingsItem(
+                    title = "Clear All Transactions",
+                    subtitle = "Reset local database to zero",
+                    icon = Icons.Default.DeleteForever,
+                    iconColor = MaterialTheme.colorScheme.error,
+                    containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f),
+                    onClick = { showDeleteDialog = true }
+                )
+            }
+        }
     }
 }
