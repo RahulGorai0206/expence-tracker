@@ -46,6 +46,10 @@ import com.myapp.expensetracker.BackupResult
 import com.myapp.expensetracker.BackupScope
 import com.myapp.expensetracker.CloudSettingsBackupManager
 import com.myapp.expensetracker.CrashReporter
+import com.myapp.expensetracker.AppsScriptProvider
+import com.myapp.expensetracker.ExtractionRulesRepository
+import com.myapp.expensetracker.RemoteResource
+import com.myapp.expensetracker.RemoteResourceLoader
 import com.myapp.expensetracker.GoogleSheetsLogger
 import com.myapp.expensetracker.LazySyncManager
 import com.myapp.expensetracker.R
@@ -292,6 +296,30 @@ fun SettingsScreen(
     var backupFailed by remember { mutableStateOf(false) }
 
     var appLockEnabled by remember { mutableStateOf(isAppLockEnabled(context)) }
+
+    // ── Remote-updatable rules & script ──────────────────────────────────────
+    var rulesRefreshKey by remember { mutableIntStateOf(0) }
+    var isUpdatingRules by remember { mutableStateOf(false) }
+    var isUpdatingScript by remember { mutableStateOf(false) }
+    var remoteResourceMessage by remember { mutableStateOf<String?>(null) }
+    val activeRules = remember(rulesRefreshKey) { ExtractionRulesRepository.current() }
+    val rulesAreCustom = remember(rulesRefreshKey) {
+        RemoteResourceLoader.hasUpdate(context, RemoteResource.EXTRACTION_RULES)
+    }
+    val scriptIsUpdated = remember(rulesRefreshKey) { AppsScriptProvider.isUpdated(context) }
+
+    remoteResourceMessage?.let { message ->
+        AlertDialog(
+            onDismissRequest = { remoteResourceMessage = null },
+            icon = { Icon(Icons.Default.FilterAlt, null) },
+            title = { Text("Detection Rules", fontWeight = FontWeight.Black) },
+            text = { Text(message, style = MaterialTheme.typography.bodyMedium) },
+            confirmButton = {
+                Button(onClick = { remoteResourceMessage = null }) { Text("OK") }
+            },
+            shape = RoundedCornerShape(28.dp)
+        )
+    }
 
     // ── Crash diagnostics ────────────────────────────────────────────────────
     var crashRefreshKey by remember { mutableIntStateOf(0) }
@@ -608,7 +636,7 @@ fun SettingsScreen(
     }
 
     val scriptCode = remember(extractedSheetId) {
-        com.myapp.expensetracker.buildAppsScript(extractedSheetId)
+        com.myapp.expensetracker.AppsScriptProvider.build(context, extractedSheetId)
     }
 
     if (showRestoreDialog) {
@@ -1548,6 +1576,119 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Download Update")
             }
+        }
+
+        // --- DETECTION RULES ---
+        SettingsCategory("DETECTION RULES") {
+            SettingsItem(
+                title = "SMS Filters & Extraction",
+                subtitle = "v${activeRules.version} · ${activeRules.releasedAt}" +
+                        if (rulesAreCustom) " · updated" else " · bundled",
+                icon = Icons.Default.FilterAlt,
+                trailing = {
+                    if (isUpdatingRules) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        IconButton(onClick = {
+                            isUpdatingRules = true
+                            scope.launch {
+                                val outcome = ExtractionRulesRepository.update(context)
+                                isUpdatingRules = false
+                                rulesRefreshKey++
+                                remoteResourceMessage = when (outcome) {
+                                    is ExtractionRulesRepository.UpdateOutcome.Updated ->
+                                        "Filters updated from v${outcome.from} to v${outcome.to} (${outcome.releasedAt})."
+
+                                    is ExtractionRulesRepository.UpdateOutcome.AlreadyCurrent ->
+                                        "Already on the latest filters (v${outcome.version})."
+
+                                    is ExtractionRulesRepository.UpdateOutcome.Failed ->
+                                        "Filter update failed: ${outcome.reason}"
+                                }
+                            }
+                        }) {
+                            Icon(Icons.Default.Refresh, contentDescription = "Update filters")
+                        }
+                    }
+                }
+            )
+
+            if (rulesAreCustom) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 8.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+                SettingsItem(
+                    title = "Revert to Bundled Filters",
+                    subtitle = "Undo the downloaded update",
+                    icon = Icons.Default.SettingsBackupRestore,
+                    onClick = {
+                        ExtractionRulesRepository.revert(context)
+                        rulesRefreshKey++
+                        remoteResourceMessage = "Reverted to the filters bundled with this build."
+                    }
+                )
+            }
+
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 8.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            )
+            SettingsItem(
+                title = "Apps Script",
+                subtitle = if (scriptIsUpdated) "Updated from repo" else "Bundled with this build",
+                icon = Icons.Default.Code,
+                trailing = {
+                    if (isUpdatingScript) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        IconButton(onClick = {
+                            isUpdatingScript = true
+                            scope.launch {
+                                val outcome = AppsScriptProvider.update(context)
+                                isUpdatingScript = false
+                                rulesRefreshKey++
+                                remoteResourceMessage = when (outcome) {
+                                    AppsScriptProvider.UpdateOutcome.Updated ->
+                                        "Apps Script updated. Re-copy it into your spreadsheet and redeploy."
+
+                                    AppsScriptProvider.UpdateOutcome.AlreadyCurrent ->
+                                        "Apps Script is already up to date."
+
+                                    is AppsScriptProvider.UpdateOutcome.Failed ->
+                                        "Script update failed: ${outcome.reason}"
+                                }
+                            }
+                        }) {
+                            Icon(Icons.Default.Refresh, contentDescription = "Update Apps Script")
+                        }
+                    }
+                }
+            )
+
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 8.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            )
+            SettingsItem(
+                title = "View Source",
+                subtitle = "Read the rules and script on GitHub",
+                icon = Icons.Default.OpenInNew,
+                onClick = {
+                    context.startActivity(
+                        Intent(
+                            Intent.ACTION_VIEW,
+                            Uri.parse(RemoteResourceLoader.rawUrl(RemoteResource.EXTRACTION_RULES))
+                        )
+                    )
+                }
+            )
         }
 
         // --- PRIVACY & SECURITY ---

@@ -128,6 +128,28 @@ ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
 }
 
+// The Apps Script and the SMS extraction rules live as plain files at the repo
+// root — they are the single source of truth, fetched at runtime from the public
+// repo so they can be updated without shipping a new APK. They are also copied
+// into assets at build time as the offline fallback, which keeps exactly one
+// copy in version control.
+val remoteResourceAssetsDir =
+    layout.buildDirectory.dir("generated/remoteResources/assets").get().asFile
+
+val bundleRemoteResources = tasks.register<Copy>("bundleRemoteResources") {
+    from(rootProject.file("scripts/apps-script.gs"))
+    from(rootProject.file("rules/extraction-rules.json"))
+    into(remoteResourceAssetsDir)
+}
+
+// srcDir needs a resolved File — AGP rejects Providers here.
+android.sourceSets.getByName("main") {
+    assets.srcDir(remoteResourceAssetsDir)
+}
+
+tasks.matching { it.name.startsWith("merge") && it.name.endsWith("Assets") }
+    .configureEach { dependsOn(bundleRemoteResources) }
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.core.splashscreen)

@@ -3,7 +3,9 @@ package com.myapp.expensetracker
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.After
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 
 /**
@@ -14,6 +16,21 @@ import org.junit.Test
 class TransactionExtractorTest {
 
     private val extractor = TransactionExtractor()
+
+    /**
+     * Runs against the real `rules/extraction-rules.json` that ships with the
+     * app, so a bad edit to that file fails the build rather than silently
+     * degrading detection on users' phones.
+     */
+    @Before
+    fun loadShippedRules() {
+        ExtractionRulesRepository.install(ShippedRules.load())
+    }
+
+    @After
+    fun resetRules() {
+        ExtractionRulesRepository.install(null)
+    }
 
     // ── OTP / promotional filtering ──────────────────────────────────────────
 

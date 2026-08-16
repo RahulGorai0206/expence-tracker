@@ -1,15 +1,7 @@
-package com.myapp.expensetracker
-
-/**
- * Generates the Google Apps Script code for the spreadsheet sync.
- * This is shared between SetupScreen and SettingsScreen.
- */
-fun buildAppsScript(sheetId: String): String {
-    return """
 // ============================================================
 //  CONFIGURATION
 // ============================================================
-var SPREADSHEET_ID = "$sheetId";
+var SPREADSHEET_ID = "__SPREADSHEET_ID__";
 var API_KEY = PropertiesService.getScriptProperties().getProperty('API_KEY');
 var DB_SHEET_NAME  = "database";
 var LOG_SHEET_NAME = "logs";
@@ -380,5 +372,3 @@ function requireParams(p, f) { f.forEach(function(x) { if (!p[x]) throw new Erro
 function respond(p) { return ContentService.createTextOutput(JSON.stringify(p)).setMimeType(ContentService.MimeType.JSON); }
 function respondError(m) { return respond({ success: false, error: m }); }
 function respondLegacy(m) { return ContentService.createTextOutput(m).setMimeType(ContentService.MimeType.TEXT); }
-    """.trimIndent()
-}

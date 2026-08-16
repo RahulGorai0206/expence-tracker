@@ -1098,11 +1098,12 @@ fun CloudSyncStep(
         pattern.find(sheetUrl)?.groupValues?.get(1) ?: "YOUR_SHEET_ID_HERE"
     }
 
+    val context = LocalContext.current
+
     val scriptCode = remember(extractedSheetId) {
-        com.myapp.expensetracker.buildAppsScript(extractedSheetId)
+        com.myapp.expensetracker.AppsScriptProvider.build(context, extractedSheetId)
     }
 
-    val context = LocalContext.current
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,

@@ -23,6 +23,9 @@ class ExpenseApplication : Application() {
         // Installed first so it captures failures in the rest of startup.
         CrashReporter.install(this)
 
+        // Load the SMS parsing rules before any receiver can fire.
+        ExtractionRulesRepository.initialize(this)
+
         startKoin {
             androidContext(this@ExpenseApplication)
             modules(appModule)

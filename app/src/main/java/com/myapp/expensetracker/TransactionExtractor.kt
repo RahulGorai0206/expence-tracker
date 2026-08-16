@@ -18,66 +18,25 @@ class TransactionExtractor {
         @Volatile
         private var modelDownloaded = false
 
-        /**
-         * Characters scanned before an amount when looking for "bal"/"balance".
-         * Must be wide enough for "a/c balance is " — a 10-char window left the
-         * "bal" just out of reach and logged account balances as spending.
-         */
-        private const val BALANCE_LOOKBACK = 15
     }
 
-    private val categoriesMap = mapOf(
-        "Dining" to listOf("Starbucks", "Coffee", "Restaurant", "Zomato", "Swiggy", "McDonalds", "KFC", "Burger", "Pizza", "Cafe", "Bake"),
-        "Transport" to listOf("Uber", "Ola", "Taxi", "Fuel", "Petrol", "Shell", "Metro", "IRCTC", "Railway", "Bus", "Rapido"),
-        "Groceries" to listOf("Market", "Grocery", "Foods", "BigBasket", "Blinkit", "Zepto", "Reliance", "Fresh", "Vegetable", "Milk"),
-        "Shopping" to listOf("Shopping", "Mall", "Store", "Amazon", "Flipkart", "Myntra", "Ajio", "Fashion", "Clothing", "Electronics"),
-        "Bills" to listOf("Bill", "Utility", "Electricity", "Water", "Gas", "Recharge", "Mobile", "Internet", "Broadband", "Insurance", "Premium"),
-        "Entertainment" to listOf("Netflix", "Hotstar", "Spotify", "Movie", "Cinema", "Theater", "Prime", "Gaming", "Ticket"),
-        "Health" to listOf("Pharmacy", "Hospital", "Clinic", "Medical", "Apollo", "Doctor", "Gym", "Fitness")
-    )
+    /**
+     * Resolved per instance so a rules update takes effect on the next detected
+     * message without restarting the app.
+     */
+    private val rules: ExtractionRules get() = ExtractionRulesRepository.current()
 
-    private val spendKeywords = listOf(
-        "debited", "spent", "paid", "transferred", "payment", "sent", "withdrawal",
-        "purchased", "txn", "using", "done", "deducted"
-    )
-    private val receiveKeywords = listOf(
-        "credited", "received", "deposited", "added", "refunded", "cashback"
-    )
-
-    // Non-transactional phrases that indicate informational/promotional messages
-    private val nonTransactionalPhrases = listOf(
-        "welcome to",
-        "txn. limit", "txn limit", "transaction limit",
-        "limit can be enhanced", "limit will be upgraded", "limit has been",
-        "activate your", "register for", "apply now",
-        "reward points", "loyalty points",
-        "emi available", "pre-approved", "pre approved",
-        "upgrade your", "exclusive offer",
-        "kyc", "pan card", "aadhaar",
-        "download the app", "install the app"
-    )
-
-    // Words that, when appearing right next to "txn", indicate a non-transactional context
-    private val txnDisqualifiers = listOf(
-        "limit", "alert", "password", "pin"
-    )
+    private val categoriesMap: Map<String, List<String>> get() = rules.categories
+    private val spendKeywords: List<String> get() = rules.spendKeywords
+    private val receiveKeywords: List<String> get() = rules.receiveKeywords
+    private val nonTransactionalPhrases: List<String> get() = rules.nonTransactionalPhrases
+    private val txnDisqualifiers: List<String> get() = rules.txnDisqualifiers
 
     fun isCreditCardBill(body: String): Boolean {
         val lowerBody = body.lowercase()
 
         // 1. Direct Bill Indicators (Specific enough on their own)
-        val billPhrases = listOf(
-            "total amount due",
-            "minimum amount due",
-            "statement for your card",
-            "bill for your card",
-            "outstanding on your card",
-            "statement is generated",
-            "bill is generated",
-            "card bill"
-        )
-
-        if (billPhrases.any { lowerBody.contains(it) }) return true
+        if (rules.creditCardBillPhrases.any { lowerBody.contains(it) }) return true
 
         // 2. Secondary check for "Card" + "Bill/Due/Statement" combinations
         val hasCardRef =
@@ -177,10 +136,7 @@ class TransactionExtractor {
     /** OTPs and promotional/informational bank messages that carry no transaction. */
     internal fun isNonTransactional(body: String): Boolean {
         val lowerBody = body.lowercase()
-        if (lowerBody.contains("otp") ||
-            lowerBody.contains("verification code") ||
-            lowerBody.contains("is your code")
-        ) return true
+        if (rules.otpPhrases.any { lowerBody.contains(it) }) return true
 
         return nonTransactionalPhrases.any { lowerBody.contains(it) }
     }
@@ -191,19 +147,15 @@ class TransactionExtractor {
      */
     internal fun extractAmountByRegex(body: String): Double? {
         val lowerBody = body.lowercase()
-        val patterns = listOf(
-            """(?:Rs\.?|INR|₹)\s*(\d+(?:,\d+)*(?:\.\d{1,2})?)""".toRegex(RegexOption.IGNORE_CASE),
-            """debited\s+by\s*(\d+(?:,\d+)*(?:\.\d{1,2})?)""".toRegex(RegexOption.IGNORE_CASE)
-        )
 
-        for (pattern in patterns) {
+        for (pattern in rules.amountPatterns) {
             // Every match, not just the first: when a message leads with the
             // available balance, the spend amount comes later in the text.
             for (match in pattern.findAll(body)) {
                 val amount = match.groupValues[1].replace(",", "").toDoubleOrNull() ?: continue
                 val matchStart = match.range.first
                 val prefix = lowerBody.substring(
-                    (matchStart - BALANCE_LOOKBACK).coerceAtLeast(0),
+                    (matchStart - rules.balanceLookback).coerceAtLeast(0),
                     matchStart
                 )
                 if (!prefix.contains("bal")) return amount
