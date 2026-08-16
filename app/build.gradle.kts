@@ -123,6 +123,24 @@ kotlin {
     jvmToolchain(17)
 }
 
+// Compose compiler diagnostics — which composables can be skipped, and which
+// classes Compose considers unstable (unstable state = the whole screen
+// recomposes on any change).
+//
+// Off by default because it slows compilation. Generate with:
+//   ./gradlew :app:compileReleaseKotlin -PcomposeMetrics=true
+//
+// Output in app/build/compose_compiler/:
+//   *-module.json     — totals: skippable vs restartable composables
+//   *-composables.txt — per-composable, with the reason it can't be skipped
+//   *-classes.txt     — per-class stability verdict
+composeCompiler {
+    if (project.findProperty("composeMetrics") == "true") {
+        metricsDestination = layout.buildDirectory.dir("compose_compiler")
+        reportsDestination = layout.buildDirectory.dir("compose_compiler")
+    }
+}
+
 // Room schema JSONs are committed so migrations can be diffed in review and
 // exercised by MigrationTestHelper.
 ksp {
