@@ -78,6 +78,7 @@ import com.myapp.expensetracker.ui.components.canAuthenticate
 import com.myapp.expensetracker.ui.components.isAppLockEnabled
 import com.myapp.expensetracker.ui.components.setAppLockEnabled
 import com.myapp.expensetracker.ui.components.BudgetEditSheet
+import com.myapp.expensetracker.ui.components.PrivacyPolicyDialog
 import com.myapp.expensetracker.ui.components.rememberBackupController
 import com.myapp.expensetracker.viewmodel.HomeViewModel
 import org.koin.androidx.compose.koinViewModel
@@ -887,36 +888,7 @@ fun SettingsScreen(
     }
 
     if (showPrivacyDialog) {
-        AlertDialog(
-            onDismissRequest = { showPrivacyDialog = false },
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.Security,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text("Privacy Policy", fontWeight = FontWeight.Black)
-                }
-            },
-            text = {
-                val detailedPrivacy = stringResource(R.string.privacy_policy_detailed_description)
-                Text(
-                    text = AnnotatedString.fromHtml(detailedPrivacy),
-                    style = MaterialTheme.typography.bodyMedium,
-                    lineHeight = 22.sp
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = { showPrivacyDialog = false }) {
-                    Text("Close")
-                }
-            },
-            shape = RoundedCornerShape(28.dp),
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-        )
+        PrivacyPolicyDialog(onDismiss = { showPrivacyDialog = false })
     }
 
     if (showTagsDialog) {

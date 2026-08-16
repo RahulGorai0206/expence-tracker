@@ -13,7 +13,17 @@
     <string name="setup_privacy_title">Your Privacy Matters</string>
     <string name="setup_privacy_description">Expense Tracker is designed to be a safe and private app. All your financial data is stored locally on your phone.\n\nNo data is sent outside of your phone unless you explicitly enable Cloud Sync. Even then, your data is stored only on your own private Google Sheet — there are no intermediate servers.</string>
 
-    <string name="privacy_policy_detailed_description"><b>1. Local Storage First</b>\nEverything you record in Expense Tracker—your income, expenses, and categories—is stored securely on your device\'s internal database. We do not have access to this data.\n\n<b>2. Zero Server Policy</b>\nWe do not operate any backend servers. Your financial profile is not uploaded to any cloud service by us. Your data belongs to you and remains under your exclusive control.\n\n<b>3. Secure Cloud Sync</b>\nIf you choose to enable Google Sheets Sync, your data is sent directly from your phone to your personal Google Sheet using the URL and API key you provide. This process is fully transparent, and no third-party (including the app developers) can intercept or view your records.\n\n<b>4. Automated Tracking</b>\nThe app requests permission to read SMS and Notifications only to detect transaction alerts. This processing happens locally on your device. We do not read personal chats, contact names, or any non-financial information.\n\n<b>5. No Data Monetization</b>\nWe do not sell, trade, or share your data with advertisers or any third-party companies. Since we don\'t collect your data, there is nothing for us to monetize.</string>
+    <string name="privacy_intro">Expense Tracker is built to keep your financial data on your device. Here is exactly what happens to it.</string>
+    <string name="privacy_section_1_title">Local Storage First</string>
+    <string name="privacy_section_1_body">Everything you record in Expense Tracker—your income, expenses, and categories—is stored securely on your device\'s internal database. We do not have access to this data.</string>
+    <string name="privacy_section_2_title">Zero Server Policy</string>
+    <string name="privacy_section_2_body">We do not operate any backend servers. Your financial profile is not uploaded to any cloud service by us. Your data belongs to you and remains under your exclusive control.</string>
+    <string name="privacy_section_3_title">Secure Cloud Sync</string>
+    <string name="privacy_section_3_body">If you choose to enable Google Sheets Sync, your data is sent directly from your phone to your personal Google Sheet using the URL and API key you provide. This process is fully transparent, and no third-party (including the app developers) can intercept or view your records.</string>
+    <string name="privacy_section_4_title">Automated Tracking</string>
+    <string name="privacy_section_4_body">The app requests permission to read SMS and Notifications only to detect transaction alerts. This processing happens locally on your device. We do not read personal chats, contact names, or any non-financial information.</string>
+    <string name="privacy_section_5_title">No Data Monetization</string>
+    <string name="privacy_section_5_body">We do not sell, trade, or share your data with advertisers or any third-party companies. Since we don\'t collect your data, there is nothing for us to monetize.</string>
 
     <string name="setup_welcome_title">Welcome to Expense Tracker</string>
     <string name="setup_welcome_description">Your personal financial companion. Track expenses, manage budgets, and stay on top of your money.</string>
