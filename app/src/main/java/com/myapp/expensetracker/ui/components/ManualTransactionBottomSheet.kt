@@ -1,5 +1,6 @@
 package com.myapp.expensetracker.ui.components
 
+import androidx.compose.foundation.lazy.items
 import android.annotation.SuppressLint
 import android.location.Location
 import android.widget.Toast
@@ -134,8 +135,7 @@ fun ManualTransactionBottomSheet(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(horizontal = 4.dp)
             ) {
-                items(categories.size) { index ->
-                    val cat = categories[index]
+                items(categories, key = { it }) { cat ->
                     FilterChip(
                         selected = category == cat,
                         onClick = { category = cat },
@@ -164,8 +164,7 @@ fun ManualTransactionBottomSheet(
                             } else null
                         )
                     }
-                    items(savedTags.size) { index ->
-                        val tag = savedTags[index]
+                    items(savedTags, key = { it }) { tag ->
                         FilterChip(
                             selected = selectedTag == tag,
                             onClick = { selectedTag = tag },

@@ -336,7 +336,10 @@ private fun MainAppContent(
                 HorizontalPager(
                     state = pagerState,
                     modifier = Modifier.fillMaxSize(),
-                    beyondViewportPageCount = 2
+                    // 1, not 2: this composed up to five tabs at once, including
+                    // the two largest screens in the app. One neighbour is
+                    // enough to keep swipes smooth.
+                    beyondViewportPageCount = 1
                 ) { targetTab ->
                     when (targetTab) {
                         0 -> HomeScreen(

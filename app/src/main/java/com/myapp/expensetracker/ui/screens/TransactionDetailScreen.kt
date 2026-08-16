@@ -11,6 +11,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.text.input.KeyboardType
@@ -548,8 +549,7 @@ fun EditTransactionDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(categories.size) { index ->
-                        val cat = categories[index]
+                    items(categories, key = { it }) { cat ->
                         FilterChip(
                             selected = category == cat,
                             onClick = { category = cat },
@@ -599,8 +599,7 @@ fun EditTransactionDialog(
                                 label = { Text("No tag") }
                             )
                         }
-                        items(savedTags.size) { index ->
-                            val savedTag = savedTags[index]
+                        items(savedTags, key = { it }) { savedTag ->
                             FilterChip(
                                 selected = tagText == savedTag,
                                 onClick = { tagText = savedTag },

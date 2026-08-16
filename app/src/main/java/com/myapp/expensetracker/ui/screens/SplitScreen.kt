@@ -1085,7 +1085,12 @@ private fun BalancesTab(
                 }
             }
         } else {
-            items(state.settlements) { settlement ->
+            // Keyed so animateItem() can track a settlement across recomposition
+            // as balances shift; a pair is unique within an event.
+            items(
+                state.settlements,
+                key = { "${it.fromMemberId}-${it.toMemberId}" }
+            ) { settlement ->
                 Box(modifier = Modifier.animateItem()) {
                     SettlementListItem(settlement, onMarkPaid = { onMarkPaid(settlement) })
                 }
