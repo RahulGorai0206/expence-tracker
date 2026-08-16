@@ -13,7 +13,7 @@
   <img src="https://img.shields.io/badge/Kotlin-2.3.20-7F52FF?logo=kotlin&logoColor=white" alt="Kotlin"/>
   <img src="https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?logo=jetpackcompose&logoColor=white" alt="Compose"/>
   <img src="https://img.shields.io/badge/ML%20Kit-Entity%20Extraction-34A853?logo=google&logoColor=white" alt="ML Kit"/>
-  <img src="https://img.shields.io/badge/Room-2.8.4-orange?logo=android" alt="Room"/>
+  <img src="https://img.shields.io/badge/Room-2.8.4%20(schema%20v11)-orange?logo=android" alt="Room"/>
   <img src="https://img.shields.io/badge/Min%20SDK-31-green?logo=android" alt="Min SDK"/>
   <img src="https://img.shields.io/badge/Target%20SDK-36-blue?logo=android" alt="Target SDK"/>
 </p>
@@ -34,6 +34,10 @@
   - [ML Kit Entity Extraction](#ml-kit-entity-extraction)
   - [Regex Fallback](#regex-fallback)
   - [Category Classification](#category-classification)
+- [Splitting Expenses](#splitting-expenses)
+- [Backup & Restore](#backup--restore)
+- [Remote-Updatable Filters](#remote-updatable-filters)
+- [Privacy & Security](#privacy--security)
 - [Analytics & Budgets](#analytics--budgets)
 - [AI Smart Sync (Lazy Sync)](#ai-smart-sync-lazy-sync)
 - [Cloud Sync — Google Sheets](#cloud-sync--google-sheets)
@@ -84,9 +88,16 @@ dark/light theme system.
 | 🛠️ **AI Model Management**       | Dedicated section to download, repair, or delete the 1.2GB Gemma model with real-time percentage-based progress tracking                                                                          |
 | 🌙 **Premium Theme System**       | Follow system theme or manually toggle Premium Dark Mode (deep blacks)                                                                                                                            |
 | 🔄 **Intelligent Navigation**     | Refined back-gesture logic: Detail → Previous Page, History/Settings → Home, Home → Exit                                                                                                          |
-| 🔄 **Offline-First Architecture** | Local Room DB as source of truth (v9); background cloud sync with retry for failed uploads                                                                                                        |
+| 🔄 **Offline-First Architecture** | Local Room DB as source of truth (schema v11); background cloud sync with retry for failed uploads                                                                                                        |
 | 📤 **Smart Transaction Sharing**  | Premium receipt format with customization options: Toggle Screenshot, Merchant, Date, Location, and Message                                                                                       |
 | 🔁 **Automatic Update Checker**   | Checks GitHub Releases daily at 6 PM IST; detects new tags *and* same-tag re-releases via commit-hash comparison; notifies user and surfaces a one-tap download link in Settings                  |
+| 👥 **Split Expenses**             | Shared events with members, even/amount/percentage splits, net balances, settlement suggestions and a shareable summary image                                                                        |
+| 💾 **Local Backup & Restore**     | Export transactions + splits, or everything including settings, to a single JSON file; import merges rather than overwrites                                                                        |
+| 🎛️ **Remote-Updatable Filters**   | SMS detection rules live in a versioned file fetched from this repo — filters improve without an app update ([docs](docs/updating-filters.md))                                                     |
+| 🔒 **App Lock**                   | Optional biometric / device-credential gate, with the branded launch screen doubling as the lock screen                                                                                            |
+| 🧾 **On-Device Crash Reports**    | Crashes are logged locally and viewable in Settings — nothing is uploaded, in line with the zero-server policy                                                                                     |
+| 🏷️ **Tags**                       | Free-form tags on transactions, with tag-based analytics breakdowns                                                                                                                               |
+| 🛟 **Durable Approvals**          | Pending transactions are persisted before the notification is shown, so a reboot or force-stop can't lose one                                                                                      |
 | 🚀 **Automated Releases**         | GitHub Actions pipeline builds, signs, and publishes split APKs (`arm64-v8a` + `armeabi-v7a`) automatically on tag push; version is derived directly from the tag — no manual code changes needed |
 
 ---
@@ -107,7 +118,7 @@ graph TB
     end
 
     subgraph Data Layer
-        DB["Room Database<br/>(SQLite v9)"]
+        DB["Room Database<br/>(SQLite v11)"]
         DAO["TransactionDao<br/>(Analytics & Sync)"]
         BUDGET_DAO["MonthlyBudgetDao<br/>(Historical Budgets)"]
         PREFS["SharedPreferences<br/>(Settings & Toggles)"]
@@ -239,7 +250,7 @@ stateDiagram-v2
     NotificationShown --> Denied: User taps "Deny"
     NotificationShown --> AutoAccepted: 30-second timeout
 
-    Accepted --> SavedLocally: Insert to Room DB (v9)
+    Accepted --> SavedLocally: Insert to Room DB (v11)
     AutoAccepted --> SavedLocally: Insert to Room DB (status=Auto-Cleared)
 
     SavedLocally --> CloudSync: Background sync to Sheets
@@ -257,6 +268,11 @@ stateDiagram-v2
 
 ```
 ExpenseTracker/
+├── rules/extraction-rules.json          # Remote-updatable SMS filters  (see docs/)
+├── scripts/apps-script.gs               # Google Apps Script, fetched at runtime
+├── docs/updating-filters.md             # How to change the filters
+├── baselineprofile/                     # Startup profile generator + macrobenchmark
+├── app/schemas/                         # Exported Room schemas (migration diffs)
 ├── app/
 │   ├── build.gradle.kts                    # App-level Gradle config
 │   ├── proguard-rules.pro                  # ProGuard/R8 rules
@@ -274,7 +290,16 @@ ExpenseTracker/
 │               ├── TransactionDao.kt        # Room @Dao (Duplicate checks, Analytics queries)
 │               ├── MonthlyBudgetDao.kt      # Room @Dao (Budget history management)
 │               ├── TransactionDedup.kt      # Hash-based cross-layer deduplication logic
-│               ├── AppDatabase.kt           # Room database singleton (version 9)
+│               ├── AppDatabase.kt           # Room database singleton (version 11, schemas exported)
+               ├── PendingTransaction.kt    # Durable awaiting-approval queue + DAO
+               ├── SplitModels.kt           # Split entities, modes, balances, settlements
+               ├── SplitDao.kt / SplitRepository.kt / SplitCalculator.kt
+               ├── BackupManager.kt         # Local JSON export/import (merge, atomic)
+               ├── ExtractionRules.kt       # Remote-updatable filter parsing + validation
+               ├── RemoteResource.kt        # Downloaded-copy -> bundled-asset resolution
+               ├── AppsScriptProvider.kt    # Serves scripts/apps-script.gs
+               ├── CrashReporter.kt         # On-device crash log
+               ├── AppLog.kt                # Sensitive logging, debug builds only
 │               │
 │               ├── ── SMS Processing & AI ──
 │               ├── SmsReceiver.kt           # BroadcastReceiver — SMS interception + notification
@@ -282,7 +307,8 @@ ExpenseTracker/
 │               ├── BootReceiver.kt          # BroadcastReceiver — Auto-starts monitor after device reboot
 │               ├── LazySyncManager.kt       # AI-Powered historical SMS analysis (Gemma 2B) with hallucination checks
 │               ├── TransactionExtractor.kt  # ML Kit + Regex + CC Bill detection pipeline
-│               ├── NotificationReceiver.kt  # Handles Accept/Deny/Timeout notification actions
+│               ├── TransactionApproval.kt   # Shared approve/deny/timeout pipeline + recovery
+               ├── NotificationReceiver.kt  # Handles Accept/Deny/Timeout notification actions
 │               ├── TransactionNotificationListener.kt # Intercepts RCS/Bank notifications natively
 │               │
 │               ├── ── Architecture Components ──
@@ -297,6 +323,7 @@ ExpenseTracker/
 │               ├── ── Cloud Sync & Updates ──
 │               ├── GoogleSheetsLogger.kt    # Retrofit-based CRUD client for Apps Script
 │               ├── GoogleSheetsApi.kt       # Retrofit API interface + response models
+               ├── SyncMerge.kt             # Matches cloud records to local rows on restore
 │               ├── GitHubApi.kt             # Retrofit interface for GitHub Releases & Git refs API
 │               │
 │               └── ui/
@@ -311,7 +338,7 @@ ExpenseTracker/
 │                   │   ├── AnalyticsScreen.kt        # Advanced charting, category breakdown, 6-month trends
 │                   │   ├── TransactionDetailScreen.kt # Detail view + re-categorize + delete + share + map
 │                   │   ├── SettingsScreen.kt          # Budget, cloud sync, CC Bill toggle, data management
-│                   │   └── SetupScreen.kt             # 3-step onboarding wizard
+│                   │   └── SetupScreen.kt             # 10-step onboarding wizard
 │                   │
 │                   └── ── Components & Widgets ──
 │                       ├── components/
@@ -330,7 +357,7 @@ ExpenseTracker/
 ```mermaid
 graph LR
     subgraph Onboarding
-        SETUP["SetupScreen<br/>3-step wizard"]
+        SETUP["SetupScreen<br/>10-step wizard"]
     end
 
     subgraph Main Nav ["Main Navigation (Animated)"]
@@ -366,7 +393,7 @@ graph LR
 
 | Screen                      | Description                                                                                                                                                                                                                            |
 |-----------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **SetupScreen**             | 3-step onboarding: Welcome → Set monthly budget → Feature highlights                                                                                                                                                                   |
+| **SetupScreen**             | 10-step onboarding: welcome, privacy, permissions, budget, restore-from-backup, cloud sync                                                                                                                                                                   |
 | **HomeScreen**              | Premium gradient balance card, dynamic monthly budget tracker (Room-backed), recent activity feed, FAB for manual logging, cloud sync status indicator                                                                                 |
 | **TransactionScreen**       | Full transaction history grouped by date (Today, Yesterday, dated headers) with animated list items                                                                                                                                    |
 | **AnalyticsScreen**         | Advanced 6-month spending bar chart, category breakdown donut chart, and summary cards (total spent, daily average) dynamically calculated across "This Month", "3 Months", and "6 Months" filters.                                    |
@@ -389,7 +416,7 @@ data class Transaction(
     val amount: Double,
     val date: Long,
     val body: String,
-    val bodyHash: Int = body.hashCode(), // Added for restart-proof deduplication
+    val bodyHash: Int = body.hashCode(), // Indexed; used for restart-proof deduplication
     val category: String = "Other",
     val tag: String = "",
     val status: String = "Cleared",
@@ -398,6 +425,34 @@ data class Transaction(
     val longitude: Double? = null
 )
 ```
+
+### PendingTransaction Entity (Room)
+
+Holds a detected transaction between the notification appearing and the user accepting, denying or
+letting it time out. Persisting it means a reboot, force-stop or dropped alarm can't destroy a
+transaction whose SMS has already been consumed — anything abandoned is reconciled on next launch.
+
+```kotlin
+@Entity(tableName = "pending_transactions")
+data class PendingTransaction(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val notificationId: Int,
+    val sender: String,
+    val amount: Double,
+    val date: Long,
+    val body: String,
+    val bodyHash: Int,
+    val category: String,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    val createdAt: Long = System.currentTimeMillis()
+)
+```
+
+### Split Entities (Room)
+
+`split_events` → `split_members`, `split_expenses` → `split_shares`, plus `split_payments`, all
+cascading from the event. See `SplitModels.kt`.
 
 ### MonthlyBudget Entity (Room)
 
@@ -415,7 +470,7 @@ data class MonthlyBudget(
 | Operation              | Method                                   | Return                         |
 |------------------------|------------------------------------------|--------------------------------|
 | Get all transactions   | `getAllTransactions()`                   | `Flow<List<Transaction>>`      |
-| Duplicate Check        | `checkDuplicate(date, amount, bodyHash)` | `Int` (Uses 60s window + hash) |
+| Duplicate Check        | `checkDuplicate(date, amount, bodyHash, windowMs)` | `Int` (both arms time-bounded) |
 | Insert/Update          | `insert(transaction)`                    | —                              |
 | Update sync status     | `updateSyncStatus(...)`                  | —                              |
 | Analytics: Daily Spend | `getDailySpending(start, end)`           | `Flow<List<DailySpending>>`    |
@@ -423,6 +478,76 @@ data class MonthlyBudget(
 | Analytics: Category    | `getCategorySpending(start, end)`        | `Flow<List<CategorySpending>>` |
 | Budget: Upsert         | `upsert(monthlyBudget)`                  | —                              |
 | Budget: Get Effective  | `observeEffectiveBudget(monthKey)`       | `Flow<MonthlyBudget?>`         |
+
+---
+
+## Splitting Expenses
+
+A dedicated **Split** tab manages shared spending. Create an event, add members (optionally from
+contacts), then log expenses split **evenly**, **by amount** or **by percentage**.
+
+All arithmetic runs in integer paise and basis points rather than floating point, so shares always
+reconcile to the total — the remainder from an uneven division is assigned deterministically instead
+of being lost to rounding. `SplitCalculator` derives net per-member balances and a minimal set of
+settlement suggestions ("A pays B ₹450"), and any member's position can be shared as a rendered
+summary image.
+
+Split data is included in local backups. It is **not** yet synced to Google Sheets.
+
+---
+
+## Backup & Restore
+
+Two exports, both written through the Storage Access Framework so the user chooses the location and
+no storage permission is needed:
+
+| Export | Contents |
+|---|---|
+| **Expense Data** | Transactions + all split data |
+| **All App Data** | The above plus budget history and every setting |
+
+Import is offered during onboarding, on a dedicated step before cloud sync. It **merges** rather
+than replaces: the whole import runs inside a single Room transaction, existing entries are
+matched and skipped, and re-importing the same file is a no-op. Split rows are re-keyed on import
+so imported events can't collide with existing ones.
+
+If a restored backup includes cloud credentials, setup completes immediately and hands off to the
+home screen.
+
+> The "All App Data" file contains your Google Sheets API key in plain text. The export dialog says
+> so — keep that file somewhere private.
+
+---
+
+## Remote-Updatable Filters
+
+The SMS detection rules — keywords, exclusion phrases, amount regexes, categories — are **not
+compiled into the app**. They live in [`rules/extraction-rules.json`](rules/extraction-rules.json)
+and are fetched from this repo at runtime, so filters can be corrected without shipping an APK.
+
+The Apps Script for cloud sync is likewise a real file,
+[`scripts/apps-script.gs`](scripts/apps-script.gs), reviewable on GitHub rather than embedded in a
+Kotlin string.
+
+Both are bundled into the APK as offline fallbacks and resolve **downloaded copy → bundled copy**,
+so a failed or rejected download never leaves the app worse than the build it shipped with.
+Downloads are validated before being saved: a file that fails to parse, omits a version, empties
+the keyword lists or contains an uncompilable regex is rejected outright.
+
+**→ [How to update the filters](docs/updating-filters.md)**
+
+---
+
+## Privacy & Security
+
+- **Local first.** Room is the source of truth; nothing leaves the device unless cloud sync is
+  enabled, and then only to *your* spreadsheet.
+- **Zero servers.** There is no backend. Crash reports are written to a local file and shown in
+  Settings — they are never uploaded.
+- **App lock.** Optional biometric or device-credential gate, re-armed whenever the app is
+  backgrounded.
+- **No sensitive logging in release.** HTTP bodies, SMS text and credentials are logged only in
+  debug builds.
 
 ---
 
@@ -462,13 +587,18 @@ and release process.
 
 ### How it works
 
+A separate workflow warms the Gradle cache on pushes to `main`. GitHub only lets a run restore
+caches from its own ref or the default branch, and every tag is a distinct ref — without that
+warm-up, tag builds would always start cold.
+
 When a tag is pushed (e.g., `v2.3.0`), the pipeline:
 
 1. Provisions an Ubuntu runner with JDK 17.
 2. Decodes your securely stored Base64 keystore from GitHub Secrets.
 3. **Extracts the version automatically from the tag** — no manual version bumps in code ever
    needed.
-4. Builds and signs split APKs (`arm64-v8a` and `armeabi-v7a`) via Gradle.
+4. Builds and signs split APKs (`arm64-v8a` and `armeabi-v7a`) via Gradle, with R8 minification
+   enabled (see `app/proguard-rules.pro` — everything reached by reflection is kept explicitly).
 5. Publishes a new **GitHub Release** with both APKs attached and auto-generated release notes.
 
 ---
