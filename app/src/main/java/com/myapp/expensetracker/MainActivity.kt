@@ -13,6 +13,9 @@ import com.myapp.expensetracker.ui.components.rememberHaptics
 import com.myapp.expensetracker.ui.components.isAppLockEnabled
 import com.myapp.expensetracker.ui.components.promptForUnlock
 import androidx.activity.compose.BackHandler
+import kotlin.coroutines.cancellation.CancellationException
+import androidx.compose.animation.core.Animatable
+import androidx.activity.compose.PredictiveBackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -262,15 +265,33 @@ private fun MainAppContent(
         lastSelectedSplitEventId = selectedSplitEventId
     }
 
-    BackHandler(enabled = selectedTransaction != null || selectedSplitEventId != null || pagerState.currentPage != 0) {
-        if (selectedTransaction != null) {
-            selectedTransaction = null
-        } else if (selectedSplitEventId != null) {
-            selectedSplitEventId = null
-        } else if (pagerState.currentPage != 0) {
-            coroutineScope.launch {
-                pagerState.animateScrollToPage(0, animationSpec = tween(400))
+    // ── Predictive back ─────────────────────────────────────────────
+    // Dismissing a detail screen follows the finger: the overlay shrinks and
+    // slides as the gesture progresses, so the user can see where back leads
+    // and abandon it. Committing the gesture dismisses; cancelling springs back.
+    val detailVisible = selectedTransaction != null || selectedSplitEventId != null
+    val backProgress = remember { Animatable(0f) }
+
+    PredictiveBackHandler(enabled = detailVisible) { events ->
+        try {
+            events.collect { event -> backProgress.snapTo(event.progress) }
+            // Flow completed without cancellation — the gesture was committed.
+            if (selectedTransaction != null) {
+                selectedTransaction = null
+            } else {
+                selectedSplitEventId = null
             }
+            backProgress.snapTo(0f)
+        } catch (cancelled: CancellationException) {
+            // Gesture abandoned — ease the peek back rather than snapping.
+            backProgress.animateTo(0f, tween(220))
+        }
+    }
+
+    // Only reachable when no detail is open, so the two handlers never contend.
+    BackHandler(enabled = !detailVisible && pagerState.currentPage != 0) {
+        coroutineScope.launch {
+            pagerState.animateScrollToPage(0, animationSpec = tween(400))
         }
     }
 
@@ -438,6 +459,15 @@ private fun MainAppContent(
             // === Layer 2: Detail screen overlay — slides in/out on top ===
             AnimatedVisibility(
                 visible = selectedTransaction != null,
+                modifier = Modifier.graphicsLayer {
+                    // Follows the back gesture: ease away from the edge so the
+                    // screen underneath is revealed progressively.
+                    val progress = backProgress.value
+                    translationX = progress * size.width * 0.18f
+                    scaleX = 1f - progress * 0.08f
+                    scaleY = 1f - progress * 0.08f
+                    alpha = 1f - progress * 0.15f
+                },
                 enter = slideInHorizontally(animationSpec = tween(500)) { it } + fadeIn(
                     animationSpec = tween(500)
                 ),
@@ -455,6 +485,15 @@ private fun MainAppContent(
 
             AnimatedVisibility(
                 visible = selectedSplitEventId != null,
+                modifier = Modifier.graphicsLayer {
+                    // Follows the back gesture: ease away from the edge so the
+                    // screen underneath is revealed progressively.
+                    val progress = backProgress.value
+                    translationX = progress * size.width * 0.18f
+                    scaleX = 1f - progress * 0.08f
+                    scaleY = 1f - progress * 0.08f
+                    alpha = 1f - progress * 0.15f
+                },
                 enter = slideInHorizontally(animationSpec = tween(500)) { it } + fadeIn(
                     animationSpec = tween(500)
                 ),
