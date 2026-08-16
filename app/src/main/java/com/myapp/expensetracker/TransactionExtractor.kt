@@ -18,6 +18,20 @@ class TransactionExtractor {
         @Volatile
         private var modelDownloaded = false
 
+        private val keywordRegexCache = java.util.concurrent.ConcurrentHashMap<String, Regex>()
+
+        /**
+         * `\b` is only applied where the keyword actually starts/ends with a word
+         * character, so markers ending in punctuation ("dr.") still anchor on
+         * their left edge instead of never matching.
+         */
+        internal fun keywordRegex(keyword: String): Regex =
+            keywordRegexCache.getOrPut(keyword) {
+                val lead = if (keyword.firstOrNull()?.isLetterOrDigit() == true) "\\b" else ""
+                val trail = if (keyword.lastOrNull()?.isLetterOrDigit() == true) "\\b" else ""
+                Regex(lead + Regex.escape(keyword) + trail, RegexOption.IGNORE_CASE)
+            }
+
     }
 
     /**
@@ -168,7 +182,19 @@ class TransactionExtractor {
         spendKeywords.any { keywordMatchesTransaction(lowerBody, it) }
 
     internal fun isReceiveMessage(lowerBody: String): Boolean =
-        receiveKeywords.any { lowerBody.contains(it) }
+        receiveKeywords.any { containsKeyword(lowerBody, it) }
+
+    /**
+     * Whole-word match rather than a raw substring.
+     *
+     * Plain `contains` matched "sent" inside "con**sent**", so a YES Bank
+     * "require consent to continue disbursement" promo was logged as a ₹58,000
+     * spend. Word boundaries also make short markers like "dr." safe to use as
+     * keywords, which plain substring matching never would be ("address"
+     * contains "dr").
+     */
+    internal fun containsKeyword(body: String, keyword: String): Boolean =
+        keywordRegex(keyword).containsMatchIn(body)
 
     /** First matching category wins; "Other" when nothing matches. */
     internal fun categorize(lowerBody: String): String {
@@ -184,7 +210,7 @@ class TransactionExtractor {
      * don't indicate a non-transactional context (e.g., "txn limit").
      */
     internal fun keywordMatchesTransaction(body: String, keyword: String): Boolean {
-        if (!body.contains(keyword)) return false
+        if (!containsKeyword(body, keyword)) return false
 
         // For "txn", check that it's not followed by disqualifying words
         if (keyword == "txn") {

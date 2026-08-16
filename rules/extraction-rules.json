@@ -1,36 +1,70 @@
 {
   "schemaVersion": 1,
-  "version": 1,
+  "version": 2,
   "releasedAt": "2026-08-16",
-  "notes": "Baseline rules extracted from TransactionExtractor at app v2.2.1.",
-
+  "notes": "v2: added Dr./Cr. debit-credit markers used by Canara Bank style alerts; excluded YES Bank 'require consent' disbursement promos. Keyword matching is whole-word from app 2.2.1 onward.",
   "spendKeywords": [
-    "debited", "spent", "paid", "transferred", "payment", "sent", "withdrawal",
-    "purchased", "txn", "using", "done", "deducted"
+    "debited",
+    "spent",
+    "paid",
+    "transferred",
+    "payment",
+    "sent",
+    "withdrawal",
+    "purchased",
+    "txn",
+    "using",
+    "done",
+    "deducted",
+    "dr."
   ],
-
   "receiveKeywords": [
-    "credited", "received", "deposited", "added", "refunded", "cashback"
+    "credited",
+    "received",
+    "deposited",
+    "added",
+    "refunded",
+    "cashback",
+    "cr."
   ],
-
   "otpPhrases": [
-    "otp", "verification code", "is your code"
+    "otp",
+    "verification code",
+    "is your code"
   ],
-
   "nonTransactionalPhrases": [
     "welcome to",
-    "txn. limit", "txn limit", "transaction limit",
-    "limit can be enhanced", "limit will be upgraded", "limit has been",
-    "activate your", "register for", "apply now",
-    "reward points", "loyalty points",
-    "emi available", "pre-approved", "pre approved",
-    "upgrade your", "exclusive offer",
-    "kyc", "pan card", "aadhaar",
-    "download the app", "install the app"
+    "txn. limit",
+    "txn limit",
+    "transaction limit",
+    "limit can be enhanced",
+    "limit will be upgraded",
+    "limit has been",
+    "activate your",
+    "register for",
+    "apply now",
+    "reward points",
+    "loyalty points",
+    "emi available",
+    "pre-approved",
+    "pre approved",
+    "upgrade your",
+    "exclusive offer",
+    "kyc",
+    "pan card",
+    "aadhaar",
+    "download the app",
+    "install the app",
+    "require consent",
+    "requires consent",
+    "continue disbursement"
   ],
-
-  "txnDisqualifiers": ["limit", "alert", "password", "pin"],
-
+  "txnDisqualifiers": [
+    "limit",
+    "alert",
+    "password",
+    "pin"
+  ],
   "creditCardBillPhrases": [
     "total amount due",
     "minimum amount due",
@@ -41,21 +75,95 @@
     "bill is generated",
     "card bill"
   ],
-
   "amountPatterns": [
     "(?:Rs\\.?|INR|₹)\\s*(\\d+(?:,\\d+)*(?:\\.\\d{1,2})?)",
     "debited\\s+by\\s*(\\d+(?:,\\d+)*(?:\\.\\d{1,2})?)"
   ],
-
   "balanceLookback": 15,
-
   "categories": {
-    "Dining": ["Starbucks", "Coffee", "Restaurant", "Zomato", "Swiggy", "McDonalds", "KFC", "Burger", "Pizza", "Cafe", "Bake"],
-    "Transport": ["Uber", "Ola", "Taxi", "Fuel", "Petrol", "Shell", "Metro", "IRCTC", "Railway", "Bus", "Rapido"],
-    "Groceries": ["Market", "Grocery", "Foods", "BigBasket", "Blinkit", "Zepto", "Reliance", "Fresh", "Vegetable", "Milk"],
-    "Shopping": ["Shopping", "Mall", "Store", "Amazon", "Flipkart", "Myntra", "Ajio", "Fashion", "Clothing", "Electronics"],
-    "Bills": ["Bill", "Utility", "Electricity", "Water", "Gas", "Recharge", "Mobile", "Internet", "Broadband", "Insurance", "Premium"],
-    "Entertainment": ["Netflix", "Hotstar", "Spotify", "Movie", "Cinema", "Theater", "Prime", "Gaming", "Ticket"],
-    "Health": ["Pharmacy", "Hospital", "Clinic", "Medical", "Apollo", "Doctor", "Gym", "Fitness"]
+    "Dining": [
+      "Starbucks",
+      "Coffee",
+      "Restaurant",
+      "Zomato",
+      "Swiggy",
+      "McDonalds",
+      "KFC",
+      "Burger",
+      "Pizza",
+      "Cafe",
+      "Bake"
+    ],
+    "Transport": [
+      "Uber",
+      "Ola",
+      "Taxi",
+      "Fuel",
+      "Petrol",
+      "Shell",
+      "Metro",
+      "IRCTC",
+      "Railway",
+      "Bus",
+      "Rapido"
+    ],
+    "Groceries": [
+      "Market",
+      "Grocery",
+      "Foods",
+      "BigBasket",
+      "Blinkit",
+      "Zepto",
+      "Reliance",
+      "Fresh",
+      "Vegetable",
+      "Milk"
+    ],
+    "Shopping": [
+      "Shopping",
+      "Mall",
+      "Store",
+      "Amazon",
+      "Flipkart",
+      "Myntra",
+      "Ajio",
+      "Fashion",
+      "Clothing",
+      "Electronics"
+    ],
+    "Bills": [
+      "Bill",
+      "Utility",
+      "Electricity",
+      "Water",
+      "Gas",
+      "Recharge",
+      "Mobile",
+      "Internet",
+      "Broadband",
+      "Insurance",
+      "Premium"
+    ],
+    "Entertainment": [
+      "Netflix",
+      "Hotstar",
+      "Spotify",
+      "Movie",
+      "Cinema",
+      "Theater",
+      "Prime",
+      "Gaming",
+      "Ticket"
+    ],
+    "Health": [
+      "Pharmacy",
+      "Hospital",
+      "Clinic",
+      "Medical",
+      "Apollo",
+      "Doctor",
+      "Gym",
+      "Fitness"
+    ]
   }
 }

@@ -156,6 +156,55 @@ class TransactionExtractorTest {
         assertEquals("Dining", extractor.categorize("paid to SWIGGY".lowercase()))
     }
 
+    // ── Real messages from the field ─────────────────────────────────────────
+
+    private val yesBankConsentPromo =
+        "Service Alert:\nFunds of INR 58,000.00 on YES BANK Credit Card ending 8535 are " +
+                "available and require consent to continue disbursement. " +
+                "ccybl.in/YESBNK/MTWjXYX2fV -YES BANK LTD"
+
+    private val canaraUpiDebit =
+        "Dear Customer, Acct XXX421 Dr. INR 16,498.87 on 07/07/26 to CRED Club; " +
+                "UPI: 655406751992; Bal INR 2,769.96.Not you?SMS BLOCKUPI to 9901771222-CanaraBank"
+
+    @Test
+    fun `yes bank consent promo is not a transaction`() {
+        // "sent" used to match inside "con-sent-", logging this as a 58,000 spend.
+        assertFalse(extractor.isSpendMessage(yesBankConsentPromo.lowercase()))
+        assertFalse(extractor.isReceiveMessage(yesBankConsentPromo.lowercase()))
+        assertTrue(extractor.isNonTransactional(yesBankConsentPromo))
+    }
+
+    @Test
+    fun `sent does not match inside consent`() {
+        assertFalse(extractor.containsKeyword("require consent to continue", "sent"))
+        assertTrue(extractor.containsKeyword("rs.500 sent to john", "sent"))
+    }
+
+    @Test
+    fun `canara upi debit is tracked`() {
+        val lower = canaraUpiDebit.lowercase()
+
+        assertFalse(extractor.isNonTransactional(canaraUpiDebit))
+        assertTrue("Dr. marker should read as a spend", extractor.isSpendMessage(lower))
+        assertFalse(extractor.isReceiveMessage(lower))
+        assertEquals(16498.87, extractor.extractAmountByRegex(canaraUpiDebit)!!, 0.001)
+    }
+
+    @Test
+    fun `canara debit takes the transaction amount not the trailing balance`() {
+        // "Bal INR 2,769.96" appears later in the same message.
+        assertEquals(16498.87, extractor.extractAmountByRegex(canaraUpiDebit)!!, 0.001)
+    }
+
+    @Test
+    fun `dr marker is anchored and does not fire on ordinary words`() {
+        assertTrue(extractor.containsKeyword("acct xxx421 dr. inr 16,498.87", "dr."))
+        // Substring matching would have hit "address", "hundred", "drive".
+        assertFalse(extractor.containsKeyword("sent to address on file", "dr."))
+        assertFalse(extractor.containsKeyword("withdrawn at andheri", "dr."))
+    }
+
     // ── Credit card bills ────────────────────────────────────────────────────
 
     @Test
