@@ -45,8 +45,13 @@ import kotlin.math.sin
 import androidx.compose.ui.res.painterResource
 import com.myapp.expensetracker.R
 
+/**
+ * The launch screen. Also serves as the app-lock screen — passing [footer]
+ * places an action below the wordmark, so a locked launch looks like a normal
+ * launch rather than dropping the user onto a bare lock panel.
+ */
 @Composable
-fun BrandedSplashScreen() {
+fun BrandedSplashScreen(footer: @Composable (BrandedSplashPalette) -> Unit = {}) {
     val infiniteTransition = rememberInfiniteTransition(label = "splash")
 
     // Pulse animation for the central icon
@@ -72,11 +77,11 @@ fun BrandedSplashScreen() {
     )
 
     // Colors matching the screenshot
-    val bgColor = Color(0xFF08060F) // Deep dark purple/black
+    val bgColor = BrandedSplashPalette.Background
     val gridColor = Color.White.copy(alpha = 0.03f)
     val glowColor = Color(0xFF4A258D).copy(alpha = 0.35f)
-    val iconBgColor = Color(0xFFEADDFF)
-    val iconColor = Color(0xFF21005D)
+    val iconBgColor = BrandedSplashPalette.OnAccent
+    val iconColor = BrandedSplashPalette.Accent
 
     Box(
         modifier = Modifier
@@ -222,8 +227,19 @@ fun BrandedSplashScreen() {
                 color = Color.White.copy(alpha = 0.5f),
                 textAlign = TextAlign.Center
             )
+
+            footer(BrandedSplashPalette)
         }
     }
+}
+
+/** Splash palette, shared so anything drawn on top matches it exactly. */
+object BrandedSplashPalette {
+    val Background = Color(0xFF08060F)
+    /** Light lavender used for the icon chip — the splash's "primary" surface. */
+    val OnAccent = Color(0xFFEADDFF)
+    /** Deep violet used for content on [OnAccent]. */
+    val Accent = Color(0xFF21005D)
 }
 
 @Composable

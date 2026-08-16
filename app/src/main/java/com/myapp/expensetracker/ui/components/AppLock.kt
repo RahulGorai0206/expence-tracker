@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -27,6 +28,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material3.ButtonDefaults
+import com.myapp.expensetracker.ui.screens.BrandedSplashScreen
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 
@@ -80,58 +85,53 @@ fun promptForUnlock(
         }
     )
 
-    prompt.authenticate(
-        BiometricPrompt.PromptInfo.Builder()
-            .setTitle("Unlock Expense Tracker")
-            .setSubtitle("Your transactions and locations are protected")
-            .setAllowedAuthenticators(AUTHENTICATORS)
-            .build()
-    )
+    try {
+        prompt.authenticate(
+            BiometricPrompt.PromptInfo.Builder()
+                .setTitle("Unlock Expense Tracker")
+                .setSubtitle("Your transactions and locations are protected")
+                .setAllowedAuthenticators(AUTHENTICATORS)
+                .build()
+        )
+    } catch (e: Exception) {
+        // Thrown when the activity isn't in a state that can host the prompt
+        // (it uses a fragment internally). Report it so the caller can clear
+        // its in-flight flag and let the user retry.
+        onFailure()
+    }
 }
 
-/** Placeholder shown instead of app content while locked. */
+/**
+ * Shown while the app is locked. This is the branded splash with an unlock
+ * action rather than a separate panel — previously a locked launch skipped the
+ * splash entirely and dropped straight onto a bare lock screen.
+ */
 @Composable
 fun LockedScreen(onUnlockClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier.padding(32.dp)
+    BrandedSplashScreen { palette ->
+        Spacer(modifier = Modifier.height(40.dp))
+
+        Button(
+            onClick = onUnlockClick,
+            shape = RoundedCornerShape(18.dp),
+            colors = ButtonDefaults.buttonColors(
+                // Same lavender/violet pair as the splash icon chip.
+                containerColor = palette.OnAccent,
+                contentColor = palette.Accent
+            ),
+            contentPadding = PaddingValues(horizontal = 28.dp, vertical = 14.dp)
         ) {
-            Surface(
-                modifier = Modifier.size(110.dp),
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.primaryContainer
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        Icons.Default.Lock,
-                        contentDescription = null,
-                        modifier = Modifier.size(52.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(28.dp))
-
-            Text(
-                "Expense Tracker is locked",
-                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Black),
-                color = MaterialTheme.colorScheme.onBackground,
-                textAlign = TextAlign.Center
+            Icon(
+                Icons.Default.LockOpen,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp)
             )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Button(onClick = onUnlockClick, shape = RoundedCornerShape(16.dp)) {
-                Text("Unlock", fontWeight = FontWeight.Bold)
-            }
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                "Unlock",
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleMedium
+            )
         }
     }
 }

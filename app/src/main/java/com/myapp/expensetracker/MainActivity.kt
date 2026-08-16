@@ -13,6 +13,11 @@ import com.myapp.expensetracker.ui.components.rememberHaptics
 import com.myapp.expensetracker.ui.components.isAppLockEnabled
 import com.myapp.expensetracker.ui.components.promptForUnlock
 import androidx.activity.compose.BackHandler
+import kotlin.math.hypot
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.animation.core.FastOutSlowInEasing
 import kotlin.coroutines.cancellation.CancellationException
 import androidx.compose.animation.core.Animatable
 import androidx.activity.compose.PredictiveBackHandler
@@ -109,11 +114,12 @@ class MainActivity : FragmentActivity() {
                 showBrandedSplash = false
             }
             
-            // App lock: gate the whole UI until the user authenticates. Re-armed
-            // whenever the activity stops, so returning from the recents list
-            // asks again.
-            var isUnlocked by rememberSaveable { mutableStateOf(!isAppLockEnabled(context)) }
+            // App lock. The lock screen is an overlay rather than a replacement
+            // for the app, so unlocking can dissolve it to reveal what's behind.
+            var locked by rememberSaveable { mutableStateOf(isAppLockEnabled(context)) }
             var promptInFlight by remember { mutableStateOf(false) }
+            val unlockReveal = remember { Animatable(0f) }
+            val unlockScope = rememberCoroutineScope()
 
             fun requestUnlock() {
                 if (promptInFlight) return
@@ -122,7 +128,15 @@ class MainActivity : FragmentActivity() {
                     activity = this@MainActivity,
                     onSuccess = {
                         promptInFlight = false
-                        isUnlocked = true
+                        unlockScope.launch {
+                            // Burst outward from the centre, then drop the overlay.
+                            unlockReveal.animateTo(
+                                targetValue = 1f,
+                                animationSpec = tween(620, easing = FastOutSlowInEasing)
+                            )
+                            locked = false
+                            unlockReveal.snapTo(0f)
+                        }
                     },
                     onFailure = { promptInFlight = false }
                 )
@@ -131,24 +145,28 @@ class MainActivity : FragmentActivity() {
             val lifecycleOwner = LocalLifecycleOwner.current
             DisposableEffect(lifecycleOwner) {
                 val observer = LifecycleEventObserver { _, event ->
-                    if (event == Lifecycle.Event.ON_STOP && isAppLockEnabled(context)) {
-                        isUnlocked = false
+                    when (event) {
+                        Lifecycle.Event.ON_STOP -> if (isAppLockEnabled(context)) {
+                            locked = true
+                            promptInFlight = false
+                        }
+
+                        // Prompted on RESUME, not during composition: BiometricPrompt
+                        // is fragment-backed and throws if the activity isn't ready,
+                        // which previously left promptInFlight stuck true and made
+                        // every later tap of Unlock do nothing.
+                        Lifecycle.Event.ON_RESUME -> if (locked && isAppLockEnabled(context)) {
+                            requestUnlock()
+                        }
+
+                        else -> Unit
                     }
                 }
                 lifecycleOwner.lifecycle.addObserver(observer)
                 onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
             }
 
-            LaunchedEffect(isUnlocked) {
-                if (!isUnlocked && isAppLockEnabled(context)) requestUnlock()
-            }
-
             LedgerTheme(darkTheme = currentTheme) {
-                if (!isUnlocked) {
-                    LockedScreen(onUnlockClick = { requestUnlock() })
-                    return@LedgerTheme
-                }
-
                 Box(modifier = Modifier.fillMaxSize()) {
                     MainScreen(
                         isDarkTheme = darkTheme,
@@ -164,11 +182,44 @@ class MainActivity : FragmentActivity() {
                     )
 
                     AnimatedVisibility(
-                        visible = showBrandedSplash,
+                        visible = showBrandedSplash && !locked,
                         enter = fadeIn(animationSpec = tween(220)),
                         exit = fadeOut(animationSpec = tween(420))
                     ) {
                         BrandedSplashScreen()
+                    }
+
+                    if (locked) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .graphicsLayer {
+                                    // Offscreen compositing is required for the
+                                    // Clear blend below to punch a hole in this
+                                    // layer rather than the whole window.
+                                    compositingStrategy = CompositingStrategy.Offscreen
+                                    val progress = unlockReveal.value
+                                    val magnify = 1f + progress * 0.18f
+                                    scaleX = magnify
+                                    scaleY = magnify
+                                    alpha = 1f - (progress * progress) * 0.35f
+                                }
+                                .drawWithContent {
+                                    drawContent()
+                                    // A growing circular cut-out from the centre:
+                                    // the lock screen is removed outward from the
+                                    // middle rather than fading as a whole.
+                                    val reach = hypot(size.width, size.height) / 2f * 1.08f
+                                    drawCircle(
+                                        color = Color.Transparent,
+                                        radius = reach * unlockReveal.value,
+                                        center = center,
+                                        blendMode = BlendMode.Clear
+                                    )
+                                }
+                        ) {
+                            LockedScreen(onUnlockClick = { requestUnlock() })
+                        }
                     }
                 }
             }
