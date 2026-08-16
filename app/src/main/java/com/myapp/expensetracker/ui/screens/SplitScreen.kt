@@ -117,6 +117,7 @@ import com.myapp.expensetracker.SplitEvent
 import com.myapp.expensetracker.SplitExpense
 import com.myapp.expensetracker.SplitMember
 import com.myapp.expensetracker.SplitMode
+import com.myapp.expensetracker.ui.components.rememberHaptics
 import com.myapp.expensetracker.SplitShare
 import com.myapp.expensetracker.SplitShareDraft
 import com.myapp.expensetracker.SplitShareImageRenderer
@@ -226,6 +227,7 @@ fun SplitEventDetailScreen(eventId: Long, onBack: () -> Unit) {
     val detailScope = rememberCoroutineScope()
     var showSplitDialog by remember { mutableStateOf(false) }
     var showDeleteEventDialog by remember { mutableStateOf(false) }
+    val haptics = rememberHaptics()
     var settlementToMarkPaid by remember { mutableStateOf<Settlement?>(null) }
     var hasLoadedEvent by remember(eventId) { mutableStateOf(false) }
 
@@ -383,7 +385,7 @@ fun SplitEventDetailScreen(eventId: Long, onBack: () -> Unit) {
 
                     1 -> BalancesTab(
                         state = eventState,
-                        onMarkPaid = { settlementToMarkPaid = it },
+                        onMarkPaid = { haptics.confirm(); settlementToMarkPaid = it },
                         onShareMember = { memberId ->
                             viewModel.shareSummary(eventState, memberId)
                         }

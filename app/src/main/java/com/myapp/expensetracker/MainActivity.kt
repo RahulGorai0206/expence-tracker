@@ -9,6 +9,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.runtime.DisposableEffect
 import com.myapp.expensetracker.ui.components.LockedScreen
+import com.myapp.expensetracker.ui.components.rememberHaptics
 import com.myapp.expensetracker.ui.components.isAppLockEnabled
 import com.myapp.expensetracker.ui.components.promptForUnlock
 import androidx.activity.compose.BackHandler
@@ -474,6 +475,15 @@ private fun MainAppContent(
 
 @Composable
 fun RowScope.NavItem(selected: Boolean, icon: ImageVector, label: String, onClick: () -> Unit) {
+    val haptics = rememberHaptics()
+
+    // Wrapped once here so all five tabs feel identical. Re-tapping the current
+    // tab stays silent — nothing changed, so there is nothing to confirm.
+    val onNavClick: () -> Unit = {
+        if (!selected) haptics.tick()
+        onClick()
+    }
+
     val scale by animateFloatAsState(
         targetValue = if (selected) 1.0f else 0.94f,
         animationSpec = spring(
@@ -514,7 +524,7 @@ fun RowScope.NavItem(selected: Boolean, icon: ImageVector, label: String, onClic
             }
             .clip(RoundedCornerShape(100.dp))
             .background(containerColor)
-            .clickable(onClick = onClick),
+            .clickable(onClick = onNavClick),
         contentAlignment = Alignment.Center
     ) {
         Column(

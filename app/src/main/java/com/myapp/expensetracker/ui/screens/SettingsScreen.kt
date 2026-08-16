@@ -76,6 +76,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.myapp.expensetracker.ui.components.BackupProgressDialog
+import com.myapp.expensetracker.ui.components.rememberHaptics
 import com.myapp.expensetracker.ui.components.canAuthenticate
 import com.myapp.expensetracker.ui.components.isAppLockEnabled
 import com.myapp.expensetracker.ui.components.setAppLockEnabled
@@ -288,6 +289,7 @@ fun SettingsScreen(
     val budget by viewModel.currentBudget.collectAsState()
     val smartSuggestions by viewModel.smartSuggestions.collectAsState()
 
+    val haptics = rememberHaptics()
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showPrivacyDialog by remember { mutableStateOf(false) }
     var showBudgetEdit by remember { mutableStateOf(false) }
@@ -986,6 +988,7 @@ fun SettingsScreen(
                     icon = Icons.Default.CalendarMonth,
                     trailing = {
                         Switch(checked = isMonthlyBudget, onCheckedChange = {
+                            haptics.toggle(it)
                             isMonthlyBudget = it
                             sharedPrefs.edit().putBoolean("budget_monthly", it).apply()
                             com.myapp.expensetracker.enqueueWidgetUpdate(context)
@@ -1335,6 +1338,7 @@ fun SettingsScreen(
                     iconColor = if (backgroundMonitoring) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant,
                     trailing = {
                         Switch(checked = backgroundMonitoring, onCheckedChange = {
+                            haptics.toggle(it)
                             backgroundMonitoring = it
                             SmsMonitorService.setEnabled(context, it)
                         })
@@ -1413,6 +1417,7 @@ fun SettingsScreen(
                     icon = Icons.Default.Payment,
                     trailing = {
                         Switch(checked = trackOnlyDebits, onCheckedChange = {
+                            haptics.toggle(it)
                             trackOnlyDebits = it
                             sharedPrefs.edit().putBoolean("track_only_debits", it).apply()
                         })
@@ -1428,6 +1433,7 @@ fun SettingsScreen(
                     icon = Icons.Default.CreditCardOff,
                     trailing = {
                         Switch(checked = ignoreCcBills, onCheckedChange = {
+                            haptics.toggle(it)
                             ignoreCcBills = it
                             sharedPrefs.edit().putBoolean("ignore_cc_bills", it).apply()
                         })
@@ -1737,6 +1743,7 @@ fun SettingsScreen(
                             checked = appLockEnabled,
                             enabled = deviceCanAuthenticate,
                             onCheckedChange = { enabled ->
+                                haptics.toggle(enabled)
                                 appLockEnabled = enabled
                                 setAppLockEnabled(context, enabled)
                             }

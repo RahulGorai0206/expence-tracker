@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.myapp.expensetracker.Transaction
+import com.myapp.expensetracker.ui.components.rememberHaptics
 import com.myapp.expensetracker.ui.components.EmptyState
 import com.myapp.expensetracker.ui.components.TransactionListItem
 import com.myapp.expensetracker.viewmodel.TransactionViewModel
@@ -56,6 +57,7 @@ fun TransactionScreen(onTransactionClick: (Transaction) -> Unit) {
     val transactions by viewModel.transactions.collectAsState()
     val deletedSyncTransactions by viewModel.deletedSyncTransactions.collectAsState()
 
+    val haptics = rememberHaptics()
     var selectedIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     val selectionMode = selectedIds.isNotEmpty()
@@ -69,6 +71,10 @@ fun TransactionScreen(onTransactionClick: (Transaction) -> Unit) {
     }
 
     fun toggleSelection(transaction: Transaction) {
+        // Entering multi-select is a mode change worth a firmer cue than the
+        // individual picks that follow.
+        if (selectedIds.isEmpty()) haptics.longPress() else haptics.tick()
+
         selectedIds = if (transaction.id in selectedIds) {
             selectedIds - transaction.id
         } else {
@@ -88,6 +94,7 @@ fun TransactionScreen(onTransactionClick: (Transaction) -> Unit) {
             confirmButton = {
                 Button(
                     onClick = {
+                        haptics.confirm()
                         val toDelete = selectedTransactions
                         viewModel.softDelete(context, toDelete) {
                             Toast.makeText(
