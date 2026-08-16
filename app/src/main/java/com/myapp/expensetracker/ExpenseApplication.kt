@@ -20,6 +20,9 @@ class ExpenseApplication : Application() {
     override fun onCreate() {
         super.onCreate()
 
+        // Installed first so it captures failures in the rest of startup.
+        CrashReporter.install(this)
+
         startKoin {
             androidContext(this@ExpenseApplication)
             modules(appModule)

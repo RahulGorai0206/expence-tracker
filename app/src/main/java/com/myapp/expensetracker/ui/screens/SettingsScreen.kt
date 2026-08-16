@@ -45,6 +45,7 @@ import com.myapp.expensetracker.AppDatabase
 import com.myapp.expensetracker.BackupResult
 import com.myapp.expensetracker.BackupScope
 import com.myapp.expensetracker.CloudSettingsBackupManager
+import com.myapp.expensetracker.CrashReporter
 import com.myapp.expensetracker.GoogleSheetsLogger
 import com.myapp.expensetracker.LazySyncManager
 import com.myapp.expensetracker.R
@@ -69,6 +70,9 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.myapp.expensetracker.ui.components.BackupProgressDialog
+import com.myapp.expensetracker.ui.components.canAuthenticate
+import com.myapp.expensetracker.ui.components.isAppLockEnabled
+import com.myapp.expensetracker.ui.components.setAppLockEnabled
 import com.myapp.expensetracker.ui.components.BudgetEditSheet
 import com.myapp.expensetracker.ui.components.rememberBackupController
 import com.myapp.expensetracker.viewmodel.HomeViewModel
@@ -286,6 +290,64 @@ fun SettingsScreen(
     var pendingExportScope by remember { mutableStateOf<BackupScope?>(null) }
     var backupMessage by remember { mutableStateOf<String?>(null) }
     var backupFailed by remember { mutableStateOf(false) }
+
+    var appLockEnabled by remember { mutableStateOf(isAppLockEnabled(context)) }
+
+    // ── Crash diagnostics ────────────────────────────────────────────────────
+    var crashRefreshKey by remember { mutableIntStateOf(0) }
+    var showCrashDialog by remember { mutableStateOf(false) }
+    val crashCount by remember(crashRefreshKey) {
+        mutableIntStateOf(CrashReporter.crashCount(context))
+    }
+
+    if (showCrashDialog) {
+        val report = remember(crashRefreshKey) { CrashReporter.readReport(context) }
+        AlertDialog(
+            onDismissRequest = { showCrashDialog = false },
+            icon = { Icon(Icons.Default.BugReport, null) },
+            title = { Text("Crash Reports", fontWeight = FontWeight.Black) },
+            text = {
+                Column(modifier = Modifier.heightIn(max = 400.dp)) {
+                    Text(
+                        "Stored only on this device — nothing is uploaded. Share it if you want to report a bug.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        report,
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                        modifier = Modifier.verticalScroll(rememberScrollState())
+                    )
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    context.startActivity(
+                        Intent.createChooser(
+                            Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_SUBJECT, "Expense Tracker crash report")
+                                putExtra(Intent.EXTRA_TEXT, report.take(100_000))
+                            },
+                            "Share crash report"
+                        )
+                    )
+                }) { Text("Share") }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = {
+                        CrashReporter.clear(context)
+                        crashRefreshKey++
+                        showCrashDialog = false
+                    }) { Text("Clear") }
+                    TextButton(onClick = { showCrashDialog = false }) { Text("Close") }
+                }
+            },
+            shape = RoundedCornerShape(28.dp)
+        )
+    }
 
     val backupController = rememberBackupController(scope) { result ->
         when (result) {
@@ -1456,7 +1518,7 @@ fun SettingsScreen(
                                 isCheckingUpdates = false
                             }
                         }) {
-                            Icon(Icons.Default.Refresh, null)
+                            Icon(Icons.Default.Refresh, contentDescription = "Check for updates")
                         }
                     }
                 }
@@ -1486,6 +1548,59 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Download Update")
             }
+        }
+
+        // --- PRIVACY & SECURITY ---
+        SettingsCategory("PRIVACY & SECURITY") {
+            val deviceCanAuthenticate = remember { canAuthenticate(context) }
+            SettingsItem(
+                title = "App Lock",
+                subtitle = when {
+                    !deviceCanAuthenticate -> "Set a screen lock on your device first"
+                    appLockEnabled -> "Unlock required to open the app"
+                    else -> "Protect your ledger with biometrics or PIN"
+                },
+                icon = if (appLockEnabled) Icons.Default.Lock else Icons.Default.LockOpen,
+                iconColor = if (appLockEnabled) {
+                    Color(0xFF4CAF50)
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                trailing = {
+                    Switch(
+                        checked = appLockEnabled,
+                        enabled = deviceCanAuthenticate,
+                        onCheckedChange = { enabled ->
+                            appLockEnabled = enabled
+                            setAppLockEnabled(context, enabled)
+                        }
+                    )
+                }
+            )
+        }
+
+        // --- DIAGNOSTICS ---
+        SettingsCategory("DIAGNOSTICS") {
+            SettingsItem(
+                title = "Crash Reports",
+                subtitle = if (crashCount > 0) {
+                    "$crashCount crash${if (crashCount == 1) "" else "es"} recorded on this device"
+                } else {
+                    "No crashes recorded"
+                },
+                icon = Icons.Default.BugReport,
+                iconColor = if (crashCount > 0) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.primary
+                },
+                containerColor = if (crashCount > 0) {
+                    MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f)
+                } else {
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                },
+                onClick = { if (crashCount > 0) showCrashDialog = true }
+            )
         }
 
         // --- ABOUT ---

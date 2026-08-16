@@ -60,6 +60,9 @@ interface PendingTransactionDao {
     @Query("DELETE FROM pending_transactions WHERE id = :id")
     suspend fun deleteById(id: Long)
 
+    @Query("UPDATE pending_transactions SET notificationId = :notificationId WHERE id = :id")
+    suspend fun setNotificationId(id: Long, notificationId: Int)
+
     /** Guards against two detection layers queueing the same message. */
     @Query(
         "SELECT COUNT(id) FROM pending_transactions " +

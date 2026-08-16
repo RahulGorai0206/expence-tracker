@@ -3,6 +3,14 @@ package com.myapp.expensetracker
 import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.compose.runtime.DisposableEffect
+import com.myapp.expensetracker.ui.components.LockedScreen
+import com.myapp.expensetracker.ui.components.isAppLockEnabled
+import com.myapp.expensetracker.ui.components.promptForUnlock
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -50,7 +58,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-class MainActivity : ComponentActivity() {
+// FragmentActivity rather than ComponentActivity: BiometricPrompt requires it
+// for the app lock. Compose is unaffected — FragmentActivity extends
+// ComponentActivity, so setContent and enableEdgeToEdge behave identically.
+class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
@@ -83,7 +94,46 @@ class MainActivity : ComponentActivity() {
                 }
             }
             
+            // App lock: gate the whole UI until the user authenticates. Re-armed
+            // whenever the activity stops, so returning from the recents list
+            // asks again.
+            var isUnlocked by rememberSaveable { mutableStateOf(!isAppLockEnabled(context)) }
+            var promptInFlight by remember { mutableStateOf(false) }
+
+            fun requestUnlock() {
+                if (promptInFlight) return
+                promptInFlight = true
+                promptForUnlock(
+                    activity = this@MainActivity,
+                    onSuccess = {
+                        promptInFlight = false
+                        isUnlocked = true
+                    },
+                    onFailure = { promptInFlight = false }
+                )
+            }
+
+            val lifecycleOwner = LocalLifecycleOwner.current
+            DisposableEffect(lifecycleOwner) {
+                val observer = LifecycleEventObserver { _, event ->
+                    if (event == Lifecycle.Event.ON_STOP && isAppLockEnabled(context)) {
+                        isUnlocked = false
+                    }
+                }
+                lifecycleOwner.lifecycle.addObserver(observer)
+                onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+            }
+
+            LaunchedEffect(isUnlocked) {
+                if (!isUnlocked && isAppLockEnabled(context)) requestUnlock()
+            }
+
             LedgerTheme(darkTheme = currentTheme) {
+                if (!isUnlocked) {
+                    LockedScreen(onUnlockClick = { requestUnlock() })
+                    return@LedgerTheme
+                }
+
                 Box(modifier = Modifier.fillMaxSize()) {
                     MainScreen(
                         isDarkTheme = darkTheme,

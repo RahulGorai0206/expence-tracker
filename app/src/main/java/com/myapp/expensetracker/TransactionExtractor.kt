@@ -17,6 +17,13 @@ class TransactionExtractor {
         }
         @Volatile
         private var modelDownloaded = false
+
+        /**
+         * Characters scanned before an amount when looking for "bal"/"balance".
+         * Must be wide enough for "a/c balance is " — a 10-char window left the
+         * "bal" just out of reach and logged account balances as spending.
+         */
+        private const val BALANCE_LOOKBACK = 15
     }
 
     private val categoriesMap = mapOf(
@@ -91,15 +98,8 @@ class TransactionExtractor {
     suspend fun extractTransaction(body: String, sender: String, timestamp: Long): Transaction? {
         val lowerBody = body.lowercase()
         
-        // 1. Skip OTPs and non-transactional alerts
-        if (lowerBody.contains("otp") || lowerBody.contains("verification code") || lowerBody.contains("is your code")) {
-            return null
-        }
-
-        // 1b. Skip informational / promotional bank messages
-        if (nonTransactionalPhrases.any { lowerBody.contains(it) }) {
-            return null
-        }
+        // 1. Skip OTPs, verification codes and promotional bank messages
+        if (isNonTransactional(body)) return null
 
         return try {
             var extractedAmount: Double? = null
@@ -143,45 +143,21 @@ class TransactionExtractor {
 
             // 3. Regex Fallback for Amount (Rs. / INR / ₹)
             if (extractedAmount == null) {
-                val patterns = listOf(
-                    """(?:Rs\.?|INR|₹)\s*(\d+(?:,\d+)*(?:\.\d{1,2})?)""".toRegex(RegexOption.IGNORE_CASE),
-                    """debited\s+by\s*(\d+(?:,\d+)*(?:\.\d{1,2})?)""".toRegex(RegexOption.IGNORE_CASE)
-                )
-                for (pattern in patterns) {
-                    val match = pattern.find(body)
-                    if (match != null) {
-                        val amt = match.groupValues[1].replace(",", "").toDoubleOrNull()
-                        // Ensure it's not the balance
-                        val matchStart = match.range.first
-                        val prefix = lowerBody.substring((matchStart - 10).coerceAtLeast(0), matchStart)
-                        if (!prefix.contains("bal") && amt != null) {
-                            extractedAmount = amt
-                            break
-                        }
-                    }
-                }
+                extractedAmount = extractAmountByRegex(body)
             }
 
-            val isSpend = spendKeywords.any { keywordMatchesTransaction(lowerBody, it) }
-            val isReceive = receiveKeywords.any { lowerBody.contains(it) }
+            val isSpend = isSpendMessage(lowerBody)
+            val isReceive = isReceiveMessage(lowerBody)
 
             if (extractedAmount != null && (isSpend || isReceive)) {
                 val finalAmount = if (isSpend) -extractedAmount else extractedAmount
-                
-                var category = "Other"
-                for ((cat, keywords) in categoriesMap) {
-                    if (keywords.any { lowerBody.contains(it.lowercase()) }) {
-                        category = cat
-                        break
-                    }
-                }
 
                 return Transaction(
                     sender = sender,
                     amount = finalAmount,
                     date = transactionDate,
                     body = body,
-                    category = category,
+                    category = categorize(lowerBody),
                     status = "Cleared",
                     type = "automated"
                 )
@@ -193,12 +169,69 @@ class TransactionExtractor {
         }
     }
 
+    // ── Pure helpers ─────────────────────────────────────────────────────────
+    // Split out of extractTransaction so the parsing rules can be unit tested
+    // without ML Kit or an Android runtime. extractTransaction orchestrates
+    // these; the ML Kit call remains the only untestable part.
+
+    /** OTPs and promotional/informational bank messages that carry no transaction. */
+    internal fun isNonTransactional(body: String): Boolean {
+        val lowerBody = body.lowercase()
+        if (lowerBody.contains("otp") ||
+            lowerBody.contains("verification code") ||
+            lowerBody.contains("is your code")
+        ) return true
+
+        return nonTransactionalPhrases.any { lowerBody.contains(it) }
+    }
+
+    /**
+     * Fallback when ML Kit finds no money entity. Skips amounts preceded by
+     * "bal"/"balance" so an account balance isn't logged as a spend.
+     */
+    internal fun extractAmountByRegex(body: String): Double? {
+        val lowerBody = body.lowercase()
+        val patterns = listOf(
+            """(?:Rs\.?|INR|₹)\s*(\d+(?:,\d+)*(?:\.\d{1,2})?)""".toRegex(RegexOption.IGNORE_CASE),
+            """debited\s+by\s*(\d+(?:,\d+)*(?:\.\d{1,2})?)""".toRegex(RegexOption.IGNORE_CASE)
+        )
+
+        for (pattern in patterns) {
+            // Every match, not just the first: when a message leads with the
+            // available balance, the spend amount comes later in the text.
+            for (match in pattern.findAll(body)) {
+                val amount = match.groupValues[1].replace(",", "").toDoubleOrNull() ?: continue
+                val matchStart = match.range.first
+                val prefix = lowerBody.substring(
+                    (matchStart - BALANCE_LOOKBACK).coerceAtLeast(0),
+                    matchStart
+                )
+                if (!prefix.contains("bal")) return amount
+            }
+        }
+        return null
+    }
+
+    internal fun isSpendMessage(lowerBody: String): Boolean =
+        spendKeywords.any { keywordMatchesTransaction(lowerBody, it) }
+
+    internal fun isReceiveMessage(lowerBody: String): Boolean =
+        receiveKeywords.any { lowerBody.contains(it) }
+
+    /** First matching category wins; "Other" when nothing matches. */
+    internal fun categorize(lowerBody: String): String {
+        for ((category, keywords) in categoriesMap) {
+            if (keywords.any { lowerBody.contains(it.lowercase()) }) return category
+        }
+        return "Other"
+    }
+
     /**
      * Checks if a spend keyword appears in a genuine transactional context.
      * For ambiguous keywords like "txn", verifies that the surrounding words
      * don't indicate a non-transactional context (e.g., "txn limit").
      */
-    private fun keywordMatchesTransaction(body: String, keyword: String): Boolean {
+    internal fun keywordMatchesTransaction(body: String, keyword: String): Boolean {
         if (!body.contains(keyword)) return false
 
         // For "txn", check that it's not followed by disqualifying words

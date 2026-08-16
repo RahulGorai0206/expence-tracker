@@ -54,10 +54,9 @@ object TransactionApproval {
             return
         }
 
-        val notificationId = notificationIdFor(transaction)
         val pendingId = dao.insert(
             PendingTransaction(
-                notificationId = notificationId,
+                notificationId = 0, // replaced below, once the row id is known
                 sender = transaction.sender,
                 amount = transaction.amount,
                 date = transaction.date,
@@ -68,6 +67,9 @@ object TransactionApproval {
                 longitude = transaction.longitude
             )
         )
+
+        val notificationId = notificationIdFor(pendingId)
+        dao.setNotificationId(pendingId, notificationId)
 
         showNotification(appContext, transaction, notificationId, pendingId)
     }
@@ -165,8 +167,23 @@ object TransactionApproval {
 
     // ── Notification plumbing ────────────────────────────────────────────────
 
-    private fun notificationIdFor(transaction: Transaction): Int =
-        (transaction.date % Int.MAX_VALUE).toInt()
+    /**
+     * Derived from the pending row id, not the message timestamp. The old
+     * `date % Int.MAX_VALUE` scheme collided for messages arriving in the same
+     * millisecond, and because Deny/Timeout used `id + 1` / `id + 2` as
+     * PendingIntent request codes, two messages 1–2 ms apart could overwrite
+     * each other's actions — accepting one would resolve the other.
+     *
+     * Spacing ids by [REQUEST_CODE_STRIDE] keeps every action of every pending
+     * transaction in its own slot.
+     */
+    internal fun notificationIdFor(pendingId: Long): Int =
+        ((pendingId % ID_SPACE) * REQUEST_CODE_STRIDE).toInt()
+
+    private const val REQUEST_CODE_STRIDE = 4L
+
+    /** Keeps id * stride comfortably inside Int range. */
+    private const val ID_SPACE = 500_000_000L
 
     private fun showNotification(
         context: Context,

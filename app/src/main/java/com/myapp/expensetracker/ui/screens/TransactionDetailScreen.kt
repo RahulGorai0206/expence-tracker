@@ -186,8 +186,12 @@ fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit)
             TopAppBar(
                 title = { Text("Transaction Details", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { 
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = MaterialTheme.colorScheme.primary) 
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                     }
                 },
                 actions = {
@@ -196,7 +200,13 @@ fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit)
                             .clip(CircleShape)
                             .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)),
                         onClick = { showShareDialog = true }
-                    ) { Icon(Icons.Default.Share, null, tint = MaterialTheme.colorScheme.primary) }
+                    ) {
+                        Icon(
+                            Icons.Default.Share,
+                            contentDescription = "Share transaction",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                     Spacer(modifier = Modifier.width(8.dp))
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
@@ -379,7 +389,11 @@ fun TransactionDetailScreen(initialTransaction: Transaction, onBack: () -> Unit)
                         .clip(RoundedCornerShape(20.dp))
                         .background(MaterialTheme.colorScheme.errorContainer)
                 ) {
-                    Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error)
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Delete transaction",
+                        tint = MaterialTheme.colorScheme.error
+                    )
                 }
             }
             Spacer(modifier = Modifier.height(24.dp))
