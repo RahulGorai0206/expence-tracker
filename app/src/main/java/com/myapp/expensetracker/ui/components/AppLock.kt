@@ -135,3 +135,12 @@ fun LockedScreen(onUnlockClick: () -> Unit) {
         }
     }
 }
+
+/**
+ * How long the app may sit in the background before it re-locks.
+ *
+ * Without a grace period, anything that briefly leaves the activity — the
+ * contact picker, a permission dialog, the system PIN screen behind the
+ * biometric prompt — re-locked the app and demanded a fingerprint on return.
+ */
+const val APP_LOCK_GRACE_MS = 5_000L

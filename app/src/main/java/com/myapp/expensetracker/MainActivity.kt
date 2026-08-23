@@ -8,6 +8,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.runtime.DisposableEffect
+import com.myapp.expensetracker.ui.components.APP_LOCK_GRACE_MS
 import com.myapp.expensetracker.ui.components.LockedScreen
 import com.myapp.expensetracker.ui.components.rememberHaptics
 import com.myapp.expensetracker.ui.components.isAppLockEnabled
@@ -114,10 +115,18 @@ class MainActivity : FragmentActivity() {
                 showBrandedSplash = false
             }
             
-            // App lock. The lock screen is an overlay rather than a replacement
-            // for the app, so unlocking can dissolve it to reveal what's behind.
+            // App lock.
+            //
+            // While locked, the app content is NOT composed at all. An overlay is
+            // not enough: Compose dialogs and bottom sheets render in their own
+            // window, so a sheet left open underneath (e.g. the split
+            // add-member sheet after picking a contact) drew on top of the lock
+            // screen. Content is composed again only for the unlock reveal, so
+            // there is something to reveal.
             var locked by rememberSaveable { mutableStateOf(isAppLockEnabled(context)) }
+            var revealing by remember { mutableStateOf(false) }
             var promptInFlight by remember { mutableStateOf(false) }
+            var backgroundedAt by rememberSaveable { mutableLongStateOf(0L) }
             val unlockReveal = remember { Animatable(0f) }
             val unlockScope = rememberCoroutineScope()
 
@@ -129,12 +138,15 @@ class MainActivity : FragmentActivity() {
                     onSuccess = {
                         promptInFlight = false
                         unlockScope.launch {
-                            // Burst outward from the centre, then drop the overlay.
+                            // Compose the app behind the lock screen, then burst
+                            // outward from the centre to uncover it.
+                            revealing = true
                             unlockReveal.animateTo(
                                 targetValue = 1f,
                                 animationSpec = tween(620, easing = FastOutSlowInEasing)
                             )
                             locked = false
+                            revealing = false
                             unlockReveal.snapTo(0f)
                         }
                     },
@@ -146,17 +158,31 @@ class MainActivity : FragmentActivity() {
             DisposableEffect(lifecycleOwner) {
                 val observer = LifecycleEventObserver { _, event ->
                     when (event) {
-                        Lifecycle.Event.ON_STOP -> if (isAppLockEnabled(context)) {
-                            locked = true
-                            promptInFlight = false
+                        Lifecycle.Event.ON_STOP -> {
+                            // Note the time instead of locking outright, and skip
+                            // it entirely while our own prompt is up — the device
+                            // credential fallback stops the activity, which would
+                            // otherwise re-arm the lock mid-authentication.
+                            if (isAppLockEnabled(context) && !locked && !promptInFlight) {
+                                backgroundedAt = System.currentTimeMillis()
+                            }
                         }
 
-                        // Prompted on RESUME, not during composition: BiometricPrompt
-                        // is fragment-backed and throws if the activity isn't ready,
-                        // which previously left promptInFlight stuck true and made
-                        // every later tap of Unlock do nothing.
-                        Lifecycle.Event.ON_RESUME -> if (locked && isAppLockEnabled(context)) {
-                            requestUnlock()
+                        // Prompted on RESUME, not during composition:
+                        // BiometricPrompt is fragment-backed and throws if the
+                        // activity isn't ready, which previously left
+                        // promptInFlight stuck true and made every later tap of
+                        // Unlock do nothing.
+                        Lifecycle.Event.ON_RESUME -> {
+                            if (isAppLockEnabled(context)) {
+                                val awayFor = if (backgroundedAt == 0L) 0L
+                                else System.currentTimeMillis() - backgroundedAt
+                                if (!locked && awayFor >= APP_LOCK_GRACE_MS) {
+                                    locked = true
+                                }
+                                backgroundedAt = 0L
+                                if (locked) requestUnlock()
+                            }
                         }
 
                         else -> Unit
@@ -168,6 +194,7 @@ class MainActivity : FragmentActivity() {
 
             LedgerTheme(darkTheme = currentTheme) {
                 Box(modifier = Modifier.fillMaxSize()) {
+                    if (!locked || revealing) {
                     MainScreen(
                         isDarkTheme = darkTheme,
                         onDarkThemeChange = {
@@ -187,6 +214,7 @@ class MainActivity : FragmentActivity() {
                         exit = fadeOut(animationSpec = tween(420))
                     ) {
                         BrandedSplashScreen()
+                    }
                     }
 
                     if (locked) {
